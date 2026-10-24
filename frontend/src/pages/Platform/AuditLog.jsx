@@ -23,6 +23,8 @@ const ACTION_LABELS = {
   'customer.data_exported': 'Exportó los datos de un cliente',
   'customer.anonymized': 'Anonimizó un cliente',
   'order.cancelled': 'Anuló un remito',
+  'order.approved': 'Remito con descuento o precio autorizado',
+  'order.approval_failed': 'Autorización de descuento rechazada',
 };
 
 const STATUS = { active: 'activo', suspended: 'suspendido', closing: 'en baja' };
@@ -37,6 +39,13 @@ const describe = (row) => {
     case 'business.closure_started':
       return d.deleteAt ? `Se borra el ${new Date(d.deleteAt).toLocaleDateString('es-AR')}` : '';
     case 'platform.recovery_code_used': return `Quedan ${d.left}`;
+    case 'order.approved': {
+      const parts = [`Autorizó ${d.approver}`];
+      if (d.discountPercent > 0) parts.push(`descuento ${d.discountPercent}%`);
+      if (d.discountAmount > 0) parts.push(`descuento $${d.discountAmount}`);
+      if (d.prices > 0) parts.push(d.prices === 1 ? '1 precio cambiado' : `${d.prices} precios cambiados`);
+      return parts.join(', ');
+    }
     case 'user.created': return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}`;
     case 'user.deleted':
     case 'user.reinvited': return d.role ? `Rol ${word(ROLES, d.role)}` : '';
@@ -54,7 +63,7 @@ const describe = (row) => {
 };
 
 const isWarning = (action) => ['platform.login_failed', 'platform.mfa_failed', 'platform.recovery_code_used',
-  'business.purged'].includes(action);
+  'business.purged', 'order.approval_failed'].includes(action);
 
 export default function AuditLog() {
   const [rows, setRows] = useState([]);

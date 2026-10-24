@@ -102,5 +102,6 @@ export const errorMiddleware = (err, req, res, next) => {
   const isInternal = status >= 500 && process.env.NODE_ENV === 'production';
   res.status(status).json({
     message: isInternal ? 'Error interno del servidor' : err.message || 'Error interno del servidor',
+    ...(err.clientCode && !isInternal ? { code: err.clientCode } : {}),
   });
 };

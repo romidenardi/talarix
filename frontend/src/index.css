@@ -1589,3 +1589,28 @@ td .form-message {
 .audit-warning td {
   background: var(--color-danger-bg, #fdecec);
 }
+
+/* ---------- Autorización de descuentos (pages/Orders/ApprovalDialog.jsx) ---------- */
+.approval-modal p {
+  margin: 0;
+}
+
+.approval-summary {
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius);
+  color: var(--color-warning);
+}
+
+.approval-list-price {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

@@ -90,6 +90,7 @@ src/
   - "Dar de baja" pide escribir el nombre exacto del comercio; el comercio queda "En baja" con la fecha de eliminación (30 días).
   - "Cancelar baja" lo devuelve a activo.
   - Durante la baja, el `admin` del comercio solo ve `/exportar` (el layout redirige) y el resto de los usuarios no puede ingresar.
+- **Autorización de descuentos** (Remitos, rol `operador`): si el remito tiene un descuento o un precio distinto al de lista o al promocional, al generar se abre `pages/Orders/ApprovalDialog.jsx` con el resumen de lo que hay que autorizar. Un administrador o editor escribe ahí su email y contraseña; con eso se genera el remito. Si el servidor responde `APPROVAL_REQUIRED` (venció o cambió algo), se vuelve a pedir. Los productos inactivos no aparecen en el buscador ni se agregan escaneando.
 - **Derechos sobre los datos de clientes** (`admin`, en Clientes): botón "Exportar datos" (pedido de acceso) y "Anonimizar" (pedido de supresión; conserva los remitos del cliente).
 
 ## Estilos
@@ -114,4 +115,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 24/10/2026 (segundo factor del superadmin, actividad, título e idioma de la página).
+Última actualización: 24/10/2026 (autorización de descuentos del operador y productos inactivos en remitos).

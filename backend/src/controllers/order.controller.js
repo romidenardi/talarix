@@ -6,6 +6,8 @@ import { httpError } from '../utils/httpError.js';
 import { splitPrice, splitLineParts } from '../utils/taxes.js';
 import { loadComboComponents } from '../services/combo.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
+import { audit } from '../utils/audit.js';
+import { APPROVER_ROLES, approvalSummary, checkApproval } from '../services/orderApproval.service.js';
 import {
   isPositiveQuantity, isNonNegative, toNumber, toNumberOrZero, round2, round3,
   quantityAllowedFor, unitWord,
@@ -44,7 +46,7 @@ export const getOrder = asyncHandler(async (req, res) => {
 
 export const createOrder = asyncHandler(async (req, res) => {
   const { customerId, paymentId, installmentPlanId, items, notes } = req.body;
-  const { businessId, role } = req.user;
+  const { businessId, role, id: userId } = req.user;
   const requestId = cleanRequestId(req.body.requestId);
 
   // El mismo envío ya se procesó (doble clic o reintento): se devuelve ese remito, no se crea otro
@@ -94,6 +96,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     const payment = await Payment.findOne({ where: { id: paymentId, businessId }, transaction: t });
     if (!payment) throw httpError('Forma de pago no encontrada', 404);
+    if (!payment.active) throw httpError(`La forma de pago ${payment.name} está inactiva. Elegí otra.`);
 
     let installmentPlan = null;
     if (installmentPlanId) {
@@ -112,10 +115,26 @@ export const createOrder = asyncHandler(async (req, res) => {
     for (const [index, row] of rows.entries()) {
       const rowProduct = rowProductMap.get(row.productId);
       if (!rowProduct) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
+      if (!rowProduct.active) {
+        throw httpError(`Artículo ${index + 1}: ${rowProduct.name} está inactivo. Activalo en Productos o elegí otro.`);
+      }
       if (!quantityAllowedFor(rowProduct, row.quantity)) {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} se vende por unidad, la cantidad debe ser un entero`);
       }
     }
+
+    // El operador vende a precio de lista y sin descuentos, salvo que lo autorice un administrador o editor
+    let approver = null;
+    let approval = null;
+    if (!APPROVER_ROLES.includes(role)) {
+      approval = approvalSummary({ rows, productMap: rowProductMap, discountPercent, discountAmount });
+      if (approval.needed) {
+        approver = await checkApproval(req.body.approvalToken, {
+          requesterId: userId, businessId, requestId, summary: approval,
+        });
+      }
+    }
+
     const comboComponents = await loadComboComponents(
       rowProducts.filter((p) => p.isCombo).map((p) => p.id),
       businessId,
@@ -287,6 +306,20 @@ export const createOrder = asyncHandler(async (req, res) => {
       if (previous) return sendExisting(previous.id);
     }
     throw error;
+  }
+
+  if (approver) {
+    await audit(req, {
+      action: 'order.approved',
+      targetType: 'order',
+      targetId: orderId,
+      detail: {
+        approver: approver.email,
+        discountPercent: approval.discountPercent,
+        discountAmount: approval.discountAmount,
+        prices: approval.prices.length,
+      },
+    });
   }
 
   const fullOrder = await Order.findOne({

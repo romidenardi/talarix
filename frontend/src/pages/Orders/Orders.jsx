@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import { getOrders, createOrder, cancelOrder } from '../../api/orders.api.js';
+import { getOrders, createOrder, cancelOrder, approveOrder } from '../../api/orders.api.js';
+import ApprovalDialog from './ApprovalDialog.jsx';
 import { getCustomers, createCustomer } from '../../api/customers.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
@@ -27,6 +28,13 @@ const NEW_PRODUCT = '__new_product__';
 const FISCAL_CONDITIONS = ['Consumidor Final', 'Responsable Inscripto', 'Monotributista', 'Exento'];
 const FISCAL_CONDITIONS_WITH_VAT_BREAKDOWN = ['Responsable Inscripto'];
 
+// Precio que el operador puede usar sin autorización: el de lista o el promocional del producto.
+// Es la misma regla que aplica el servidor (services/orderApproval.service.js).
+const samePrice = (a, b) => Math.abs(Number(a) - Number(b)) < 0.005;
+const isListPrice = (product, unitPrice) =>
+  samePrice(unitPrice, product.price)
+  || (product.promoPrice !== null && product.promoPrice !== undefined && samePrice(unitPrice, product.promoPrice));
+
 const emptyItem = () => ({
   productId: '',
   quantity: 1,
@@ -47,6 +55,10 @@ const Orders = () => {
   const msg = useMessage();
   const { role } = useAuth();
   const canManageData = role === 'admin' || role === 'editor';
+  // Operador: descuentos y precios fuera de lista necesitan la autorización de un admin o editor
+  const needsApprovalForChanges = !canManageData;
+  const [approval, setApproval] = useState(null); // { formData, summary, notice }
+  const approvalTokenRef = useRef(null);
 
   const {
     register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting },
@@ -166,6 +178,49 @@ const Orders = () => {
   const totalFinanced = selectedPlan ? total * (1 + Number(selectedPlan.interestRate) / 100) : total;
   const installmentAmount = selectedPlan ? totalFinanced / selectedPlan.installments : null;
 
+  // Lo que el operador necesita que le autoricen en este remito (null si no hace falta)
+  const approvalRequest = (formData) => {
+    const discountPct = Number(formData.discountPercent) || 0;
+    const discountAmt = Number(formData.discountAmount) || 0;
+    const prices = [];
+    for (const item of formData.items) {
+      const product = products.find((p) => p.id === item.productId);
+      if (!product || isListPrice(product, item.unitPrice)) continue;
+      if (prices.some((p) => p.productId === product.id && samePrice(p.unitPrice, item.unitPrice))) continue;
+      prices.push({
+        productId: product.id,
+        name: product.name,
+        unitPrice: Number(item.unitPrice),
+        listPrice: Number(product.price),
+        perKg: product.unitType === 'weight',
+      });
+    }
+    if (!prices.length && discountPct <= 0 && discountAmt <= 0) return null;
+    return { discountPercent: discountPct, discountAmount: discountAmt, prices };
+  };
+
+  const openApproval = (formData, notice) => {
+    const summary = approvalRequest(formData);
+    if (!summary) return false;
+    setApproval({ formData, summary, notice });
+    return true;
+  };
+
+  const handleApprove = async (email, password) => {
+    const { formData, summary } = approval;
+    const { data } = await approveOrder({
+      email,
+      password,
+      requestId: requestIdRef.current,
+      discountPercent: summary.discountPercent,
+      discountAmount: summary.discountAmount,
+      items: summary.prices.map((p) => ({ productId: p.productId, unitPrice: p.unitPrice })),
+    });
+    approvalTokenRef.current = data.approvalToken;
+    setApproval(null);
+    await onSubmit(formData);
+  };
+
   const onProductChange = (index, productId) => {
     const product = products.find((p) => p.id === productId);
     if (product) {
@@ -180,6 +235,10 @@ const Orders = () => {
     const product = products.find((p) => !p.isCombo && p.scalePlu === label.plu);
     if (!product) {
       msg.error(`No hay ningún producto con el PLU ${label.plu}. Cargalo en Productos → campo "PLU de balanza".`, 'scan');
+      return;
+    }
+    if (product.active === false) {
+      msg.error(`${product.name} está inactivo: no se puede vender. Activalo en Productos.`, 'scan');
       return;
     }
 
@@ -229,6 +288,11 @@ const Orders = () => {
         handleScaleLabel(label);
         return;
       }
+    }
+
+    if (product && product.active === false) {
+      msg.error(`${product.name} está inactivo: no se puede vender. Activalo en Productos.`, 'scan');
+      return;
     }
 
     if (product) {
@@ -323,6 +387,9 @@ const Orders = () => {
       });
       if (missing) return;
 
+      // Operador con descuento o precio fuera de lista: primero la autorización (antes de crear nada)
+      if (needsApprovalForChanges && !approvalTokenRef.current && openApproval(formData)) return;
+
       let customerId = formData.customerId;
       if (isNewCustomer) {
         const { businessName, firstName, lastName, fiscalCondition } = formData.newCustomer;
@@ -379,10 +446,12 @@ const Orders = () => {
         notes: formData.notes || null,
         items: payloadItems,
         requestId: requestIdRef.current,
+        ...(approvalTokenRef.current ? { approvalToken: approvalTokenRef.current } : {}),
       };
 
       await createOrder(payload);
       requestIdRef.current = newRequestId();
+      approvalTokenRef.current = null;
       msg.success('Remito generado, stock actualizado');
       reset({
         customerId: '',
@@ -397,6 +466,11 @@ const Orders = () => {
       loadAll();
     } catch (err) {
       // "Artículo 2: ..." se muestra en ese renglón; el resto, junto al botón
+      // La autorización falta, venció o el remito cambió: se pide de nuevo
+      if (err.response?.data?.code === 'APPROVAL_REQUIRED') {
+        approvalTokenRef.current = null;
+        if (openApproval(formData, err.response.data.message)) return;
+      }
       const text = serverMessage(err, 'Error al generar el remito');
       const row = /^Artículo (\d+):\s*/.exec(text);
       if (row) msg.error(text.slice(row[0].length), `row-${Number(row[1]) - 1}`);
@@ -411,7 +485,8 @@ const Orders = () => {
     detail: [c.fiscalCondition, c.cuit && `CUIT ${c.cuit}`].filter(Boolean).join(' · '),
     keywords: [c.firstName, c.lastName, c.businessName, c.cuit],
   }));
-  const productOptions = products.map((p) => ({
+  // Los productos inactivos no se pueden vender (el servidor también lo controla)
+  const productOptions = products.filter((p) => p.active !== false).map((p) => ({
     value: p.id,
     label: p.name,
     detail: [p.isCombo && 'Combo', p.internalCode && `Cód. ${p.internalCode}`, p.scalePlu && `PLU ${p.scalePlu}`, `Stock: ${formatQuantity(p.stock, p.unitType)}`]
@@ -551,6 +626,13 @@ const Orders = () => {
             />
           </div>
         </div>
+
+        {needsApprovalForChanges && (
+          <p className="report-note">
+            Los descuentos y los precios distintos a los de lista tiene que autorizarlos un administrador o editor:
+            al generar el remito se te va a pedir su email y contraseña.
+          </p>
+        )}
 
         <div className="field">
           <label htmlFor="notes">Notas (opcional)</label>
@@ -815,6 +897,15 @@ const Orders = () => {
         <FormMessage message={msg.at()} onClose={msg.clear} />
         <RequiredLegend />
       </form>
+
+      {approval && (
+        <ApprovalDialog
+          summary={approval.summary}
+          notice={approval.notice}
+          onApprove={handleApprove}
+          onCancel={() => setApproval(null)}
+        />
+      )}
 
       <div className="table-wrapper">
         <table>

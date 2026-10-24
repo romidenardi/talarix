@@ -98,6 +98,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/payments`, `/customers`, `/suppliers` | autenticados | Formas de pago (cuotas y descuentos), clientes, proveedores |
 | `/purchases`, `/orders` | autenticados | Compras y remitos |
 | `/orders/:id/cancel` | `admin`, `editor` | Anula un remito y devuelve el stock |
+| `/orders/approval` | `operador` | Autorización de un admin o editor (su email y contraseña) para un remito con descuento o precio fuera de lista |
 | `/reports/*` | `admin`, `editor` | Panel de inicio y reportes (ventas, productos, clientes, formas de pago, IVA) |
 | `/imports` | `admin`, `editor` | Importación desde Excel (bloqueada en demo) |
 | `/users` | `admin` | Usuarios del comercio (bloqueada en demo) |
@@ -108,6 +109,9 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 Detalles que conviene saber:
 - Los precios incluyen IVA. `Order.total` es el final, después de descuentos; las cuotas son informativas.
 - Los remitos anulados (`status = 'cancelled'`) quedan en el historial y se excluyen de los reportes.
+- **No se venden productos ni formas de pago inactivos:** el remito responde `400` (el frontend tampoco los ofrece).
+- **Descuentos del operador:** el `operador` vende al precio de lista o al precio promocional del producto, sin descuentos. Para otra cosa, un `admin` o `editor` del comercio escribe su email y contraseña en la pantalla de Remitos: `POST /orders/approval` devuelve un token de 10 minutos que vale solo para ese remito (su `requestId`), esos descuentos y esos precios. `POST /orders` lo revisa; si falta, venció o el remito cambió, responde `403` con `code: 'APPROVAL_REQUIRED'` y el frontend vuelve a pedir la autorización. Límite: 5 intentos fallidos cada 15 minutos por operador. Queda en el registro de actividad (`order.approved` con quién autorizó, y `order.approval_failed`). Lógica en `services/orderApproval.service.js`.
+- `httpError(mensaje, status, code)`: el `code` opcional llega al frontend en la respuesta (por ejemplo `APPROVAL_REQUIRED`).
 - El código de barras de un producto es opcional y **único por comercio**. Los vacíos se guardan como `NULL`.
 - Los errores de unicidad responden `409` con un mensaje en castellano.
 - **Nada con historial se borra:** un cliente con remitos, un proveedor con compras, un producto vendido o comprado, un combo vendido o una forma de pago usada responden `409` con un mensaje que propone la alternativa (anonimizar al cliente, o marcar inactivo el proveedor o el producto). En la base, esas claves foráneas son `ON DELETE RESTRICT`. Los movimientos de stock sí se borran junto con un producto que nunca se usó.
@@ -125,7 +129,7 @@ Detalles que conviene saber:
 
 ## Seguridad y multi-comercio
 - Todo recurso se filtra por `req.user.businessId`. El middleware de autenticación revalida en cada request que el usuario esté activo y con contraseña, y que el comercio esté activo.
-- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios) y `operador` (solo compras y remitos).
+- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios) y `operador` (solo compras y remitos; descuentos y precios fuera de lista con autorización de un admin o editor).
 - El **superadmin** usa un login y un token aparte (`/api/platform/*`). Ve metadatos de cuentas, nunca contenido de los comercios ni contraseñas.
 - Los usuarios se crean de dos maneras: el administrador del comercio les asigna una contraseña, o les manda una **invitación** por mail para que elijan la suya.
 - Los links de invitación (vencen a los 7 días) y de restablecer contraseña (vencen a la hora) son de un solo uso. En la base solo se guarda el hash del token.
@@ -387,4 +391,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 24/10/2026 (segundo factor del superadmin, registro de actividad y arreglos menores: mensajes, errores de datos y logs).
+Última actualización: 24/10/2026 (autorización de descuentos del operador y productos inactivos en remitos).
