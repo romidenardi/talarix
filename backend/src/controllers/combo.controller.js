@@ -1,8 +1,16 @@
-import { Product, ComboItem, sequelize } from '../models/index.js';
+import { Product, ComboItem, Category, sequelize } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { isPositiveInt, toNumber, round2 } from '../utils/numbers.js';
 import { computeCombo, withComboData } from '../services/combo.service.js';
+
+// La categoría tiene que ser del mismo comercio (igual que en productos)
+const resolveCategoryId = async (categoryId, businessId, transaction) => {
+  if (!categoryId) return null;
+  const category = await Category.findOne({ where: { id: categoryId, businessId }, transaction });
+  if (!category) throw httpError('La categoría no existe', 404);
+  return category.id;
+};
 
 const parseSpecialPrice = (value) => {
   if (value === undefined) return undefined;
@@ -91,7 +99,7 @@ export const createCombo = asyncHandler(async (req, res) => {
       description: description || null,
       brand: brand || null,
       model: model || null,
-      categoryId: categoryId || null,
+      categoryId: await resolveCategoryId(categoryId, businessId, t),
       unitType: 'unit',
       price: calc.price,
       cost: calc.cost,
@@ -141,7 +149,7 @@ export const updateCombo = asyncHandler(async (req, res) => {
     for (const field of ['description', 'brand', 'model']) {
       if (field in req.body) changes[field] = req.body[field] || null;
     }
-    if ('categoryId' in req.body) changes.categoryId = req.body.categoryId || null;
+    if ('categoryId' in req.body) changes.categoryId = await resolveCategoryId(req.body.categoryId, businessId, t);
     if ('barcode' in req.body) changes.barcode = cleanBarcode(req.body.barcode) ?? null;
     if ('active' in req.body) changes.active = Boolean(req.body.active);
     if ('specialPrice' in req.body) changes.specialPrice = parseSpecialPrice(req.body.specialPrice) ?? null;

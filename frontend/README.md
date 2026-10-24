@@ -114,4 +114,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 24/10/2026 (segundo factor del superadmin y actividad).
+Última actualización: 24/10/2026 (segundo factor del superadmin, actividad, título e idioma de la página).

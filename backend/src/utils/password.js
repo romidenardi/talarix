@@ -5,6 +5,9 @@ import { httpError } from './httpError.js';
 // y el resto se ignoraría sin aviso. Por eso el máximo se mide en bytes.
 export const MIN_PASSWORD_LENGTH = 8;
 export const MAX_PASSWORD_BYTES = 72;
+// Vueltas de bcrypt para usuarios (el superadmin también usa 12). Los hashes viejos, con 10, siguen
+// funcionando: bcrypt guarda las vueltas dentro del hash. Cada contraseña nueva o cambiada usa 12.
+export const BCRYPT_ROUNDS = 12;
 
 export const checkPassword = (password) => {
   const value = String(password ?? '');

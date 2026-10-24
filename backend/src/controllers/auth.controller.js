@@ -6,7 +6,7 @@ import { httpError } from '../utils/httpError.js';
 import { hashToken } from '../utils/inviteToken.js';
 import { LEGAL_VERSION } from '../utils/legal.js';
 import { issueAccessLink, wasIssuedRecently } from '../utils/accessLinks.js';
-import { checkPassword } from '../utils/password.js';
+import { checkPassword, BCRYPT_ROUNDS } from '../utils/password.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -77,7 +77,7 @@ export const activateAccount = asyncHandler(async (req, res) => {
     throw httpError('El link de activación es inválido o venció. Solicitá uno nuevo.');
   }
 
-  user.passwordHash = await bcrypt.hash(password, 10);
+  user.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   user.inviteTokenHash = null;
   user.inviteExpiresAt = null;
   user.termsVersion = LEGAL_VERSION;
@@ -135,7 +135,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
     throw httpError('Esta cuenta todavía no está activada. Usá el link de invitación que te enviamos.');
   }
 
-  user.passwordHash = await bcrypt.hash(password, 10);
+  user.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   user.inviteTokenHash = null;
   user.inviteExpiresAt = null;
   user.tokenVersion += 1; // cierra las sesiones abiertas con la contraseña anterior

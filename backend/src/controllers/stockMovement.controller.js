@@ -10,7 +10,7 @@ export const getMovementsByProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
 
   const product = await Product.findOne({ where: { id: productId, businessId } });
-  if (!product) throw httpError('Product not found', 404);
+  if (!product) throw httpError('Producto no encontrado', 404);
 
   const movements = await StockMovement.findAll({
     where: { productId, businessId },

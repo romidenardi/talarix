@@ -5,7 +5,7 @@ import { httpError } from '../utils/httpError.js';
 import { sendMail, appUrl } from '../utils/mailer.js';
 import { userCreatedEmail } from '../utils/mailTemplates.js';
 import { issueAccessLink } from '../utils/accessLinks.js';
-import { checkPassword } from '../utils/password.js';
+import { checkPassword, BCRYPT_ROUNDS } from '../utils/password.js';
 import { audit } from '../utils/audit.js';
 
 const ROLES = ['admin', 'editor', 'operador'];
@@ -48,7 +48,7 @@ export const createUser = asyncHandler(async (req, res) => {
   const user = await User.create({
     name,
     email,
-    passwordHash: sendInvite ? null : await bcrypt.hash(password, 10),
+    passwordHash: sendInvite ? null : await bcrypt.hash(password, BCRYPT_ROUNDS),
     role: role || 'operador',
     businessId: req.user.businessId,
   });
@@ -121,7 +121,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (active !== undefined) user.active = active;
   if (password) {
     checkPassword(String(password));
-    user.passwordHash = await bcrypt.hash(String(password), 10);
+    user.passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
     user.inviteTokenHash = null;
     user.inviteExpiresAt = null;
     user.tokenVersion += 1; // cierra las sesiones abiertas con la contraseña anterior

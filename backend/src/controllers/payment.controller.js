@@ -85,7 +85,7 @@ export const createPayment = asyncHandler(async (req, res) => {
 export const updatePayment = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const payment = await Payment.findOne({ where: { id, businessId: req.user.businessId } });
-  if (!payment) throw httpError('Payment not found', 404);
+  if (!payment) throw httpError('Forma de pago no encontrada', 404);
 
   const plans = Array.isArray(req.body.installmentPlans) ? normalizePlans(req.body.installmentPlans) : null;
 
@@ -108,7 +108,7 @@ export const deletePayment = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
 
   const payment = await Payment.findOne({ where: { id, businessId } });
-  if (!payment) throw httpError('Payment not found', 404);
+  if (!payment) throw httpError('Forma de pago no encontrada', 404);
 
   const usedInOrders = await Order.count({ where: { paymentId: id, businessId } });
   if (usedInOrders > 0) {

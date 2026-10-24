@@ -111,9 +111,11 @@ Detalles que conviene saber:
 - El código de barras de un producto es opcional y **único por comercio**. Los vacíos se guardan como `NULL`.
 - Los errores de unicidad responden `409` con un mensaje en castellano.
 - **Nada con historial se borra:** un cliente con remitos, un proveedor con compras, un producto vendido o comprado, un combo vendido o una forma de pago usada responden `409` con un mensaje que propone la alternativa (anonimizar al cliente, o marcar inactivo el proveedor o el producto). En la base, esas claves foráneas son `ON DELETE RESTRICT`. Los movimientos de stock sí se borran junto con un producto que nunca se usó.
-- **Ediciones:** cada controlador acepta solo los campos permitidos (`pick` de `utils/pick.js`). El stock y el `businessId` no se pueden cambiar desde la API; la categoría de un producto y la categoría padre se verifican contra el comercio.
+- **Ediciones:** cada controlador acepta solo los campos permitidos (`pick` de `utils/pick.js`). El stock y el `businessId` no se pueden cambiar desde la API; la categoría de un producto o de un combo y la categoría padre se verifican contra el comercio.
 - **Sin remitos ni compras duplicados:** el frontend manda un `requestId` (UUID) con cada remito y cada compra, y deshabilita el botón mientras envía. Si el mismo `requestId` llega dos veces (doble clic, reintento por un corte de red), el servidor responde `200` con el remito o la compra que ya creó, en lugar de crear otro. Es único por comercio (`uq_orders_business_request`, `uq_purchases_business_request`).
 - Los errores de validación responden `400` con `message` (el primero, para mostrar) y `errors` (la lista completa).
+- Un texto más largo que su columna, un número demasiado grande o un dato con formato incorrecto responden `400` con un mensaje en castellano (por ejemplo, "El texto es demasiado largo (notas)"), en lugar de `500`. Lo resuelve `error.middleware.js` con el código de error de MySQL.
+- **Logs de errores:** `error.middleware.js` no vuelca el error completo, porque los de Sequelize traen la consulta con los valores (emails, nombres, CUIT). Registra el método, la ruta y el código de MySQL; los errores propios de validación (`4xx`) no se registran.
 - **Productos por peso:** `unitType = 'weight'`. Su precio, costo y promo son **por kg** y las cantidades están en kg con hasta 3 decimales. Los productos por unidad solo admiten cantidades enteras (lo valida el servidor).
 - Stock y cantidades (`products.stock`, `order_items`, `purchase_items`, `stock_movements`) son `DECIMAL(12,3)`. Sequelize devuelve los DECIMAL como texto: los modelos usan `numericGetter` (`utils/decimalColumn.js`) para que lleguen como número, y las cuentas con cantidades se redondean con `round3`.
 - **Balanza:** cada producto por peso puede tener un `scalePlu` (1 a 9999), único por comercio. El comercio guarda en `businesses.scale_config` cómo se arma la etiqueta EAN-13 (prefijo, posición del PLU y del valor, si trae peso o importe, decimales, dígito de control). El valor de fábrica es el de Systel. La etiqueta se interpreta en el frontend; el backend solo guarda la configuración.
@@ -135,7 +137,7 @@ Detalles que conviene saber:
   - **Crear usuarios y enviar links** (mandan mails): 30 por día por comercio.
   - Los contadores están en memoria: se reinician con cada deploy y no se comparten si algún día hay más de una instancia.
 - **Sesiones:** el token dura 8 h y lleva la versión de sesión del usuario (`tv`, columna `users.token_version`). Al restablecer la contraseña, o cuando el administrador le pone una nueva, la versión sube y las sesiones abiertas con la contraseña anterior dejan de valer. Cambiar el rol o desactivar al usuario se aplica en el pedido siguiente, porque el middleware los lee de la base. Cerrar sesión solo borra el token en ese navegador. Los tokens se verifican solo con `HS256`.
-- **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`.
+- **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
 - La exportación tiene límite de 5 pedidos por hora por usuario.
 - Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo, se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
 
@@ -385,4 +387,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 24/10/2026 (segundo factor del superadmin y registro de actividad).
+Última actualización: 24/10/2026 (segundo factor del superadmin, registro de actividad y arreglos menores: mensajes, errores de datos y logs).
