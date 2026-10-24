@@ -88,6 +88,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     throw httpError('El descuento por monto no es válido');
   }
 
+  // Autorización de descuentos del operador (se completa dentro de la transacción y se registra al final)
+  let approver = null;
+  let approval = null;
+
   const t = await sequelize.transaction();
   let orderId;
   try {
@@ -124,8 +128,6 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
 
     // El operador vende a precio de lista y sin descuentos, salvo que lo autorice un administrador o editor
-    let approver = null;
-    let approval = null;
     if (!APPROVER_ROLES.includes(role)) {
       approval = approvalSummary({ rows, productMap: rowProductMap, discountPercent, discountAmount });
       if (approval.needed) {
