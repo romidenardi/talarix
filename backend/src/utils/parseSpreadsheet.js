@@ -39,6 +39,9 @@ export const parseSpreadsheet = (file) => {
       cellFormula: false,
       cellHTML: false,
       cellStyles: false,
+      // CSV: todo como texto. Si no, "1,500" (un kilo y medio, a la argentina) se leería como 1500.
+      // Los números los interpreta después utils/importValues.js. No afecta a los .xlsx.
+      raw: true,
     });
   } catch {
     throw httpError('No se pudo leer el archivo. Verificá que sea un Excel (.xlsx o .xls) o un CSV válido.');

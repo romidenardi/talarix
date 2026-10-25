@@ -68,12 +68,31 @@ export const startTestServer = async () => {
     return { status: response.status, body: data };
   };
 
+  // upload('/api/imports/products', { token, filename: 'p.csv', content: 'texto o Buffer' })
+  const upload = async (path, { token, filename, content }) => {
+    const form = new FormData();
+    form.append('file', new Blob([content]), filename);
+    const response = await fetch(`${baseUrl}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const text = await response.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = text;
+    }
+    return { status: response.status, body: data };
+  };
+
   const stop = async () => {
     await new Promise((resolve) => server.close(resolve));
     await models.sequelize.close();
   };
 
-  return { api, models, stop };
+  return { api, upload, models, stop };
 };
 
 const tokenFor = (user) =>

@@ -133,7 +133,11 @@ Detalles que conviene saber:
 - **Balanza:** cada producto por peso puede tener un `scalePlu` (1 a 9999), único por comercio. El comercio guarda en `businesses.scale_config` cómo se arma la etiqueta EAN-13 (prefijo, posición del PLU y del valor, si trae peso o importe, decimales, dígito de control). El valor de fábrica es el de Systel. La etiqueta se interpreta en el frontend; el backend solo guarda la configuración.
 - Los combos siguen usando cantidades enteras y no admiten productos por peso (se filtra en el frontend).
 - **Importación:** hasta 5 MB y 5.000 filas por archivo, solo la primera hoja. Además del filtro por extensión, `utils/parseSpreadsheet.js` revisa que el contenido coincida (un .xlsx tiene que ser un ZIP; un .csv, texto) y responde `400` con un mensaje claro si el archivo no se puede leer.
-- La importación acepta la columna opcional `PLU Balanza` (solo con `Unidad = peso`); en productos por peso, Precio y Costo son por kg.
+- **Importación: todo o nada** (`services/import.service.js`). Primero se revisan todas las filas; si alguna tiene un error, no se guarda ninguna y se devuelve la lista (`imported: false`, `errors: [{ row, message }]`). Si están todas bien, se guardan juntas en una transacción.
+- **Sin duplicados:** las filas que ya existen se saltean y se informan en `skipped` (productos por código interno; clientes y proveedores por CUIT o, sin CUIT, por nombre). Subir dos veces el mismo archivo no duplica nada. Un código de barras o un PLU que ya usa otro producto es un error. Un producto existente **no se modifica** desde la importación.
+- **Valores** (`utils/importValues.js`): precios con coma o punto decimal (`1234,50`, `1.234,50`, `1234.50`; `1.234` es mil doscientos treinta y cuatro); Unidad `unidad`/`peso` y también `kg`, `kilo`, `granel`; IVA `21`, `10,5` o `0` (vacío = 21, y también `21%` o el formato porcentaje de Excel); columna opcional `Impuestos Internos`; condición fiscal con variantes (`CF`, `RI`, `Monotributo`…). Las columnas se reconocen sin importar tildes ni mayúsculas. Los CSV se leen como texto (`raw: true`) para que "1,500" no se convierta en 1500.
+- **Categorías:** se buscan sin importar tildes ni mayúsculas ("almacen" = "Almacén"); las que no existen se crean y se informan en `notes`.
+- La importación acepta la columna opcional `PLU Balanza` (solo con `Unidad = peso`); en productos por peso, Precio y Costo son por kg. El precio es obligatorio; el costo vacío queda en 0.
 
 ## Tests
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
@@ -415,4 +419,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 25/10/2026 (tests, integración continua, /health, cierre ordenado y Sentry).
+Última actualización: 25/10/2026 (importación atómica, sin duplicados y con valores a la argentina).
