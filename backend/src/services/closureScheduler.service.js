@@ -2,6 +2,7 @@ import cron from 'node-cron';
 import pkg from 'sequelize';
 import { Business } from '../models/index.js';
 import { purgeBusiness } from './businessPurge.service.js';
+import { captureError } from '../utils/monitoring.js';
 
 const { Op } = pkg;
 
@@ -21,20 +22,31 @@ export const runClosurePurge = async () => {
       console.log(`[baja] Se eliminaron los datos del comercio ${business.id}`);
     } catch (error) {
       console.error(`[baja] No se pudo eliminar el comercio ${business.id}:`, error.message);
+      // Alerta: la baja prometida en los términos no se cumplió
+      captureError(error, { job: 'baja', comercio: business.id });
     }
   }
 };
 
+const onFailure = (label) => (error) => {
+  console.error(`[baja] ${label}:`, error);
+  captureError(error, { job: 'baja' });
+};
+
+// Devuelve lo que hay que parar al cerrar el servidor
 export const startClosureScheduler = () => {
-  cron.schedule(
+  const task = cron.schedule(
     '30 3 * * *',
     () => {
-      runClosurePurge().catch((error) => console.error('[baja] Error en la tarea diaria:', error));
+      runClosurePurge().catch(onFailure('Error en la tarea diaria'));
     },
     { timezone: TIMEZONE }
   );
 
-  setTimeout(() => {
-    runClosurePurge().catch((error) => console.error('[baja] Error al iniciar:', error));
+  const firstRun = setTimeout(() => {
+    runClosurePurge().catch(onFailure('Error al iniciar'));
   }, 30 * 1000);
+  firstRun.unref();
+
+  return [task, { stop: () => clearTimeout(firstRun) }];
 };

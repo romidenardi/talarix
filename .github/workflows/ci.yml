@@ -1,0 +1,74 @@
+# Integración continua: en cada push a staging o main (y en cada pull request) GitHub corre las
+# pruebas del backend y del frontend, revisa las dependencias y compila el frontend.
+# Si algo falla, el commit aparece con una cruz roja en GitHub y llega un mail.
+name: CI
+
+on:
+  push:
+    branches: [staging, main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    env:
+      # Valores solo para las pruebas: no son claves reales de ningún entorno
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ci-root
+      TEST_DB_NAME: talarix_test
+      JWT_SECRET: ci-jwt-solo-para-pruebas
+      PLATFORM_JWT_SECRET: ci-platform-solo-para-pruebas
+      APP_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - name: Pruebas unitarias
+        run: npm test
+      - name: Pruebas de integración (API + MySQL)
+        run: npm run test:integration
+      - name: Dependencias sin vulnerabilidades altas o críticas
+        run: npm audit --omit=dev --audit-level=high
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Pruebas
+        run: npm test
+      - name: Compilación
+        run: npm run build
+      - name: Dependencias sin vulnerabilidades altas o críticas
+        run: npm audit --omit=dev --audit-level=high

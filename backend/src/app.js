@@ -25,6 +25,7 @@ import { authMiddleware, authAllowClosing } from './middlewares/auth.middleware.
 import { requireRole } from './middlewares/role.middleware.js';
 import { forbidInDemo } from './middlewares/demo.middleware.js';
 import { errorMiddleware } from './middlewares/error.middleware.js';
+import { sequelize } from './models/index.js';
 
 const app = express();
 
@@ -36,6 +37,17 @@ const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .filter(Boolean);
 
 app.use(helmet());
+
+// Estado del servidor, para Railway (Healthcheck Path) o un monitor externo. No pide token ni
+// devuelve datos: solo si el servidor responde y llega a la base.
+app.get('/health', async (req, res) => {
+  try {
+    await sequelize.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'error', message: 'Sin conexión con la base de datos' });
+  }
+});
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
 app.use(express.json({ limit: '1mb' }));
 

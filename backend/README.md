@@ -37,8 +37,10 @@ Una base local vieja falla al arrancar si le faltan los cambios manuales del his
 |---|---|
 | `npm run dev` | Arranca con recarga automática (nodemon) |
 | `npm start` | Arranca para producción (`node server.js`) |
+| `npm test` | Pruebas unitarias (no necesitan base de datos) |
+| `npm run test:integration` | Pruebas de la API contra una base MySQL de pruebas (ver "Tests") |
 
-Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, se conecta a MySQL, ejecuta `sequelize.sync()` (ver "Cambios en la base de datos") y, una vez escuchando, arranca la tarea programada de bajas (ver "Baja de comercios").
+Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, se conecta a MySQL, ejecuta `sequelize.sync()` (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
 
 ## Variables de entorno
 
@@ -56,12 +58,18 @@ Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SEC
 | `DISABLE_AUTO_PURGE` | No | `true` desactiva el borrado automático de comercios dados de baja (ver "Baja de comercios") |
 | `MAIL_HOST`, `MAIL_PORT`, `MAIL_USER`, `MAIL_PASS`, `MAIL_FROM` | No | Envío de mails por SMTP (ver "Mails") |
 | `MAIL_SECURE` | No | `true` o `false`. Por defecto es `true` solo con el puerto 465 |
+| `SENTRY_DSN` | Recomendada | Monitoreo de errores (ver "Monitoreo"). Sin ella, los errores van solo a los logs |
+| `SENTRY_ENVIRONMENT` | No | Nombre del entorno en Sentry: `production` o `staging`. Si no está, usa `NODE_ENV` |
+| `TEST_DB_NAME` | No | Solo para `npm run test:integration`: base de pruebas (por defecto `talarix_test`; tiene que terminar en `_test`) |
 
 En Railway, los `DB_*` se cargan como referencias a la base del propio entorno, por ejemplo `${{MySQL.MYSQLHOST}}`. Nunca uses los secretos de producción en staging.
 
 ## Estructura
 ```
-server.js          arranque: valida variables, conecta, sync, listen y tarea de bajas
+server.js          arranque: valida variables, Sentry, conecta, sync, listen, tareas y cierre ordenado
+test/unit/         pruebas unitarias (node --test)
+test/integration/  pruebas de la API contra MySQL
+../.github/workflows/ci.yml   integración continua en GitHub Actions
 src/
   app.js           Express: middlewares globales y montaje de rutas
   config/          conexión a la base (database.js)
@@ -126,6 +134,22 @@ Detalles que conviene saber:
 - Los combos siguen usando cantidades enteras y no admiten productos por peso (se filtra en el frontend).
 - **Importación:** hasta 5 MB y 5.000 filas por archivo, solo la primera hoja. Además del filtro por extensión, `utils/parseSpreadsheet.js` revisa que el contenido coincida (un .xlsx tiene que ser un ZIP; un .csv, texto) y responde `400` con un mensaje claro si el archivo no se puede leer.
 - La importación acepta la columna opcional `PLU Balanza` (solo con `Unidad = peso`); en productos por peso, Precio y Costo son por kg.
+
+## Tests
+Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
+
+- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, IVA e impuestos internos, combos, configuración de la balanza, y que el cálculo del frontend (`frontend/src/utils/taxes.js`) dé lo mismo que el del backend. No necesitan base.
+- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios y borrado de productos con ventas.
+  - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
+  - En local usan `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` del `.env`. El usuario tiene que poder crear bases (con `root` local alcanza).
+- **GitHub Actions** (`.github/workflows/ci.yml`, en la raíz del repo): en cada push a `staging` o `main` corre las dos clases de pruebas con un MySQL propio, `npm audit` (falla con vulnerabilidades altas o críticas) y la compilación del frontend. El resultado se ve en la pestaña **Actions** del repo y al lado de cada commit (✓ o ✗).
+
+Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merge a `main`, el último commit de `staging` tiene que estar en verde.
+
+## Monitoreo
+- **`GET /health`**: responde `{"status":"ok"}` si el servidor anda y llega a la base, o `503` si no. No pide token ni devuelve datos. En Railway se configura en el servicio del backend → Settings → Deploy → **Healthcheck Path** = `/health`: así, en cada deploy, Railway no le pasa tráfico a la versión nueva hasta que responde bien.
+- **Sentry** (`utils/monitoring.js`): avisa por mail cuando hay errores del servidor (`500`), cuando falla la baja automática de un comercio o el reinicio de la demo, y cuando hay una promesa rechazada sin manejar. Se activa con `SENTRY_DSN`; sin ella no hace nada. No envía datos personales: descarta el cuerpo de los pedidos, cookies, tokens y datos del usuario (salvo su id). Los errores de datos (`4xx`) no se envían.
+- **Logs** (Railway → Deploy Logs): los errores aparecen como `[error] MÉTODO /ruta · …`, sin la consulta SQL ni datos personales.
 
 ## Seguridad y multi-comercio
 - Todo recurso se filtra por `req.user.businessId`. El middleware de autenticación revalida en cada request que el usuario esté activo y con contraseña, y que el comercio esté activo.
@@ -391,4 +415,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 24/10/2026 (autorización de descuentos del operador y productos inactivos en remitos).
+Última actualización: 25/10/2026 (tests, integración continua, /health, cierre ordenado y Sentry).

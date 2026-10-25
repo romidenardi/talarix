@@ -1,3 +1,5 @@
+import { captureError } from '../utils/monitoring.js';
+
 const FIELD_LABELS = {
   internalCode: 'código interno',
   barcode: 'código de barras',
@@ -57,6 +59,13 @@ const logError = (err, req) => {
     console.error(`[error] ${where} · ${err.name} · ${code} ${detail || ''}`.trim());
   } else if ((err.status || 500) >= 500) {
     console.error(`[error] ${where} ·`, err.stack || err.message);
+  }
+  // A Sentry van solo los errores del servidor (500), no los de datos mal cargados (4xx)
+  const isDataError = err.name === 'SequelizeDatabaseError' && DATA_ERRORS[err.original?.code];
+  const handled = ['SequelizeUniqueConstraintError', 'SequelizeForeignKeyConstraintError',
+    'SequelizeValidationError', 'MulterError'].includes(err.name);
+  if (!isDataError && !handled && (err.status || 500) >= 500) {
+    captureError(err, { ruta: where });
   }
 };
 

@@ -45,7 +45,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
 
   const rows = items.map((item, index) => {
     const n = index + 1;
-    if (!item || !item.productId) throw httpError(`Artículo ${n}: falta el producto`);
+    if (!item || typeof item.productId !== 'string' || !item.productId) throw httpError(`Artículo ${n}: falta el producto`);
     if (!isPositiveQuantity(item.quantity)) {
       throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales`);
     }
