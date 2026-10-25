@@ -1,4 +1,5 @@
-import { Purchase, PurchaseItem, Product, Supplier, StockMovement, sequelize } from '../models/index.js';
+import { Purchase, PurchaseItem, Product, Supplier, sequelize } from '../models/index.js';
+import { lockProducts, moveStock, actorFields } from '../services/stock.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
@@ -69,17 +70,18 @@ export const createPurchase = asyncHandler(async (req, res) => {
     const supplier = await Supplier.findOne({ where: { id: supplierId, businessId }, transaction: t });
     if (!supplier) throw httpError('Proveedor no encontrado', 404);
 
+    // Los productos se bloquean ordenados por id, igual que al vender (evita deadlocks)
+    const locked = await lockProducts(rows.map((r) => r.productId), businessId, t);
     const byProduct = new Map();
     let total = 0;
     for (const [index, row] of rows.entries()) {
       let entry = byProduct.get(row.productId);
       if (!entry) {
-        const product = await Product.findOne({
-          where: { id: row.productId, businessId },
-          transaction: t,
-          lock: t.LOCK.UPDATE,
-        });
+        const product = locked.get(row.productId);
         if (!product) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
+        if (product.isCombo) {
+          throw httpError(`Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`);
+        }
         entry = { product, quantity: 0, lastCost: row.unitCost };
         byProduct.set(row.productId, entry);
       }
@@ -98,6 +100,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
       total: round2(total),
       requestId,
       businessId,
+      ...actorFields(req.user),
     }, { transaction: t });
     purchaseId = purchase.id;
 
@@ -111,17 +114,14 @@ export const createPurchase = asyncHandler(async (req, res) => {
     }
 
     for (const { product, quantity, lastCost } of byProduct.values()) {
-      await StockMovement.create({
-        businessId,
-        productId: product.id,
+      product.cost = lastCost; // se guarda junto con el stock
+      await moveStock({
+        product,
         type: 'in',
-        quantity,
-        reason: `Compra a proveedor ${supplier.name}`,
-      }, { transaction: t });
-
-      product.stock = round3(product.stock + quantity);
-      product.cost = lastCost;
-      await product.save({ transaction: t });
+        delta: quantity,
+        reason: `Compra a ${supplier.name}${invoiceNumber ? `, factura ${invoiceNumber}` : ''}`,
+        actor: req.user,
+      }, t);
     }
 
     await t.commit();

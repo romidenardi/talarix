@@ -33,7 +33,7 @@ const buildAuthMiddleware = ({ allowClosing }) => async (req, res, next) => {
         active: true,
         passwordHash: { [Op.ne]: null },
       },
-      attributes: ['id', 'businessId', 'role', 'tokenVersion'],
+      attributes: ['id', 'businessId', 'role', 'tokenVersion', 'name'],
       include: [{ model: Business, attributes: ['status', 'type'] }],
     });
 
@@ -58,6 +58,7 @@ const buildAuthMiddleware = ({ allowClosing }) => async (req, res, next) => {
 
     req.user = {
       id: user.id,
+      name: user.name,
       businessId: user.businessId,
       role: user.role,
       businessType: user.Business.type,

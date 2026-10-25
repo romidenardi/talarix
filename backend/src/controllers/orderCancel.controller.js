@@ -1,10 +1,12 @@
 import {
-  Order, OrderItem, Product, Customer, Payment, StockMovement, sequelize,
+  Order, OrderItem, Product, Customer, Payment, sequelize,
 } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { round3 } from '../utils/numbers.js';
 import { audit } from '../utils/audit.js';
+import { lockProducts, moveStock } from '../services/stock.service.js';
+import { formatOrderNumber } from '../services/orderNumber.service.js';
 
 const arDate = (date) =>
   new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -56,24 +58,19 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       }
     }
 
+    // Los productos se bloquean ordenados por id, igual que al vender (evita deadlocks)
+    const locked = await lockProducts([...quantityByProduct.keys()], businessId, t);
     for (const [productId, quantity] of quantityByProduct) {
-      const product = await Product.findOne({
-        where: { id: productId, businessId },
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
+      const product = locked.get(productId);
       if (!product) throw httpError('Un producto del remito ya no existe: no se puede anular', 409);
 
-      await StockMovement.create({
-        businessId,
-        productId,
+      await moveStock({
+        product,
         type: 'in',
-        quantity,
-        reason: `Anulación de remito del ${arDate(order.date)} a ${customerName}`,
-      }, { transaction: t });
-
-      product.stock = round3(product.stock + quantity);
-      await product.save({ transaction: t });
+        delta: quantity,
+        reason: `Anulación del remito ${formatOrderNumber(order)} del ${arDate(order.date)} a ${customerName}`,
+        actor: req.user,
+      }, t);
     }
 
     order.status = 'cancelled';

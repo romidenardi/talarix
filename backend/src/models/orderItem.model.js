@@ -33,6 +33,20 @@ const OrderItem = sequelize.define('OrderItem', {
     type: DataTypes.JSON,
     allowNull: true,
   },
+  // IVA e impuestos internos del producto AL MOMENTO DE LA VENTA (los reportes usan estos, no los
+  // actuales del producto). En combos, cada componente guarda los suyos dentro de `components`.
+  vatRate: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'vat_rate',
+    get: numericGetter('vatRate'),
+  },
+  otherTaxes: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true,
+    field: 'other_taxes',
+    get: numericGetter('otherTaxes'),
+  },
 }, {
   tableName: 'order_items',
 });

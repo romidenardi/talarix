@@ -1,20 +1,22 @@
 import {
-  Order, OrderItem, Product, Customer, Payment, InstallmentPlan, StockMovement, sequelize,
+  Order, OrderItem, Product, Customer, Payment, InstallmentPlan, sequelize,
 } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
-import { splitPrice, splitLineParts } from '../utils/taxes.js';
 import { loadComboComponents } from '../services/combo.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { audit } from '../utils/audit.js';
 import { APPROVER_ROLES, approvalSummary, checkApproval } from '../services/orderApproval.service.js';
+import { lockProducts, moveStock, actorFields } from '../services/stock.service.js';
+import { priceOrder, discriminatesVatFor } from '../services/orderPricing.js';
+import { nextOrderNumber, formatOrderNumber } from '../services/orderNumber.service.js';
 import {
   isPositiveQuantity, isNonNegative, toNumber, toNumberOrZero, round2, round3,
   quantityAllowedFor, unitWord,
 } from '../utils/numbers.js';
 
-const FISCAL_CONDITIONS_WITH_VAT_BREAKDOWN = ['Responsable Inscripto'];
 const ROLES_THAT_CAN_ADD_STOCK = ['admin', 'editor'];
+const MAX_PRICE = 99999999;
 
 const orderIncludes = [
   { model: Customer },
@@ -30,7 +32,7 @@ export const getOrders = asyncHandler(async (req, res) => {
   const orders = await Order.findAll({
     where: { businessId: req.user.businessId },
     include: orderIncludes,
-    order: [['date', 'DESC']],
+    order: [['date', 'DESC'], ['number', 'DESC']],
   });
   res.json(orders);
 });
@@ -70,11 +72,13 @@ export const createOrder = asyncHandler(async (req, res) => {
     if (!isPositiveQuantity(item.quantity)) {
       throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales`);
     }
-    if (!isNonNegative(item.unitPrice)) throw httpError(`Artículo ${n}: el precio no es válido`);
+    if (!isNonNegative(item.unitPrice) || toNumber(item.unitPrice) > MAX_PRICE) {
+      throw httpError(`Artículo ${n}: el precio no es válido`);
+    }
     return {
       productId: item.productId,
       quantity: round3(toNumber(item.quantity)),
-      unitPrice: toNumber(item.unitPrice),
+      unitPrice: round2(toNumber(item.unitPrice)), // centavos: es lo que se guarda y se imprime
       addStock: item.addStock === true,
     };
   });
@@ -143,6 +147,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       t
     );
 
+    // Cuánto sale de cada producto (los combos descuentan sus componentes)
     const requested = new Map();
     const addStockFor = new Set();
     const viaCombo = new Set();
@@ -164,20 +169,20 @@ export const createOrder = asyncHandler(async (req, res) => {
       }
     }
 
-    const stockPlan = new Map();
+    // Primero el número (bloquea el comercio) y después los productos, siempre en el mismo orden
+    const number = await nextOrderNumber(businessId, t);
+    const locked = await lockProducts([...requested.keys()], businessId, t);
+
+    const stockPlan = [];
     for (const [productId, qty] of requested) {
-      const product = await Product.findOne({
-        where: { id: productId, businessId },
-        transaction: t,
-        lock: t.LOCK.UPDATE,
-      });
+      const product = locked.get(productId);
       if (!product) throw httpError(`Producto no encontrado: ${productId}`, 404);
 
-      const shortfall = round3(Math.max(qty - product.stock, 0));
+      const shortfall = round3(Math.max(qty - Number(product.stock), 0));
       if (shortfall > 0) {
         if (!addStockFor.has(productId)) {
           const forCombo = viaCombo.has(productId) ? ' (necesario para un combo)' : '';
-          throw httpError(`Stock insuficiente para ${product.name}${forCombo} (disponible: ${product.stock}, pedido: ${qty})`);
+          throw httpError(`Stock insuficiente para ${product.name}${forCombo} (disponible: ${Number(product.stock)}, pedido: ${qty})`);
         }
         if (!ROLES_THAT_CAN_ADD_STOCK.includes(role)) {
           throw httpError(
@@ -186,117 +191,97 @@ export const createOrder = asyncHandler(async (req, res) => {
           );
         }
       }
-      stockPlan.set(productId, { product, qty, shortfall });
+      stockPlan.push({ product, qty, shortfall });
     }
 
-    const discriminatesVat = FISCAL_CONDITIONS_WITH_VAT_BREAKDOWN.includes(customer.fiscalCondition);
-
-    let grossSubtotal = 0;
-    let grossVat = 0;
-    let grossInternal = 0;
-    let grossTotal = 0;
-    for (const row of rows) {
-      const itemTotal = round2(row.quantity * row.unitPrice);
-      let parts;
-      if (rowProductMap.get(row.productId).isCombo) {
-        row.components = comboComponents.get(row.productId).map((c) => ({
-          productId: c.productId,
-          name: c.product.name,
-          internalCode: c.product.internalCode,
-          quantity: c.quantity,
-          price: Number(c.product.price) || 0,
-          vatRate: Number(c.product.vatRate) || 0,
-          otherTaxes: Number(c.product.otherTaxes) || 0,
-        }));
-        parts = splitLineParts(itemTotal, row.components);
-      } else {
-        const { product } = stockPlan.get(row.productId);
-        parts = [splitPrice(itemTotal, product.vatRate, product.otherTaxes)];
+    // Lo que se vende, con el IVA del momento (se guarda en cada renglón)
+    const lines = rows.map((row) => {
+      const product = rowProductMap.get(row.productId);
+      if (product.isCombo) {
+        return {
+          ...row,
+          vatRate: null,
+          otherTaxes: null,
+          components: comboComponents.get(row.productId).map((c) => ({
+            productId: c.productId,
+            name: c.product.name,
+            internalCode: c.product.internalCode,
+            quantity: c.quantity,
+            price: Number(c.product.price) || 0,
+            vatRate: Number(c.product.vatRate) || 0,
+            otherTaxes: Number(c.product.otherTaxes) || 0,
+          })),
+        };
       }
-      for (const part of parts) {
-        grossSubtotal += part.net;
-        grossVat += part.vat;
-        grossInternal += part.internal;
-      }
-      grossTotal += itemTotal;
-    }
+      return {
+        ...row,
+        vatRate: Number(product.vatRate) || 0,
+        otherTaxes: product.otherTaxes === null || product.otherTaxes === undefined ? null : Number(product.otherTaxes),
+        components: null,
+      };
+    });
 
-    const totalDiscount = grossTotal * (discountPercent / 100) + discountAmount;
-    if (totalDiscount > grossTotal + 0.005) {
-      throw httpError('El descuento no puede ser mayor al total del remito');
-    }
-
-    const total = round2(grossTotal - totalDiscount);
-    const scale = grossTotal > 0 ? total / grossTotal : 1;
-    const subtotal = discriminatesVat ? round2(grossSubtotal * scale) : null;
-    const vatAmount = discriminatesVat ? round2(grossVat * scale) : null;
-    const internalTaxAmount = discriminatesVat ? round2(grossInternal * scale) : null;
-
-    let installmentsCount = null;
-    let interestRate = null;
-    let installmentAmount = null;
-    let totalFinanced = null;
-    if (installmentPlan) {
-      installmentsCount = installmentPlan.installments;
-      interestRate = Number(installmentPlan.interestRate);
-      totalFinanced = round2(total * (1 + interestRate / 100));
-      installmentAmount = round2(totalFinanced / installmentsCount);
-    }
+    const totals = priceOrder({
+      lines,
+      discountPercent,
+      discountAmount,
+      discriminatesVat: discriminatesVatFor(customer.fiscalCondition),
+      plan: installmentPlan,
+    });
 
     const order = await Order.create({
+      businessId,
+      number,
       customerId: customer.id,
       paymentId: payment.id,
       installmentPlanId: installmentPlan ? installmentPlan.id : null,
       notes,
-      grossTotal: round2(grossTotal),
+      grossTotal: totals.grossTotal,
       discountPercent,
       discountAmount,
-      total,
-      subtotal,
-      vatAmount,
-      internalTaxAmount,
-      discriminatesVat,
-      installmentsCount,
-      interestRate,
-      installmentAmount,
-      totalFinanced,
+      total: totals.total,
+      subtotal: totals.subtotal,
+      vatAmount: totals.vatAmount,
+      internalTaxAmount: totals.internalTaxAmount,
+      discriminatesVat: discriminatesVatFor(customer.fiscalCondition),
+      installmentsCount: totals.installmentsCount,
+      interestRate: totals.interestRate,
+      installmentAmount: totals.installmentAmount,
+      totalFinanced: totals.totalFinanced,
       requestId,
-      businessId,
+      ...actorFields(req.user),
     }, { transaction: t });
     orderId = order.id;
 
-    for (const row of rows) {
-      await OrderItem.create({
-        orderId: order.id,
-        productId: row.productId,
-        quantity: row.quantity,
-        unitPrice: row.unitPrice,
-        components: row.components || null,
-      }, { transaction: t });
-    }
+    await OrderItem.bulkCreate(lines.map((line) => ({
+      orderId: order.id,
+      productId: line.productId,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vatRate: line.vatRate,
+      otherTaxes: line.otherTaxes,
+      components: line.components,
+    })), { transaction: t });
 
-    const customerName = customer.businessName || customer.firstName;
-    for (const { product, qty, shortfall } of stockPlan.values()) {
+    const customerName = customer.businessName || [customer.firstName, customer.lastName].filter(Boolean).join(' ');
+    const label = `remito ${formatOrderNumber(order)} a ${customerName}`;
+    for (const { product, qty, shortfall } of stockPlan) {
       if (shortfall > 0) {
-        await StockMovement.create({
-          businessId,
-          productId: product.id,
+        await moveStock({
+          product,
           type: 'in',
-          quantity: shortfall,
-          reason: `Ajuste desde remito a ${customerName}: faltaban ${shortfall} ${unitWord(product)}`,
-        }, { transaction: t });
+          delta: shortfall,
+          reason: `Ajuste desde ${label}: faltaban ${shortfall} ${unitWord(product)}`,
+          actor: req.user,
+        }, t);
       }
-
-      await StockMovement.create({
-        businessId,
-        productId: product.id,
+      await moveStock({
+        product,
         type: 'out',
-        quantity: -qty,
-        reason: `Remito a cliente ${customerName}${viaCombo.has(product.id) ? ' (incluye combos)' : ''}`,
-      }, { transaction: t });
-
-      product.stock = round3(product.stock + shortfall - qty);
-      await product.save({ transaction: t });
+        delta: -qty,
+        reason: `Venta, ${label}${viaCombo.has(product.id) ? ' (incluye combos)' : ''}`,
+        actor: req.user,
+      }, t);
     }
 
     await t.commit();

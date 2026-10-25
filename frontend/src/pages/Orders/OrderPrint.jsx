@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { getOrder } from '../../api/orders.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
 import { formatQuantity, perKg } from '../../utils/quantity.js';
+import { orderNumberLabel } from '../../utils/orderNumber.js';
 
 const OrderPrint = () => {
   const { id } = useParams();
@@ -45,7 +46,7 @@ const OrderPrint = () => {
 
         <header className="print-header">
           <h1>Remito</h1>
-          <p>N° {order.id.slice(0, 8).toUpperCase()}</p>
+          <p>N° {orderNumberLabel(order)}</p>
           <p>{new Date(order.date).toLocaleDateString('es-AR')}</p>
         </header>
 

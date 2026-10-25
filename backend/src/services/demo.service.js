@@ -5,6 +5,9 @@ import {
 } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
 import { round2 } from '../utils/numbers.js';
+import { moveStock, actorFields } from './stock.service.js';
+import { priceOrder, discriminatesVatFor } from './orderPricing.js';
+import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
 
 const { Op } = pkg;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -53,66 +56,65 @@ const PRODUCTS = [
   ['GOL-002', '7790000000127', 'Chocolate con leche 100 g', 'Cacao Sur', 'Golosinas', 2300, 1500, 21, 35],
 ];
 
+// Los datos de ejemplo usan el mismo cálculo, la misma numeración y el mismo movimiento de stock
+// que los remitos y compras reales: no pueden quedar distintos.
+const DEMO_ACTOR = { id: null, name: 'Datos de ejemplo' };
+
 const seedOrder = async ({
   t, businessId, customer, payment, plan = null, lines, daysAgo, products,
   discountPercent = 0, discountAmount = 0,
 }) => {
-  const discriminatesVat = customer.fiscalCondition === 'Responsable Inscripto';
-  const resolved = lines.map(([code, quantity]) => ({ product: products[code], quantity }));
+  const discriminatesVat = discriminatesVatFor(customer.fiscalCondition);
+  const resolved = lines.map(([code, quantity]) => ({
+    product: products[code],
+    quantity,
+    unitPrice: Number(products[code].price),
+    vatRate: Number(products[code].vatRate) || 0,
+    otherTaxes: products[code].otherTaxes ?? null,
+  }));
 
-  let grossSubtotal = 0;
-  let grossVat = 0;
-  let grossTotal = 0;
-  for (const { product, quantity } of resolved) {
-    if (product.stock < quantity) throw new Error(`Datos demo inconsistentes: sin stock de ${product.name}`);
-    const itemTotal = quantity * Number(product.price);
-    const vatRate = Number(product.vatRate) || 0;
-    const itemNet = vatRate > 0 ? itemTotal / (1 + vatRate / 100) : itemTotal;
-    grossSubtotal += itemNet;
-    grossVat += itemTotal - itemNet;
-    grossTotal += itemTotal;
-  }
-
-  const totalDiscount = grossTotal * (discountPercent / 100) + discountAmount;
-  const total = round2(grossTotal - totalDiscount);
-  const scale = grossTotal > 0 ? total / grossTotal : 1;
-
-  const installmentsCount = plan ? plan.installments : null;
-  const interestRate = plan ? Number(plan.interestRate) : null;
-  const totalFinanced = plan ? round2(total * (1 + interestRate / 100)) : null;
-  const installmentAmount = plan ? round2(totalFinanced / installmentsCount) : null;
-
+  const totals = priceOrder({ lines: resolved, discountPercent, discountAmount, discriminatesVat, plan });
   const date = daysAgoDate(daysAgo);
   const order = await Order.create({
     businessId,
+    number: await nextOrderNumber(businessId, t),
     customerId: customer.id,
     paymentId: payment.id,
     installmentPlanId: plan ? plan.id : null,
     date,
-    grossTotal: round2(grossTotal),
+    grossTotal: totals.grossTotal,
     discountPercent,
     discountAmount,
-    total,
-    subtotal: discriminatesVat ? round2(grossSubtotal * scale) : null,
-    vatAmount: discriminatesVat ? round2(grossVat * scale) : null,
+    total: totals.total,
+    subtotal: totals.subtotal,
+    vatAmount: totals.vatAmount,
+    internalTaxAmount: totals.internalTaxAmount,
     discriminatesVat,
-    installmentsCount,
-    interestRate,
-    installmentAmount,
-    totalFinanced,
+    installmentsCount: totals.installmentsCount,
+    interestRate: totals.interestRate,
+    installmentAmount: totals.installmentAmount,
+    totalFinanced: totals.totalFinanced,
+    ...actorFields(DEMO_ACTOR),
   }, { transaction: t });
 
-  const customerName = customer.businessName || customer.firstName;
-  for (const { product, quantity } of resolved) {
+  const customerName = customer.businessName || [customer.firstName, customer.lastName].filter(Boolean).join(' ');
+  for (const line of resolved) {
     await OrderItem.create({
-      orderId: order.id, productId: product.id, quantity, unitPrice: product.price,
+      orderId: order.id,
+      productId: line.product.id,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      vatRate: line.vatRate,
+      otherTaxes: line.otherTaxes,
     }, { transaction: t });
-    await StockMovement.create({
-      businessId, productId: product.id, type: 'out', quantity: -quantity,
-      reason: `Remito a cliente ${customerName}`, date,
-    }, { transaction: t });
-    product.stock -= quantity;
-    await product.save({ transaction: t });
+    await moveStock({
+      product: line.product,
+      type: 'out',
+      delta: -line.quantity,
+      reason: `Venta, remito ${formatOrderNumber(order)} a ${customerName}`,
+      actor: DEMO_ACTOR,
+      date,
+    }, t);
   }
 };
 
@@ -122,7 +124,7 @@ const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, l
   const date = daysAgoDate(daysAgo);
 
   const purchase = await Purchase.create(
-    { businessId, supplierId: supplier.id, invoiceNumber, date, total },
+    { businessId, supplierId: supplier.id, invoiceNumber, date, total, ...actorFields(DEMO_ACTOR) },
     { transaction: t }
   );
 
@@ -131,13 +133,15 @@ const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, l
       { purchaseId: purchase.id, productId: product.id, quantity, unitCost },
       { transaction: t }
     );
-    await StockMovement.create({
-      businessId, productId: product.id, type: 'in', quantity,
-      reason: `Compra a proveedor ${supplier.name}`, date,
-    }, { transaction: t });
-    product.stock += quantity;
     product.cost = unitCost;
-    await product.save({ transaction: t });
+    await moveStock({
+      product,
+      type: 'in',
+      delta: quantity,
+      reason: `Compra a ${supplier.name}, factura ${invoiceNumber}`,
+      actor: DEMO_ACTOR,
+      date,
+    }, t);
   }
 };
 
@@ -157,12 +161,12 @@ const seedDemoData = async (businessId, t) => {
   for (const [code, barcode, name, brand, category, price, cost, vatRate, stock] of PRODUCTS) {
     products[code] = await Product.create({
       businessId, internalCode: code, barcode, name, brand, price, cost, vatRate,
-      unitType: 'unit', stock, categoryId: categories[category].id,
+      unitType: 'unit', stock: 0, categoryId: categories[category].id,
     }, { transaction: t });
-    await StockMovement.create({
-      businessId, productId: products[code].id, type: 'adjustment', quantity: stock,
-      reason: 'Stock inicial', date: daysAgoDate(20),
-    }, { transaction: t });
+    await moveStock({
+      product: products[code], type: 'adjustment', delta: stock, reason: 'Stock inicial',
+      actor: DEMO_ACTOR, date: daysAgoDate(20),
+    }, t);
   }
 
   // Clientes

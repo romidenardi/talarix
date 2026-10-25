@@ -33,6 +33,17 @@ const Purchase = sequelize.define('Purchase', {
     allowNull: false,
     defaultValue: 0,
   },
+  // Quién lo hizo: el id y el nombre (por si después se borra el usuario)
+  createdById: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'created_by_id',
+  },
+  createdByName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'created_by_name',
+  },
   // Identificador del envío desde el frontend, para no crear dos veces el mismo (ver utils/requestId.js)
   requestId: {
     type: DataTypes.UUID,

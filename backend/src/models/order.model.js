@@ -121,6 +121,22 @@ const Order = sequelize.define('Order', {
     allowNull: true,
     field: 'cancelled_by_id',
   },
+  // Número correlativo por comercio (services/orderNumber.service.js)
+  number: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  // Quién lo hizo: el id y el nombre (por si después se borra el usuario)
+  createdById: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'created_by_id',
+  },
+  createdByName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'created_by_name',
+  },
   // Identificador del envío desde el frontend, para no crear dos veces el mismo (ver utils/requestId.js)
   requestId: {
     type: DataTypes.UUID,
@@ -131,6 +147,7 @@ const Order = sequelize.define('Order', {
   tableName: 'orders',
   indexes: [
     { unique: true, fields: ['business_id', 'request_id'], name: 'uq_orders_business_request' },
+    { unique: true, fields: ['business_id', 'number'], name: 'uq_orders_business_number' },
   ],
 });
 

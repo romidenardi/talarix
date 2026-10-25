@@ -8,6 +8,8 @@ import Spinner from './Spinner.jsx';
 import { formatQuantity, formatSignedQuantity, quantityStep } from '../../utils/quantity.js';
 import { RequiredMark, RequiredLegend } from './Required.jsx';
 
+const MOVEMENT_TYPES = { in: 'Ingreso', out: 'Egreso', adjustment: 'Ajuste' };
+
 const StockMovementPanel = ({ product, onStockChange }) => {
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,15 +108,17 @@ const StockMovementPanel = ({ product, onStockChange }) => {
                 <th>Tipo</th>
                 <th>Cambio</th>
                 <th>Motivo</th>
+                <th>Usuario</th>
               </tr>
             </thead>
             <tbody>
               {movements.map((m) => (
                 <tr key={m.id}>
                   <td data-label="Fecha">{new Date(m.date).toLocaleString('es-AR')}</td>
-                  <td data-label="Tipo">{m.type}</td>
+                  <td data-label="Tipo">{MOVEMENT_TYPES[m.type] || m.type}</td>
                   <td data-label="Cambio">{formatSignedQuantity(m.quantity, product.unitType)}</td>
                   <td data-label="Motivo">{m.reason || '—'}</td>
+                  <td data-label="Usuario">{m.createdByName || '—'}</td>
                 </tr>
               ))}
             </tbody>

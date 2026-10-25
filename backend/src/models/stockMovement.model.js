@@ -37,6 +37,17 @@ const StockMovement = sequelize.define('StockMovement', {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   },
+  // Quién lo hizo: el id y el nombre (por si después se borra el usuario)
+  createdById: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'created_by_id',
+  },
+  createdByName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'created_by_name',
+  },
 }, {
   tableName: 'stock_movements',
 });

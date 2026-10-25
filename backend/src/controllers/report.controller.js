@@ -58,7 +58,7 @@ const loadOrders = (businessId, start, end) =>
   Order.findAll({
     where: { businessId, status: 'active', date: { [Op.gte]: start, [Op.lt]: end } },
     include: [
-      { model: OrderItem, as: 'items', attributes: ['productId', 'quantity', 'unitPrice', 'components'] },
+      { model: OrderItem, as: 'items', attributes: ['productId', 'quantity', 'unitPrice', 'components', 'vatRate', 'otherTaxes'] },
       { model: Customer, attributes: ['id', 'firstName', 'lastName', 'businessName'] },
       { model: Payment, attributes: ['id', 'name'] },
     ],
@@ -307,7 +307,8 @@ export const vatReport = asyncHandler(async (req, res) => {
     };
 
     for (const item of order.items) {
-      const itemTotal = Number(item.quantity) * Number(item.unitPrice) * scale;
+      // Mismo redondeo por renglón que al generar el remito (services/orderPricing.js)
+      const itemTotal = round2(Number(item.quantity) * Number(item.unitPrice)) * scale;
 
       // Combo: se reparte entre sus productos con los datos guardados al vender
       if (Array.isArray(item.components) && item.components.length) {
@@ -315,12 +316,15 @@ export const vatReport = asyncHandler(async (req, res) => {
         continue;
       }
 
+      // El IVA guardado al vender. Los remitos anteriores a esa columna usan el actual del producto.
       const product = products.get(item.productId);
-      const rate = Number(product?.vatRate) || 0;
-      const split = splitPrice(itemTotal, rate, product?.otherTaxes);
+      const soldWithRate = item.vatRate !== null && item.vatRate !== undefined;
+      const rate = soldWithRate ? Number(item.vatRate) : Number(product?.vatRate) || 0;
+      const internalRate = soldWithRate ? Number(item.otherTaxes) || 0 : Number(product?.otherTaxes) || 0;
+      const split = splitPrice(itemTotal, rate, internalRate);
       addPart({
         vatRate: rate,
-        internalRate: Number(product?.otherTaxes) || 0,
+        internalRate,
         total: itemTotal,
         ...split,
       });

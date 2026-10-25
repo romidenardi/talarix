@@ -4,7 +4,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { cleanRequestId } from '../utils/requestId.js';
 import { audit } from '../utils/audit.js';
-import { isNonNegative, toNumber, toNumberOrZero } from '../utils/numbers.js';
+import { isNonNegative, toNumber, toNumberOrZero, round2 } from '../utils/numbers.js';
 import { APPROVER_ROLES, approvalSummary, signApproval } from '../services/orderApproval.service.js';
 
 // POST /api/orders/approval
@@ -23,7 +23,7 @@ export const approveOrder = asyncHandler(async (req, res) => {
   const items = Array.isArray(req.body.items) ? req.body.items : [];
   const rows = items
     .filter((item) => item && typeof item.productId === 'string' && isNonNegative(item.unitPrice))
-    .map((item) => ({ productId: item.productId, unitPrice: toNumber(item.unitPrice) }));
+    .map((item) => ({ productId: item.productId, unitPrice: round2(toNumber(item.unitPrice)) }));
   const products = await Product.findAll({
     where: { id: [...new Set(rows.map((r) => r.productId))], businessId },
     attributes: ['id', 'name', 'price', 'promoPrice'],

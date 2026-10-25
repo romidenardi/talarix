@@ -77,7 +77,10 @@ src/
   routes/          definición de rutas
   models/          modelos Sequelize
   middlewares/     auth, roles, demo, errores
-  services/        servicios: datos de la cuenta demo, exportación a Excel,
+  services/        servicios: movimientos de stock (stock.service.js), cálculo
+                   del remito (orderPricing.js), número de remito
+                   (orderNumber.service.js), autorización de descuentos,
+                   importación, datos de la cuenta demo, exportación a Excel,
                    borrado de un comercio y programador de bajas
   jobs/            tareas programadas (reinicio nocturno de la demo)
   utils/           ayudas: asyncHandler, httpError, números y cantidades
@@ -117,6 +120,11 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 Detalles que conviene saber:
 - Los precios incluyen IVA. `Order.total` es el final, después de descuentos; las cuotas son informativas.
 - Los remitos anulados (`status = 'cancelled'`) quedan en el historial y se excluyen de los reportes.
+- **Número de remito** (`orders.number`): correlativo por comercio (1, 2, 3…), se muestra como `00000123`. Lo asigna `services/orderNumber.service.js` bloqueando la fila del comercio, y el índice único `uq_orders_business_number` impide repetidos. Los anulados conservan su número.
+- **Stock: un solo lugar** (`services/stock.service.js`). Remitos, anulaciones, compras, ajustes manuales y datos demo cambian el stock solo con `moveStock`, que deja el movimiento, guarda quién lo hizo y no deja el stock negativo. Los productos se bloquean con `lockProducts`, **siempre ordenados por id**: dos ventas simultáneas con los mismos productos en distinto orden se esperan en lugar de trabarse (deadlock).
+- **Quién hizo cada cosa:** remitos, compras y movimientos de stock guardan `created_by_id` y `created_by_name` (el nombre queda aunque después se borre el usuario). La anulación guarda además `cancelled_by_id`.
+- **Cálculo del remito** (`services/orderPricing.js`, función pura con pruebas): el precio unitario se redondea a centavos antes de calcular, cada renglón se redondea y el total es la suma de los renglones, así el remito impreso siempre cierra (10,333 × 3 → 10,33 → 30,99). Lo usan los remitos reales y los datos demo.
+- **IVA del momento de la venta:** cada renglón guarda `vat_rate` y `other_taxes` (los combos, dentro de `components`). El reporte de IVA usa esos, así que cambiar después el IVA de un producto no mueve las ventas ya hechas. Los renglones anteriores a la columna se completaron con el IVA que tenía el producto al migrar.
 - **No se venden productos ni formas de pago inactivos:** el remito responde `400` (el frontend tampoco los ofrece).
 - **Descuentos del operador:** el `operador` vende al precio de lista o al precio promocional del producto, sin descuentos. Para otra cosa, un `admin` o `editor` del comercio escribe su email y contraseña en la pantalla de Remitos: `POST /orders/approval` devuelve un token de 10 minutos que vale solo para ese remito (su `requestId`), esos descuentos y esos precios. `POST /orders` lo revisa; si falta, venció o el remito cambió, responde `403` con `code: 'APPROVAL_REQUIRED'` y el frontend vuelve a pedir la autorización. Límite: 5 intentos fallidos cada 15 minutos por operador. Queda en el registro de actividad (`order.approved` con quién autorizó, y `order.approval_failed`). Lógica en `services/orderApproval.service.js`.
 - `httpError(mensaje, status, code)`: el `code` opcional llega al frontend en la respuesta (por ejemplo `APPROVAL_REQUIRED`).
@@ -275,6 +283,36 @@ Regla de oro: **todo cambio de base se corre en producción antes de hacer el me
 ### Historial de cambios manuales
 Ya aplicados en staging y producción. Una base nueva creada desde cero no los necesita: `sync` crea las tablas con sus columnas actuales.
 
+**Stock y remitos: número, usuario e IVA guardado** (bloque 2, octubre 2026). **Antes** de desplegar, y las dos `UPDATE` también: numeran los remitos que ya existían (por comercio y por fecha) y completan el IVA de los renglones viejos con el actual del producto. El índice único del número lo crea `sync`.
+```sql
+ALTER TABLE orders ADD COLUMN `number` INT NULL;
+ALTER TABLE orders ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE orders ADD COLUMN created_by_name VARCHAR(100) NULL;
+ALTER TABLE purchases ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE purchases ADD COLUMN created_by_name VARCHAR(100) NULL;
+ALTER TABLE stock_movements ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE stock_movements ADD COLUMN created_by_name VARCHAR(100) NULL;
+ALTER TABLE order_items ADD COLUMN vat_rate DECIMAL(5,2) NULL;
+ALTER TABLE order_items ADD COLUMN other_taxes DECIMAL(5,2) NULL;
+
+UPDATE orders o
+JOIN (
+  SELECT id, ROW_NUMBER() OVER (PARTITION BY business_id ORDER BY `date`, createdAt, id) AS n
+  FROM orders
+) x ON x.id = o.id
+SET o.`number` = x.n;
+
+UPDATE order_items oi
+JOIN products p ON p.id = oi.product_id
+SET oi.vat_rate = p.vat_rate, oi.other_taxes = p.other_taxes
+WHERE oi.vat_rate IS NULL AND oi.components IS NULL;
+```
+Para verificar:
+```sql
+SELECT business_id, COUNT(*), COUNT(number), MAX(number) FROM orders GROUP BY business_id;
+```
+Las dos cuentas tienen que ser iguales, y el máximo igual a la cantidad.
+
 **Anulación de remitos** (`orders`):
 ```sql
 ALTER TABLE orders ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active'
@@ -419,4 +457,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 25/10/2026 (importación atómica, sin duplicados y con valores a la argentina).
+Última actualización: 25/10/2026 (stock y remitos: un solo lugar para el stock, número correlativo, usuario, IVA guardado y redondeo).

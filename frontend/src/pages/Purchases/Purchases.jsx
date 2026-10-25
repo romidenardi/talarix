@@ -511,7 +511,10 @@ const Purchases = () => {
           <tbody>
             {purchases.map((purchase) => (
               <tr key={purchase.id}>
-                <td data-label="Fecha">{new Date(purchase.date).toLocaleDateString('es-AR')}</td>
+                <td data-label="Fecha">
+                  {new Date(purchase.date).toLocaleDateString('es-AR')}
+                  {purchase.createdByName && <small className="row-author">por {purchase.createdByName}</small>}
+                </td>
                 <td data-label="Proveedor">{purchase.Supplier?.name || supplierName(purchase.supplierId)}</td>
                 <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
                 <td data-label="Artículos">{purchase.items?.map((i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`).join(', ')}</td>

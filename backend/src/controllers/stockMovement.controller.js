@@ -1,4 +1,5 @@
 import { StockMovement, Product, sequelize } from '../models/index.js';
+import { lockProducts, moveStock } from '../services/stock.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import {
@@ -36,11 +37,9 @@ export const createStockMovement = asyncHandler(async (req, res) => {
 
   const t = await sequelize.transaction();
   try {
-    const product = await Product.findOne({
-      where: { id: productId, businessId },
-      transaction: t,
-      lock: t.LOCK.UPDATE,
-    });
+    const product = typeof productId === 'string'
+      ? (await lockProducts([productId], businessId, t)).get(productId)
+      : null;
     if (!product) throw httpError('Producto no encontrado', 404);
     if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos');
 
@@ -50,25 +49,11 @@ export const createStockMovement = asyncHandler(async (req, res) => {
     }
 
     let delta;
-    if (type === 'in') {
-      delta = amount;
-    } else if (type === 'out') {
-      delta = -amount;
-      if (round3(product.stock + delta) < 0) throw httpError('Stock insuficiente para este egreso');
-    } else {
-      delta = round3(amount - product.stock);
-    }
+    if (type === 'in') delta = amount;
+    else if (type === 'out') delta = -amount;
+    else delta = round3(amount - Number(product.stock)); // ajuste: queda exactamente en el stock nuevo
 
-    const movement = await StockMovement.create({
-      businessId,
-      productId: product.id,
-      type,
-      quantity: delta,
-      reason,
-    }, { transaction: t });
-
-    product.stock = round3(product.stock + delta);
-    await product.save({ transaction: t });
+    const movement = await moveStock({ product, type, delta, reason, actor: req.user }, t);
 
     await t.commit();
     res.status(201).json({ movement, newStock: product.stock });

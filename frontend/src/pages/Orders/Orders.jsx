@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { getOrders, createOrder, cancelOrder, approveOrder } from '../../api/orders.api.js';
 import ApprovalDialog from './ApprovalDialog.jsx';
+import { orderNumberLabel } from '../../utils/orderNumber.js';
 import { getCustomers, createCustomer } from '../../api/customers.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
@@ -27,6 +28,9 @@ const NEW_CUSTOMER = '__new__';
 const NEW_PRODUCT = '__new_product__';
 const FISCAL_CONDITIONS = ['Consumidor Final', 'Responsable Inscripto', 'Monotributista', 'Exento'];
 const FISCAL_CONDITIONS_WITH_VAT_BREAKDOWN = ['Responsable Inscripto'];
+
+// El precio se guarda con centavos: se redondea igual que en el servidor (services/orderPricing.js)
+const cents = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 // Precio que el operador puede usar sin autorización: el de lista o el promocional del producto.
 // Es la misma regla que aplica el servidor (services/orderApproval.service.js).
@@ -138,7 +142,7 @@ const Orders = () => {
   const { grossSubtotal, grossVat, grossInternal, grossTotal } = (watchedItems || []).reduce((acc, item) => {
     const isNew = item.productId === NEW_PRODUCT;
     const product = isNew ? null : products.find((p) => p.id === item.productId);
-    const itemTotal = Math.round(toKg(item.quantity, item.qtyUnit) * (Number(item.unitPrice) || 0) * 100) / 100;
+    const itemTotal = Math.round(toKg(item.quantity, item.qtyUnit) * cents(item.unitPrice) * 100) / 100;
 
     const parts = product?.isCombo && (product.components || []).length
       ? splitLineParts(itemTotal, product.components)
@@ -185,12 +189,13 @@ const Orders = () => {
     const prices = [];
     for (const item of formData.items) {
       const product = products.find((p) => p.id === item.productId);
-      if (!product || isListPrice(product, item.unitPrice)) continue;
-      if (prices.some((p) => p.productId === product.id && samePrice(p.unitPrice, item.unitPrice))) continue;
+      const price = cents(item.unitPrice);
+      if (!product || isListPrice(product, price)) continue;
+      if (prices.some((p) => p.productId === product.id && samePrice(p.unitPrice, price))) continue;
       prices.push({
         productId: product.id,
         name: product.name,
-        unitPrice: Number(item.unitPrice),
+        unitPrice: price,
         listPrice: Number(product.price),
         perKg: product.unitType === 'weight',
       });
@@ -432,7 +437,7 @@ const Orders = () => {
         payloadItems.push({
           productId,
           quantity: toKg(item.quantity, item.qtyUnit),
-          unitPrice: Number(item.unitPrice),
+          unitPrice: cents(item.unitPrice),
           addStock,
         });
       }
@@ -911,6 +916,7 @@ const Orders = () => {
         <table>
           <thead>
             <tr>
+              <th>N°</th>
               <th>Fecha</th>
               <th>Cliente</th>
               <th>Forma de pago</th>
@@ -923,7 +929,11 @@ const Orders = () => {
               const cancelled = order.status === 'cancelled';
               return (
                 <tr key={order.id} className={cancelled ? 'order-cancelled' : ''}>
-                  <td data-label="Fecha">{new Date(order.date).toLocaleDateString('es-AR')}</td>
+                  <td data-label="N°">{orderNumberLabel(order)}</td>
+                  <td data-label="Fecha">
+                    {new Date(order.date).toLocaleDateString('es-AR')}
+                    {order.createdByName && <small className="row-author">por {order.createdByName}</small>}
+                  </td>
                   <td data-label="Cliente">
                     {displayCustomer(order)}
                     {cancelled && <span className="badge-cancelled">Anulado</span>}
