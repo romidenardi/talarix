@@ -9,6 +9,13 @@ import { RequiredMark, RequiredLegend } from '../../components/common/Required.j
 import FormMessage from '../../components/common/FormMessage.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { applyServerFieldErrors } from '../../utils/serverErrors.js';
+import { normalizeTaxId, taxIdDigits } from '../../utils/taxId.js';
+
+// CUIT (mismas reglas que el servidor). Al editar, el que ya tenía se acepta tal cual.
+const validateTaxId = (previous) => (value) => {
+  if (previous && taxIdDigits(previous) && taxIdDigits(previous) === taxIdDigits(value)) return true;
+  return normalizeTaxId(value).error || true;
+};
 
 const api = {
   getAll: suppliersApi.getSuppliers,
@@ -94,7 +101,8 @@ const Suppliers = () => {
 
         <div className="field">
           <label htmlFor="cuit">CUIT</label>
-          <input id="cuit" placeholder="Ej: 30712345678" {...register('cuit')} />
+          <input id="cuit" placeholder="Ej: 30-71234567-1" {...register('cuit', { validate: validateTaxId(null) })} />
+          {errors.cuit && <span className="error">{errors.cuit.message}</span>}
         </div>
 
         <div className="field">
@@ -173,7 +181,8 @@ const Suppliers = () => {
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-cuit-${supplier.id}`}>CUIT</label>
-                        <input id={`edit-cuit-${supplier.id}`} {...editForm.register('cuit')} />
+                        <input id={`edit-cuit-${supplier.id}`} {...editForm.register('cuit', { validate: validateTaxId(supplier.cuit) })} />
+                        {editErrors.cuit && <span className="error">{editErrors.cuit.message}</span>}
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-contactPerson-${supplier.id}`}>Contacto</label>

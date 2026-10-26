@@ -94,7 +94,9 @@ src/
 - **Remitos y compras:** la lista muestra el **N°** de remito (correlativo por comercio, `utils/orderNumber.js`) y, debajo de la fecha, quién lo hizo. El historial de stock de cada producto muestra el usuario de cada movimiento. Los precios se redondean a centavos antes de calcular, igual que el servidor.
 - **Compras:** admin y editor tienen el botón **Anular** en cada compra (resta el stock que sumó; las anuladas quedan tachadas con la etiqueta "Anulada"). Si se carga una factura que ya estaba registrada para ese proveedor, se pregunta antes de cargarla otra vez.
 - **Importar** (`/imports`): cada tipo tiene un link "descargar planilla de ejemplo" (CSV con punto y coma y BOM, para que Excel en castellano lo abra en columnas) y la ayuda de qué acepta cada columna. Si alguna fila tiene errores no se importa nada y se muestra la tabla de filas a corregir; las filas que ya existían se muestran aparte como salteadas.
-- **Derechos sobre los datos de clientes** (`admin`, en Clientes): botón "Exportar datos" (pedido de acceso) y "Anonimizar" (pedido de supresión; conserva los remitos del cliente).
+- **Derechos sobre los datos de clientes** (`admin`, en Clientes): botón "Exportar datos" (pedido de acceso) y "Anonimizar" (pedido de supresión; conserva los remitos del cliente). Un cliente anonimizado muestra la etiqueta "Anonimizado", ya no se puede editar ni anonimizar de nuevo, y no aparece para elegir en Remitos.
+- **CUIT** (Clientes y Proveedores): se valida al escribirlo, con el dígito verificador (`utils/taxId.js`, igual que el servidor). En clientes también se acepta un DNI. Al editar, el CUIT que ya tenía se acepta aunque sea de antes de la validación.
+- **Contraseñas:** además del largo, se rechazan las fáciles de adivinar y las que contienen el nombre o el email de la persona (`utils/passwordStrength.js`, el mismo archivo que en el backend).
 
 ## Tests
 `npm test` corre las pruebas de `test/` con el corredor que viene con Node (`node --test`): lectura de etiquetas de balanza (`utils/scale.js`) y cantidades (`utils/quantity.js`). El cálculo de IVA se compara con el del backend en las pruebas del backend. GitHub Actions las corre en cada push, junto con la compilación (ver README del backend → Tests).
@@ -121,4 +123,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 25/10/2026 (compras: anular y aviso de factura repetida).
+Última actualización: 26/10/2026 (CUIT validado, clientes anonimizados y contraseñas fáciles).

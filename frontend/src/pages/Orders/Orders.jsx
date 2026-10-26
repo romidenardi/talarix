@@ -484,7 +484,8 @@ const Orders = () => {
   };
 
   const customerLabel = (c) => c.businessName || `${c.firstName} ${c.lastName || ''}`.trim();
-  const customerOptions = customers.map((c) => ({
+  // Los clientes anonimizados (pedido de supresión) no se ofrecen: no se les puede vender
+  const customerOptions = customers.filter((c) => !c.anonymizedAt).map((c) => ({
     value: c.id,
     label: customerLabel(c),
     detail: [c.fiscalCondition, c.cuit && `CUIT ${c.cuit}`].filter(Boolean).join(' · '),

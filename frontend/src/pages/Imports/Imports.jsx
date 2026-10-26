@@ -31,7 +31,7 @@ const IMPORT_TYPES = [
     fn: importCustomers,
     template: [
       ['Razón Social', 'Nombre', 'Apellido', 'Condición Fiscal', 'CUIT', 'Dirección', 'Localidad', 'Provincia', 'Teléfono', 'Email'],
-      ['Distribuidora Norte SRL', '', '', 'Responsable Inscripto', '30-71234567-9', 'San Martín 123', 'Rafaela', 'Santa Fe', '3492 123456', 'compras@norte.com.ar'],
+      ['Distribuidora Norte SRL', '', '', 'Responsable Inscripto', '30-71234567-1', 'San Martín 123', 'Rafaela', 'Santa Fe', '3492 123456', 'compras@norte.com.ar'],
       ['', 'Ana', 'Pérez', 'Consumidor Final', '', '', 'Rafaela', 'Santa Fe', '', ''],
     ],
     help: [
@@ -46,7 +46,7 @@ const IMPORT_TYPES = [
     fn: importSuppliers,
     template: [
       ['Nombre', 'CUIT', 'Contacto', 'Teléfono', 'Email', 'Dirección', 'Localidad', 'Provincia'],
-      ['Lácteos del Centro SA', '30-70987654-1', 'Marcela', '3492 654321', 'ventas@lacteos.com.ar', 'Ruta 34 km 230', 'Rafaela', 'Santa Fe'],
+      ['Lácteos del Centro SA', '30-70987654-2', 'Marcela', '3492 654321', 'ventas@lacteos.com.ar', 'Ruta 34 km 230', 'Rafaela', 'Santa Fe'],
     ],
     help: [
       'Obligatoria: Nombre.',

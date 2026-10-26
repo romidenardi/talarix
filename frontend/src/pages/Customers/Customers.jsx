@@ -12,6 +12,13 @@ import { RequiredMark, RequiredLegend } from '../../components/common/Required.j
 import FormMessage from '../../components/common/FormMessage.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { applyServerFieldErrors } from '../../utils/serverErrors.js';
+import { normalizeTaxId, taxIdDigits } from '../../utils/taxId.js';
+
+// CUIT o DNI (mismas reglas que el servidor). Al editar, el que ya tenía se acepta tal cual.
+const validateTaxId = (previous) => (value) => {
+  if (previous && taxIdDigits(previous) && taxIdDigits(previous) === taxIdDigits(value)) return true;
+  return normalizeTaxId(value).error || true;
+};
 
 const api = {
   getAll: customersApi.getCustomers,
@@ -202,7 +209,8 @@ const Customers = () => {
 
         <div className="field">
           <label htmlFor="cuit">CUIT</label>
-          <input id="cuit" placeholder="Ej: 20345678901" {...register('cuit')} />
+          <input id="cuit" placeholder="Ej: 20-12345678-6 (o DNI)" {...register('cuit', { validate: validateTaxId(null) })} />
+          {errors.cuit && <span className="error">{errors.cuit.message}</span>}
         </div>
         <div className="field">
           <label htmlFor="address">Dirección</label>
@@ -290,7 +298,12 @@ const Customers = () => {
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-cuit-${customer.id}`}>CUIT</label>
-                        <input id={`edit-cuit-${customer.id}`} placeholder="Ej: 20345678901" {...editForm.register('cuit')} />
+                        <input
+                          id={`edit-cuit-${customer.id}`}
+                          placeholder="Ej: 20-12345678-6 (o DNI)"
+                          {...editForm.register('cuit', { validate: validateTaxId(customer.cuit) })}
+                        />
+                        {editErrors.cuit && <span className="error">{editErrors.cuit.message}</span>}
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-address-${customer.id}`}>Dirección</label>
@@ -327,17 +340,20 @@ const Customers = () => {
                   </td>
                 ) : (
                   <>
-                    <td data-label="Nombre / Razón social">{displayName(customer)}</td>
+                    <td data-label="Nombre / Razón social">
+                      {displayName(customer)}
+                      {customer.anonymizedAt && <span className="badge-cancelled">Anonimizado</span>}
+                    </td>
                     <td data-label="Condición fiscal">{customer.fiscalCondition}</td>
                     <td data-label="CUIT">{customer.cuit || '—'}</td>
                     <td data-label="Localidad">{customer.city || '—'}</td>
                     <td data-label="Acciones">
-                      <button onClick={() => startEdit(customer)}>Editar</button>
+                      {!customer.anonymizedAt && <button onClick={() => startEdit(customer)}>Editar</button>}
                       <button onClick={() => onDelete(customer.id)}>Eliminar</button>
                       {isAdmin && (
                         <>
                           <button onClick={() => onExportData(customer)}>Exportar datos</button>
-                          <button onClick={() => onAnonymize(customer)}>Anonimizar</button>
+                          {!customer.anonymizedAt && <button onClick={() => onAnonymize(customer)}>Anonimizar</button>}
                         </>
                       )}
                       <FormMessage message={msg.at(customer.id)} onClose={msg.clear} />
