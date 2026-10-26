@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -63,6 +64,7 @@ const Notice = ({ notice, onClose }) => {
 const UsersContent = ({ notice, setNotice, reload }) => {
   const { items: users, loading, loadError, update, remove } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
   const { user: currentUser } = useAuth();
   const [editingId, setEditingId] = useState(null);
 
@@ -101,7 +103,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
     const message = user.pendingActivation
       ? `¿Reenviar la invitación a ${user.email}?`
       : `¿Enviar a ${user.email} un link para que elija una contraseña nueva?`;
-    if (!confirm(message)) return;
+    if (!(await dialog.confirm({ message, confirmLabel: 'Enviar' }))) return;
 
     setNotice(null);
     try {
@@ -152,7 +154,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar este usuario? La acción no se puede deshacer.')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este usuario? La acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Usuario eliminado', 'list');
     else msg.error(result.message, id);

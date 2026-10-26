@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useUrlToken } from '../../hooks/useUrlToken.js';
 import { resetPassword } from '../../api/auth.api.js';
 import { passwordProblem } from '../../utils/password.js';
 
 export default function ResetPassword() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token') || '';
+  const token = useUrlToken();
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');

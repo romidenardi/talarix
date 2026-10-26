@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { Link } from 'react-router-dom';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { getOrders, createOrder, cancelOrder, approveOrder } from '../../api/orders.api.js';
@@ -57,6 +58,7 @@ const Orders = () => {
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
   const msg = useMessage();
+  const dialog = useDialog();
   const { role } = useAuth();
   const canManageData = role === 'admin' || role === 'editor';
   // Operador: descuentos y precios fuera de lista necesitan la autorización de un admin o editor
@@ -279,7 +281,7 @@ const Orders = () => {
     }
   };
 
-  const handleScan = (rawCode) => {
+  const handleScan = async (rawCode) => {
     const code = String(rawCode || '').trim();
     if (!code) return;
 
@@ -318,7 +320,11 @@ const Orders = () => {
       msg.error(`No hay ningún producto con el código ${code}`, 'scan');
       return;
     }
-    if (!window.confirm(`El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`)) {
+    if (!(await dialog.confirm({
+      title: 'Código no registrado',
+      message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
+      confirmLabel: 'Crear producto',
+    }))) {
       return;
     }
     if (emptyIndex >= 0) {
@@ -350,6 +356,11 @@ const Orders = () => {
 
   const submitOrder = async (formData) => {
     msg.clear();
+    // Cliente y productos nuevos se crean antes del remito (son pedidos aparte). Si el remito
+    // después falla, se avisa cuáles ya quedaron creados para no cargarlos de nuevo.
+    const created = [];
+    // Total que muestra la pantalla al enviar, para compararlo con el que guarda el servidor
+    const previewTotal = Math.round(total * 100) / 100;
     if (discountExceedsTotal) {
       msg.error('El descuento no puede ser mayor al total del remito');
       return;
@@ -405,6 +416,7 @@ const Orders = () => {
           fiscalCondition,
         });
         customerId = newCustomer.id;
+        created.push(`el cliente ${customerLabel(newCustomer)}`);
         setCustomers((prev) => [...prev, newCustomer]);
         setValue('customerId', newCustomer.id);
       }
@@ -428,6 +440,7 @@ const Orders = () => {
             unitType: np.unitType || 'unit',
           });
           productId = createdProduct.id;
+          created.push(`el producto ${createdProduct.name}`);
           addStock = true;
           setProducts((prev) => [...prev, createdProduct]);
           setValue(`items.${i}.productId`, createdProduct.id);
@@ -454,10 +467,19 @@ const Orders = () => {
         ...(approvalTokenRef.current ? { approvalToken: approvalTokenRef.current } : {}),
       };
 
-      await createOrder(payload);
+      const { data: saved } = await createOrder(payload);
       requestIdRef.current = newRequestId();
       approvalTokenRef.current = null;
-      msg.success('Remito generado, stock actualizado');
+      // El servidor es el que manda: si el total guardado no coincide con el de la pantalla, se avisa
+      const savedTotal = Number(saved?.total);
+      if (Number.isFinite(savedTotal) && Math.abs(savedTotal - previewTotal) > 0.01) {
+        msg.error(
+          `Remito ${orderNumberLabel(saved)} generado, pero el total guardado ($${savedTotal.toFixed(2)}) es distinto `
+          + `del que mostraba la pantalla ($${previewTotal.toFixed(2)}). Vale el guardado: revisalo antes de entregarlo.`
+        );
+      } else {
+        msg.success('Remito generado, stock actualizado');
+      }
       reset({
         customerId: '',
         paymentId: '',
@@ -477,6 +499,13 @@ const Orders = () => {
         if (openApproval(formData, err.response.data.message)) return;
       }
       const text = serverMessage(err, 'Error al generar el remito');
+      if (created.length) {
+        msg.error(
+          `${text} El remito no se generó, pero ya quedaron creados ${created.join(' y ')}: `
+          + 'están elegidos en el formulario, no hace falta cargarlos de nuevo.'
+        );
+        return;
+      }
       const row = /^Artículo (\d+):\s*/.exec(text);
       if (row) msg.error(text.slice(row[0].length), `row-${Number(row[1]) - 1}`);
       else msg.error(text);
@@ -502,12 +531,16 @@ const Orders = () => {
   const displayCustomer = (order) => (order.Customer ? customerLabel(order.Customer) : '—');
 
   const handleCancel = async (order) => {
-    const reason = window.prompt(
-      `Vas a anular el remito de ${displayCustomer(order)} por $${Number(order.total).toFixed(2)}.\n`
-      + 'El stock de los productos vendidos se devuelve y el remito deja de contar en los reportes.\n\n'
-      + 'Motivo (opcional). Aceptá para anular o cancelá para volver:',
-      ''
-    );
+    const reason = await dialog.prompt({
+      title: 'Anular remito',
+      message: `Vas a anular el remito de ${displayCustomer(order)} por $${Number(order.total).toFixed(2)}.\n`
+        + 'El stock de los productos vendidos se devuelve y el remito deja de contar en los reportes.',
+      label: 'Motivo (opcional)',
+      placeholder: 'Ej: el cliente devolvió la mercadería',
+      confirmLabel: 'Anular remito',
+      cancelLabel: 'Volver',
+      danger: true,
+    });
     if (reason === null) return;
 
     setCancellingId(order.id);

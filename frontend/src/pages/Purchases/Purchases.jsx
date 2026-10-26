@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { getPurchases, createPurchase, cancelPurchase } from '../../api/purchases.api.js';
 import { getSuppliers, createSupplier } from '../../api/suppliers.api.js';
@@ -40,6 +41,7 @@ const Purchases = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const msg = useMessage();
+  const dialog = useDialog();
   const { role } = useAuth();
   const canManageData = role === 'admin' || role === 'editor';
 
@@ -82,7 +84,7 @@ const Purchases = () => {
   );
 
   // Código leído con el lector USB o con la cámara
-  const handleScan = (rawCode) => {
+  const handleScan = async (rawCode) => {
     const code = String(rawCode || '').trim();
     if (!code) return;
 
@@ -108,7 +110,11 @@ const Purchases = () => {
       msg.error(`No hay ningún producto con el código ${code}`, 'scan');
       return;
     }
-    if (!window.confirm(`El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`)) {
+    if (!(await dialog.confirm({
+      title: 'Código no registrado',
+      message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
+      confirmLabel: 'Crear producto',
+    }))) {
       return;
     }
     if (emptyIndex >= 0) {
@@ -141,6 +147,9 @@ const Purchases = () => {
   const submitPurchase = async (formData) => {
     msg.clear();
     let payload = null;
+    // Proveedor y productos nuevos se crean antes de la compra (son pedidos aparte). Si la compra
+    // después falla, se avisa cuáles ya quedaron creados para no cargarlos de nuevo.
+    const created = [];
     const finish = () => {
       requestIdRef.current = newRequestId();
       msg.success('Compra registrada, stock actualizado');
@@ -183,6 +192,7 @@ const Purchases = () => {
           email: email || null,
         });
         supplierId = newSupplier.id;
+        created.push(`el proveedor ${newSupplier.name}`);
         setSuppliers((prev) => [...prev, newSupplier]);
         setValue('supplierId', newSupplier.id);
       }
@@ -205,6 +215,7 @@ const Purchases = () => {
             unitType: np.unitType || 'unit',
           });
           productId = createdProduct.id;
+          created.push(`el producto ${createdProduct.name}`);
           setProducts((prev) => [...prev, createdProduct]);
           setValue(`items.${i}.productId`, createdProduct.id);
         }
@@ -228,7 +239,12 @@ const Purchases = () => {
     } catch (err) {
       // La misma factura del mismo proveedor ya estaba cargada: se pregunta antes de sumar el stock otra vez
       if (payload && err.response?.data?.code === 'DUPLICATE_INVOICE') {
-        if (!window.confirm(`${err.response.data.message}\n\n¿Cargarla igual?`)) {
+        if (!(await dialog.confirm({
+          title: 'Factura ya cargada',
+          message: `${err.response.data.message}\n\n¿Cargarla igual?`,
+          confirmLabel: 'Cargarla igual',
+          cancelLabel: 'No cargar',
+        }))) {
           msg.error('No se cargó la compra: la factura ya estaba registrada.');
           return;
         }
@@ -242,6 +258,13 @@ const Purchases = () => {
       }
       // "Artículo 2: ..." se muestra en ese renglón; el resto, junto al botón
       const text = serverMessage(err, 'Error al registrar la compra');
+      if (created.length) {
+        msg.error(
+          `${text} La compra no se registró, pero ya quedaron creados ${created.join(' y ')}: `
+          + 'están elegidos en el formulario, no hace falta cargarlos de nuevo.'
+        );
+        return;
+      }
       const row = /^Artículo (\d+):\s*/.exec(text);
       if (row) msg.error(text.slice(row[0].length), `row-${Number(row[1]) - 1}`);
       else msg.error(text);
@@ -254,13 +277,16 @@ const Purchases = () => {
   const [cancellingId, setCancellingId] = useState(null);
   const handleCancel = async (purchase) => {
     const name = purchase.Supplier?.name || supplierName(purchase.supplierId);
-    const reason = window.prompt(
-      `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} `
-      + `por $${Number(purchase.total).toFixed(2)}.\n`
-      + 'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.\n\n'
-      + 'Motivo (opcional). Aceptá para anular o cancelá para volver:',
-      ''
-    );
+    const reason = await dialog.prompt({
+      title: 'Anular compra',
+      message: `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} `
+        + `por $${Number(purchase.total).toFixed(2)}.\n`
+        + 'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.',
+      label: 'Motivo (opcional)',
+      confirmLabel: 'Anular compra',
+      cancelLabel: 'Volver',
+      danger: true,
+    });
     if (reason === null) return;
 
     setCancellingId(purchase.id);

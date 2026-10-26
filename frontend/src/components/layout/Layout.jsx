@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import logo from '../../assets/logo.png';
@@ -11,6 +12,7 @@ const ROLE_LABELS = {
 
 const Layout = () => {
   const { logout, role, user, isDemo, isClosing } = useAuth();
+  const dialog = useDialog();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
 
@@ -43,8 +45,8 @@ const Layout = () => {
     };
   }, [menuOpen]);
 
-  const handleLogout = () => {
-    if (confirm('¿Cerrar sesión?')) {
+  const handleLogout = async () => {
+    if (await dialog.confirm({ message: '¿Cerrar sesión?', confirmLabel: 'Cerrar sesión' })) {
       logout();
     }
   };

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import * as suppliersApi from '../../api/suppliers.api.js';
@@ -27,6 +28,7 @@ const api = {
 const Suppliers = () => {
   const { items: suppliers, loading, loadError, create, update, remove } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
   // Campos que muestran su error debajo
   const SUPPLIER_FIELDS = ['name', 'email'];
   const [editingId, setEditingId] = useState(null);
@@ -74,7 +76,7 @@ const Suppliers = () => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar este proveedor?')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este proveedor?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Proveedor eliminado', 'list');
     else msg.error(result.message, id);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { createCombo, updateCombo, deleteCombo } from '../../api/combos.api.js';
 import FormMessage from '../../components/common/FormMessage.jsx';
@@ -229,6 +230,7 @@ const ComboForm = ({
 
 const Combos = ({ products, categories, onChanged }) => {
   const msg = useMessage();
+  const dialog = useDialog();
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
 
@@ -262,7 +264,7 @@ const Combos = ({ products, categories, onChanged }) => {
   };
 
   const onDelete = async (combo) => {
-    if (!confirm(`¿Eliminar el combo "${combo.name}"? Los productos que lo forman no se tocan.`)) return;
+    if (!(await dialog.confirm({ message: `¿Eliminar el combo "${combo.name}"? Los productos que lo forman no se tocan.`, confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await run(() => deleteCombo(combo.id), 'No se pudo eliminar el combo');
     if (result.success) msg.success('Combo eliminado', 'list');
     else msg.error(result.message, combo.id);

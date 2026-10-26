@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { Navigate, useNavigate } from 'react-router-dom';
 import {
   getPlatformToken,
@@ -39,6 +40,7 @@ const STATUS_CLASSES = {
 
 export default function Platform() {
   const navigate = useNavigate();
+  const dialog = useDialog();
   const [businesses, setBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -111,7 +113,7 @@ export default function Platform() {
       next === 'suspended'
         ? `¿Suspender "${business.name}"? Los usuarios no van a poder ingresar.`
         : `¿Reactivar "${business.name}"?`;
-    if (!window.confirm(message)) return;
+    if (!(await dialog.confirm({ message, confirmLabel: next === 'suspended' ? 'Suspender' : 'Reactivar', danger: next === 'suspended' }))) return;
 
     setError('');
     try {
@@ -123,21 +125,28 @@ export default function Platform() {
   };
 
   const handleStartClosure = async (business) => {
-    const typed = window.prompt(
-      `Vas a dar de baja "${business.name}".\n\n` +
+    const typed = await dialog.prompt({
+      title: 'Dar de baja',
+      message:
+        `Vas a dar de baja "${business.name}".\n\n` +
         `Desde ahora solo su administrador podrá ingresar, para exportar sus datos. ` +
-        `A los 30 días se eliminan todos sus datos (productos, clientes, remitos, usuarios, etc.).\n\n` +
-        `Para confirmar, escribí el nombre exacto del comercio:`
-    );
+        `A los 30 días se eliminan todos sus datos (productos, clientes, remitos, usuarios, etc.).`,
+      label: 'Para confirmar, escribí el nombre exacto del comercio',
+      confirmLabel: 'Dar de baja',
+      danger: true,
+      validate: (value) => (value.trim() === business.name ? null : 'El nombre no coincide'),
+    });
     if (typed === null) return;
 
     setError('');
     try {
       const { data } = await startBusinessClosure(business.id, typed.trim());
-      window.alert(
-        `Baja registrada. Los datos se eliminarán el ${formatDate(data.deleteAt)}.\n` +
-          `Avisos por mail enviados: ${data.emailsSent} de ${data.adminCount}.`
-      );
+      await dialog.alert({
+        title: 'Baja registrada',
+        message:
+          `Los datos se eliminarán el ${formatDate(data.deleteAt)}.\n` +
+          `Avisos por mail enviados: ${data.emailsSent} de ${data.adminCount}.`,
+      });
       await load();
     } catch (err) {
       setError(errorMessage(err));
@@ -146,7 +155,7 @@ export default function Platform() {
 
   const handleCancelClosure = async (business) => {
     const message = `¿Cancelar la baja de "${business.name}"? El comercio vuelve a estar activo y no se borra nada.`;
-    if (!window.confirm(message)) return;
+    if (!(await dialog.confirm({ message, confirmLabel: 'Cancelar la baja', cancelLabel: 'Volver' }))) return;
 
     setError('');
     try {
@@ -163,7 +172,7 @@ export default function Platform() {
     const message =
       `Se anulará la contraseña actual de ${admin.email} y se generará un link nuevo ` +
       `para que elija una (se le enviará también por mail). Sus sesiones abiertas se cerrarán. ¿Continuar?`;
-    if (!window.confirm(message)) return;
+    if (!(await dialog.confirm({ message, confirmLabel: 'Generar link nuevo', danger: true }))) return;
 
     setError('');
     try {
@@ -185,12 +194,12 @@ export default function Platform() {
   const handleResetDemo = async (business) => {
     const message =
       `Se borrarán todos los datos de "${business.name}" y se cargarán los datos de ejemplo. ¿Continuar?`;
-    if (!window.confirm(message)) return;
+    if (!(await dialog.confirm({ message, confirmLabel: 'Reiniciar demo', danger: true }))) return;
 
     setError('');
     try {
       await resetDemoBusiness(business.id);
-      window.alert('Demo reiniciada con datos de ejemplo.');
+      await dialog.alert('Demo reiniciada con datos de ejemplo.');
     } catch (err) {
       setError(errorMessage(err));
     }

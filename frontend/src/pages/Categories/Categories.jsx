@@ -1,4 +1,5 @@
 import { useState, Fragment } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import * as categoriesApi from '../../api/categories.api.js';
@@ -18,6 +19,7 @@ const api = {
 const Categories = () => {
   const { items: categories, loading, loadError, create, update, remove } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
   const [editingId, setEditingId] = useState(null);
 
   const { register, handleSubmit, reset, setError, formState: { errors } } = useForm();
@@ -60,7 +62,7 @@ const Categories = () => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar esta categoría?')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar esta categoría?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Categoría eliminada', 'list');
     else msg.error(result.message, id);

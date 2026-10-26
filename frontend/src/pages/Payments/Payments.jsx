@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import * as paymentsApi from '../../api/payments.api.js';
@@ -27,6 +28,7 @@ const buildPlansPayload = (hasInstallments, plans) => {
 const Payments = () => {
   const { items: payments, loading, loadError, create, update, remove } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
   const [editingId, setEditingId] = useState(null);
 
   const createForm = useForm({
@@ -85,7 +87,7 @@ const Payments = () => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar esta forma de pago?')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar esta forma de pago?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Forma de pago eliminada', 'list');
     else msg.error(result.message, id);

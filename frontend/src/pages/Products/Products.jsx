@@ -1,4 +1,5 @@
 import { useState, useEffect, Fragment } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import * as productsApi from '../../api/products.api.js';
@@ -28,6 +29,7 @@ const api = {
 const Products = () => {
   const { items: products, loading, loadError, create, update, remove, reload } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
 
   // Campos que el servidor puede marcar, y errores del servidor que hablan de un campo concreto
   const PRODUCT_FIELDS = ['internalCode', 'barcode', 'scalePlu', 'name', 'price', 'cost'];
@@ -157,7 +159,7 @@ const Products = () => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar este producto?')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este producto?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Producto eliminado', 'list');
     else msg.error(result.message, id);

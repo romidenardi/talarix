@@ -80,9 +80,11 @@ src/
   - **Errores de un campo** (de la validación del formulario o del servidor) debajo del campo. Para los errores del servidor se usa `applyServerFieldErrors` y `fieldFromMessage` de `utils/serverErrors.js`.
   - **Otros errores** (por ejemplo "no se puede eliminar porque tiene remitos") en un recuadro rojo junto al botón del formulario, o en la fila de la tabla donde se apretó Eliminar o Anular. Quedan hasta que se cierran (×) o se hace otra acción.
   - **Lo que salió bien** ("Cliente agregado", "Remito generado") en un recuadro verde junto al botón, que se va solo a los 4 segundos. Al borrar, el aviso aparece arriba de la tabla.
-  - Se usan `components/common/FormMessage.jsx` y `hooks/useMessage.js`. `useResource` ya no muestra avisos: devuelve el resultado y cada pantalla lo muestra. Las preguntas de confirmación ("¿Eliminar…?") siguen siendo las del navegador.
+  - Se usan `components/common/FormMessage.jsx` y `hooks/useMessage.js`. `useResource` ya no muestra avisos: devuelve el resultado y cada pantalla lo muestra. Las preguntas de confirmación tampoco son las del navegador:
+  - `context/DialogContext.jsx` (envuelve toda la app en `App.jsx`) da `useDialog()` con `confirm`, `prompt` y `alert`, que devuelven una promesa: `if (!(await dialog.confirm({ message, confirmLabel: 'Eliminar', danger: true }))) return;`. Se ven igual en todos los navegadores y en el celular no se bloquean. **No usar** `window.confirm`, `prompt` ni `alert`.
+  - Remitos y compras: si el remito falla después de crear un cliente o un producto nuevo (o la compra, un proveedor o producto nuevo), el aviso dice cuáles ya quedaron creados. Si el total que guarda el servidor no coincide con el que mostraba la pantalla, aparece un aviso en rojo: vale el del servidor.
 - **Campos obligatorios:** en los formularios, los campos obligatorios llevan `(*)` y al pie se muestra "(*) Campo obligatorio" en el color de alerta. Se usa `RequiredMark` y `RequiredLegend` de `components/common/Required.jsx`.
-- **Usuarios** (solo `admin`): se pueden crear con contraseña asignada, o enviando una **invitación por mail**. Cada usuario tiene un botón para reenviar la invitación o enviar un link de contraseña. Si el mail no sale, se muestra el link para copiarlo.
+- **Usuarios** (solo `admin`): siempre queda al menos un administrador activo (lo controla el servidor, también si dos se quitan el rol al mismo tiempo). Se pueden crear con contraseña asignada, o enviando una **invitación por mail**. Cada usuario tiene un botón para reenviar la invitación o enviar un link de contraseña. Si el mail no sale, se muestra el link para copiarlo.
 - **Plataforma:** al crear un comercio o reinvitar, se envía el mail con el link y se muestra además para copiarlo y compartirlo por WhatsApp.
 - **Menú en el celular:** se muestra como menú hamburguesa (barra superior con botón, y panel lateral con fondo oscurecido).
 - **Exportar mis datos** (`/exportar`, solo `admin`): descarga un Excel con todos los datos del comercio. Está en el menú. Se promete en los términos como parte de la gratuidad y de la baja. Tiene un límite de 5 descargas por hora.
@@ -116,11 +118,15 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 ## Despliegue
 - Rama `staging` → vista previa de Vercel (URL fija de la rama).
 - Rama `main` → producción.
-- `vercel.json` redirige todas las rutas a `index.html` (SPA).
+- `vercel.json` redirige todas las rutas a `index.html` (SPA) y agrega los **encabezados de seguridad**:
+  - `Content-Security-Policy`: el sitio solo carga sus propios archivos y solo se conecta con el backend (`*.talarix.com.ar` y `*.up.railway.app`). Si el backend se muda a otro dominio, o se agrega un servicio externo (por ejemplo, Sentry en el frontend), **hay que sumarlo a `connect-src`** o el navegador lo bloquea.
+  - `X-Frame-Options: DENY` y `frame-ancestors 'none'` (no se puede meter la app dentro de otra página), `Referrer-Policy: no-referrer`, `X-Content-Type-Options`, `Strict-Transport-Security` y `Permissions-Policy` (solo la cámara, para el escáner).
+- **Tipografías propias:** DM Sans, DM Mono y Plus Jakarta Sans vienen de los paquetes `@fontsource/*` (importados en `main.jsx`), no de Google Fonts.
+- **Links de los mails:** `hooks/useUrlToken.js` lee el `?token=` de activar y restablecer contraseña y lo borra de la barra de direcciones apenas lo lee (no queda en el historial). Si la persona recarga esa página, tiene que volver a abrir el link del mail.
 - Si se agrega una dependencia, subir `package.json` y `package-lock.json` juntos.
 - Orden recomendado cuando hay cambios en ambos lados: primero el backend, después el frontend.
 
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 26/10/2026 (CUIT validado, clientes anonimizados y contraseñas fáciles).
+Última actualización: 26/10/2026 (recuadros propios en lugar de los del navegador, encabezados de seguridad, token fuera de la URL y tipografías propias).

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@600;700&display=swap');
+/* Tipografías: alojadas en el propio sitio (paquetes @fontsource, importados en main.jsx) */
 
 :root {
   --color-bg: #F4F7FA;
@@ -1651,4 +1651,44 @@ td .form-message {
   display: block;
   color: var(--color-text-muted);
   font-size: 12px;
+}
+
+/* ---------- Recuadros de confirmación (context/DialogContext.jsx) ---------- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-text) 55%, transparent);
+}
+
+.dialog-box {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.dialog-box h3 {
+  margin: 0;
+}
+
+.dialog-message {
+  margin: 0;
+  white-space: pre-line;
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
 }

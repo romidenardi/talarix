@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -32,6 +33,7 @@ const FISCAL_CONDITIONS = ['Consumidor Final', 'Responsable Inscripto', 'Monotri
 const Customers = () => {
   const { items: customers, loading, loadError, create, update, remove, reload } = useResource(api);
   const msg = useMessage();
+  const dialog = useDialog();
   const { role } = useAuth();
   const isAdmin = role === 'admin';
   const [editingId, setEditingId] = useState(null);
@@ -110,7 +112,7 @@ const Customers = () => {
   };
 
   const onDelete = async (id) => {
-    if (!confirm('¿Eliminar este cliente?')) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este cliente?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Cliente eliminado', 'list');
     else msg.error(result.message, id);
@@ -134,7 +136,7 @@ const Customers = () => {
       `Se borrarán los datos personales de "${displayName(customer)}" ` +
       `(nombre, CUIT, dirección, teléfono y email). Sus remitos se conservan. ` +
       `Esta acción no se puede deshacer. ¿Continuar?`;
-    if (!confirm(message)) return;
+    if (!(await dialog.confirm({ title: 'Anonimizar cliente', message, confirmLabel: 'Anonimizar', danger: true }))) return;
 
     try {
       const { data } = await anonymizeCustomer(customer.id);

@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useUrlToken } from '../../hooks/useUrlToken.js';
 import api from '../../api/axios';
 import { LEGAL_VERSION } from '../../legal/legalContent';
 import { passwordProblem } from '../../utils/password.js';
 
 export default function Activate() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const token = searchParams.get('token') || '';
+  const token = useUrlToken();
 
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
