@@ -63,6 +63,13 @@ const Customer = sequelize.define('Customer', {
     allowNull: true,
     validate: { isEmail: true },
   },
+  // Fecha en que se anonimizó por un pedido de supresión. Un cliente anonimizado no se edita ni se
+  // le puede vender (controllers/dataRights.controller.js).
+  anonymizedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'anonymized_at',
+  },
 }, {
   tableName: 'customers',
 });

@@ -2,6 +2,7 @@ import { Supplier, Purchase } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { pick } from '../utils/pick.js';
+import { normalizeTaxId, taxIdDigits } from '../utils/taxId.js';
 
 // Campos que se pueden cargar o editar desde la API (nunca businessId ni id)
 const SUPPLIER_FIELDS = [
@@ -12,6 +13,19 @@ const findOwnSupplier = async (id, businessId) => {
   const supplier = await Supplier.findOne({ where: { id, businessId } });
   if (!supplier) throw httpError('Proveedor no encontrado', 404);
   return supplier;
+};
+
+// CUIT: se valida y se guarda con formato (si al editar viene el mismo que ya tenía, no se revisa)
+const cleanTaxId = (data, current = null) => {
+  if (!('cuit' in data)) return data;
+  if (current && taxIdDigits(current) && taxIdDigits(current) === taxIdDigits(data.cuit)) {
+    delete data.cuit;
+    return data;
+  }
+  const { value, error } = normalizeTaxId(data.cuit);
+  if (error) throw httpError(error);
+  data.cuit = value;
+  return data;
 };
 
 const cleanActive = (data) => {
@@ -26,7 +40,7 @@ export const getSuppliers = asyncHandler(async (req, res) => {
 
 export const createSupplier = asyncHandler(async (req, res) => {
   const supplier = await Supplier.create({
-    ...cleanActive(pick(req.body, SUPPLIER_FIELDS)),
+    ...cleanTaxId(cleanActive(pick(req.body, SUPPLIER_FIELDS))),
     businessId: req.user.businessId,
   });
   res.status(201).json(supplier);
@@ -34,7 +48,7 @@ export const createSupplier = asyncHandler(async (req, res) => {
 
 export const updateSupplier = asyncHandler(async (req, res) => {
   const supplier = await findOwnSupplier(req.params.id, req.user.businessId);
-  await supplier.update(cleanActive(pick(req.body, SUPPLIER_FIELDS)));
+  await supplier.update(cleanTaxId(cleanActive(pick(req.body, SUPPLIER_FIELDS)), supplier.cuit));
   res.json(supplier);
 });
 

@@ -6,7 +6,7 @@ import { httpError } from '../utils/httpError.js';
 import { hashToken } from '../utils/inviteToken.js';
 import { LEGAL_VERSION } from '../utils/legal.js';
 import { issueAccessLink, wasIssuedRecently } from '../utils/accessLinks.js';
-import { checkPassword, BCRYPT_ROUNDS } from '../utils/password.js';
+import { checkPassword, compareWithDummy, BCRYPT_ROUNDS } from '../utils/password.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -21,8 +21,13 @@ export const login = asyncHandler(async (req, res) => {
     include: [{ model: Business, attributes: ['id', 'status', 'type', 'deleteAt'] }],
   });
 
-  const valid =
-    user && user.active && user.passwordHash && (await bcrypt.compare(password, user.passwordHash));
+  // Si el email no existe (o no tiene contraseña) se compara igual contra un hash falso: la respuesta
+  // tarda lo mismo y no se puede averiguar por el tiempo qué emails están registrados
+  const hasPassword = Boolean(user && user.passwordHash);
+  const matches = hasPassword
+    ? await bcrypt.compare(password, user.passwordHash)
+    : await compareWithDummy(password);
+  const valid = hasPassword && user.active && matches;
   if (!valid) throw httpError('Credenciales inválidas', 401);
 
   const businessStatus = user.Business.status;
@@ -76,6 +81,7 @@ export const activateAccount = asyncHandler(async (req, res) => {
   if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
     throw httpError('El link de activación es inválido o venció. Solicitá uno nuevo.');
   }
+  checkPassword(password, { email: user.email, name: user.name });
 
   user.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   user.inviteTokenHash = null;
@@ -129,6 +135,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
     throw httpError('El link es inválido o venció. Pedí uno nuevo.');
   }
+  checkPassword(password, { email: user.email, name: user.name });
   if (!user.active) throw httpError('El usuario está inactivo. Contactá al administrador.', 403);
 
   if (!user.passwordHash) {

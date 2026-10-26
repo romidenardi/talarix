@@ -109,9 +109,9 @@ describe('Importación de clientes y proveedores', () => {
   it('normaliza la condición fiscal y no repite clientes', async () => {
     const content = csv([
       ['Razón Social', 'Nombre', 'Apellido', 'Condición Fiscal', 'CUIT'],
-      ['Norte SRL', '', '', 'responsable inscripto', '30-71234567-9'],
+      ['Norte SRL', '', '', 'responsable inscripto', '30-71234567-1'],
       ['', 'Ana', 'Pérez', 'CF', ''],
-      ['Norte S.R.L.', '', '', 'RI', '30712345679'],
+      ['Norte S.R.L.', '', '', 'RI', '30712345671'],
     ]);
     const first = await upload('/api/imports/customers', { token: A.users.admin.token, filename: 'c.csv', content });
     assert.equal(first.status, 200, JSON.stringify(first.body));

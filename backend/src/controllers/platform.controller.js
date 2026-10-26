@@ -10,6 +10,7 @@ import { inviteEmail } from '../utils/mailTemplates.js';
 import { closureStartedEmail } from '../utils/closureEmails.js';
 import { resetDemoBusiness } from '../services/demo.service.js';
 import { audit } from '../utils/audit.js';
+import { compareWithDummy } from '../utils/password.js';
 import {
   generateTotpSecret, verifyTotp, otpauthUrl, generateRecoveryCodes, consumeRecoveryCode, looksLikeRecoveryCode,
 } from '../utils/totp.js';
@@ -71,7 +72,9 @@ export const platformLogin = asyncHandler(async (req, res) => {
   const password = String(req.body.password || '');
 
   const admin = email ? await PlatformAdmin.findOne({ where: { email } }) : null;
-  const valid = admin && admin.active && (await bcrypt.compare(password, admin.passwordHash));
+  // Email inexistente: se compara igual contra un hash falso, para que tarde lo mismo
+  const matches = admin ? await bcrypt.compare(password, admin.passwordHash) : await compareWithDummy(password);
+  const valid = admin && admin.active && matches;
   if (!valid) {
     await audit(req, {
       action: 'platform.login_failed', actorType: 'platform', actorId: admin?.id ?? null, businessId: null,

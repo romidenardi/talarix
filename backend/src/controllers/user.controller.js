@@ -39,11 +39,13 @@ export const createUser = asyncHandler(async (req, res) => {
 
   if (!sendInvite) {
     if (!password) throw httpError('La contraseña es obligatoria');
-    checkPassword(password);
+    checkPassword(password, { email, name });
   }
 
+  // El email es único en todo el sistema (es el usuario para ingresar). El mensaje no dice si es de
+  // otro comercio, para no revelar quién usa Talarix.
   const existing = await User.findOne({ where: { email } });
-  if (existing) throw httpError('Ya existe un usuario con ese email');
+  if (existing) throw httpError('Ese email ya está en uso en Talarix. Usá otro email para este usuario.');
 
   const user = await User.create({
     name,
@@ -112,7 +114,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   if (email !== undefined && email !== user.email) {
     const taken = await User.findOne({ where: { email } });
-    if (taken) throw httpError('Ya existe un usuario con ese email');
+    if (taken) throw httpError('Ese email ya está en uso en Talarix. Usá otro email para este usuario.');
     user.email = email;
   }
 
@@ -120,7 +122,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (role !== undefined) user.role = role;
   if (active !== undefined) user.active = active;
   if (password) {
-    checkPassword(String(password));
+    checkPassword(String(password), { email: user.email, name: user.name });
     user.passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
     user.inviteTokenHash = null;
     user.inviteExpiresAt = null;

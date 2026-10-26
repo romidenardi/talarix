@@ -101,6 +101,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   try {
     const customer = await Customer.findOne({ where: { id: customerId, businessId }, transaction: t });
     if (!customer) throw httpError('Cliente no encontrado', 404);
+    if (customer.anonymizedAt) {
+      throw httpError('Ese cliente fue anonimizado por un pedido de supresión de datos: no se le puede hacer un remito.');
+    }
 
     const payment = await Payment.findOne({ where: { id: paymentId, businessId }, transaction: t });
     if (!payment) throw httpError('Forma de pago no encontrada', 404);

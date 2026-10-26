@@ -121,6 +121,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 Detalles que conviene saber:
 - Los precios incluyen IVA. `Order.total` es el final, después de descuentos; las cuotas son informativas.
 - Los remitos anulados (`status = 'cancelled'`) quedan en el historial y se excluyen de los reportes.
+- **Clientes y proveedores:** la condición fiscal tiene que ser una de las cuatro (`Consumidor Final`, `Responsable Inscripto`, `Monotributista`, `Exento`; se aceptan variantes como "RI" o minúsculas y se guarda bien escrita). El CUIT se valida con su dígito verificador y se guarda como `20-12345678-6`; también se acepta un DNI de 7 u 8 números (`utils/taxId.js`, el mismo archivo que en el frontend). Al editar, si el CUIT viene igual al que ya tenía, no se revisa, para no trabar clientes cargados antes de esta validación. La importación aplica las mismas reglas.
 - **Número de remito** (`orders.number`): correlativo por comercio (1, 2, 3…), se muestra como `00000123`. Lo asigna `services/orderNumber.service.js` bloqueando la fila del comercio, y el índice único `uq_orders_business_number` impide repetidos. Los anulados conservan su número.
 - **Stock: un solo lugar** (`services/stock.service.js`). Remitos, anulaciones, compras, ajustes manuales y datos demo cambian el stock solo con `moveStock`, que deja el movimiento, guarda quién lo hizo y no deja el stock negativo. Los productos se bloquean con `lockProducts`, **siempre ordenados por id**: dos ventas simultáneas con los mismos productos en distinto orden se esperan en lugar de trabarse (deadlock).
 - **Quién hizo cada cosa:** remitos, compras y movimientos de stock guardan `created_by_id` y `created_by_name` (el nombre queda aunque después se borre el usuario). La anulación guarda además `cancelled_by_id`.
@@ -184,8 +185,9 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
   - **Crear usuarios y enviar links** (mandan mails): 30 por día por comercio.
   - Los contadores están en memoria: se reinician con cada deploy y no se comparten si algún día hay más de una instancia.
 - **Sesiones:** el token dura 8 h y lleva la versión de sesión del usuario (`tv`, columna `users.token_version`). Al restablecer la contraseña, o cuando el administrador le pone una nueva, la versión sube y las sesiones abiertas con la contraseña anterior dejan de valer. Cambiar el rol o desactivar al usuario se aplica en el pedido siguiente, porque el middleware los lee de la base. Cerrar sesión solo borra el token en ese navegador. Los tokens se verifican solo con `HS256`.
-- **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
+- **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se rechazan las fáciles de adivinar (`utils/passwordStrength.js`, el mismo archivo que en el frontend): las más usadas, un carácter repetido, secuencias (`12345678`, `abcdefgh`, `qwerty…`), las que contienen "talarix" y las que contienen el nombre o el email de la persona. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
 - La exportación tiene límite de 5 pedidos por hora por usuario.
+- **Emails registrados:** el ingreso tarda lo mismo exista o no el email (si no existe, se compara contra un hash falso: `compareWithDummy`), y responde siempre "Credenciales inválidas". Al crear un usuario con un email que ya existe, el mensaje no dice de qué comercio es. El email es único en todo el sistema (es el usuario para ingresar), así que ese aviso no se puede evitar del todo; lo limita el tope de 30 usuarios nuevos por día por comercio.
 - Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo, se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
 
 ## Mails
@@ -225,7 +227,9 @@ Cuando se prueba en staging, reiniciar el servicio de la **API** (no el de MySQL
 Atención de pedidos de acceso, rectificación y supresión de clientes finales de un comercio (Ley 25.326):
 - **Acceso:** `GET /api/data-rights/customers/:id/export` descarga los datos de ese cliente.
 - **Rectificación:** se hace editando el cliente desde la pantalla de Clientes.
-- **Supresión:** `POST /api/data-rights/customers/:id/anonymize` anonimiza al cliente y **conserva sus remitos**, que son registro comercial del comercio.
+- **Supresión:** `POST /api/data-rights/customers/:id/anonymize` anonimiza al cliente y **conserva sus remitos**, que son registro comercial del comercio. Además:
+  - borra los textos libres de sus remitos (notas y motivo de anulación), que pueden tener su nombre o su teléfono; los importes y productos quedan;
+  - lo marca con `anonymized_at`: ya no se puede editar (`409`), no se le puede hacer un remito (`400`) ni anonimizar de nuevo, y no aparece para elegir en Remitos.
 
 Solo puede hacerlo el `admin` del comercio. Los plazos de respuesta y qué se puede anonimizar cuando haya facturas emitidas están pendientes de validación con abogado y contador.
 
@@ -292,23 +296,49 @@ En la pestaña **Data → Query** de Railway: **una sentencia por vez** (no acep
 ### Historial de cambios manuales
 Ya aplicados en staging y producción. Una base nueva creada desde cero no los necesita: `sync` crea las tablas con sus columnas actuales.
 
+**Clientes: anonimización y condición fiscal** (bloque 5, octubre 2026). El `ALTER` va **antes** de desplegar; los `UPDATE`, antes o después.
+```sql
+ALTER TABLE customers ADD COLUMN anonymized_at DATETIME NULL;
+```
+Marcar los clientes que ya se habían anonimizado antes de esta columna:
+```sql
+UPDATE customers SET anonymized_at = updatedAt WHERE anonymized_at IS NULL AND last_name = 'Cliente anonimizado' AND first_name IS NULL AND business_name IS NULL
+```
+Normalizar las condiciones fiscales cargadas con otra forma de escribir (una por vez; las que ya están bien no cambian):
+```sql
+UPDATE customers SET fiscal_condition = 'Responsable Inscripto' WHERE LOWER(TRIM(fiscal_condition)) IN ('responsable inscripto', 'responsable inscripta', 'ri', 'resp. inscripto')
+```
+```sql
+UPDATE customers SET fiscal_condition = 'Consumidor Final' WHERE LOWER(TRIM(fiscal_condition)) IN ('consumidor final', 'cf', 'final')
+```
+```sql
+UPDATE customers SET fiscal_condition = 'Monotributista' WHERE LOWER(TRIM(fiscal_condition)) IN ('monotributista', 'monotributo', 'mono')
+```
+```sql
+UPDATE customers SET fiscal_condition = 'Exento' WHERE LOWER(TRIM(fiscal_condition)) IN ('exento', 'exenta', 'iva exento')
+```
+Verificar (solo tienen que aparecer los cuatro valores; si aparece otro, corregir ese cliente a mano):
+```sql
+SELECT fiscal_condition, COUNT(*) FROM customers GROUP BY fiscal_condition
+```
+
 **Anulación de compras** (`purchases`, bloque 3, octubre 2026). **Antes** de desplegar.
 ```sql
 ALTER TABLE purchases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active';
 ALTER TABLE purchases ADD COLUMN cancelled_at DATETIME NULL;
 ALTER TABLE purchases ADD COLUMN cancel_reason VARCHAR(255) NULL;
-ALTER TABLE purchases ADD COLUMN cancelled_by_id CHAR(36) BINARY NULL;
+ALTER TABLE purchases ADD COLUMN cancelled_by_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;
 ALTER TABLE purchases ADD COLUMN cancelled_by_name VARCHAR(100) NULL;
 ```
 
 **Stock y remitos: número, usuario e IVA guardado** (bloque 2, octubre 2026). **Antes** de desplegar, y las dos `UPDATE` también: numeran los remitos que ya existían (por comercio y por fecha) y completan el IVA de los renglones viejos con el actual del producto. El índice único del número lo crea `sync`.
 ```sql
 ALTER TABLE orders ADD COLUMN `number` INT NULL;
-ALTER TABLE orders ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE orders ADD COLUMN created_by_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;
 ALTER TABLE orders ADD COLUMN created_by_name VARCHAR(100) NULL;
-ALTER TABLE purchases ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE purchases ADD COLUMN created_by_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;
 ALTER TABLE purchases ADD COLUMN created_by_name VARCHAR(100) NULL;
-ALTER TABLE stock_movements ADD COLUMN created_by_id CHAR(36) BINARY NULL;
+ALTER TABLE stock_movements ADD COLUMN created_by_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;
 ALTER TABLE stock_movements ADD COLUMN created_by_name VARCHAR(100) NULL;
 ALTER TABLE order_items ADD COLUMN vat_rate DECIMAL(5,2) NULL;
 ALTER TABLE order_items ADD COLUMN other_taxes DECIMAL(5,2) NULL;
@@ -385,9 +415,9 @@ Una base nueva ya nace con `RESTRICT` (está declarado en `models/index.js`).
 
 **Envíos duplicados** (`orders`, `purchases`, 23/10/2026). Hay que correrlo **antes** de desplegar el código: si el índice está declarado y la columna no existe, `sync` falla y el servidor no arranca.
 ```sql
-ALTER TABLE orders ADD COLUMN request_id CHAR(36) BINARY NULL
+ALTER TABLE orders ADD COLUMN request_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL
 ALTER TABLE orders ADD UNIQUE INDEX uq_orders_business_request (business_id, request_id)
-ALTER TABLE purchases ADD COLUMN request_id CHAR(36) BINARY NULL
+ALTER TABLE purchases ADD COLUMN request_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL
 ALTER TABLE purchases ADD UNIQUE INDEX uq_purchases_business_request (business_id, request_id)
 ```
 Los remitos y compras anteriores quedan con `request_id` en `NULL`, que el índice único admite.
@@ -478,4 +508,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 25/10/2026 (compras: anulación, factura repetida, costo promedio y fechas).
+Última actualización: 26/10/2026 (clientes: condición fiscal y CUIT validados, anonimización completa, contraseñas fáciles y emails registrados).

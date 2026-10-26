@@ -2,12 +2,38 @@ import { Customer, Order } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { pick } from '../utils/pick.js';
+import { normalizeTaxId, taxIdDigits } from '../utils/taxId.js';
+import { normalizeFiscalCondition, FISCAL_CONDITIONS } from '../utils/importValues.js';
 
 // Campos que se pueden cargar o editar desde la API (nunca businessId ni id)
 const CUSTOMER_FIELDS = [
   'businessName', 'firstName', 'lastName', 'fiscalCondition', 'cuit',
   'address', 'zipCode', 'city', 'province', 'phone', 'email',
 ];
+
+// Condición fiscal: solo los cuatro valores del sistema (acepta variantes: "RI", "responsable
+// inscripto", "CF"…). Si no coincide, el remito no sabría si discriminar IVA.
+const cleanFiscalCondition = (data) => {
+  if (!('fiscalCondition' in data)) return data;
+  const value = normalizeFiscalCondition(data.fiscalCondition);
+  if (!value) throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`);
+  data.fiscalCondition = value;
+  return data;
+};
+
+// CUIT (o DNI): se valida y se guarda con formato. Si al editar viene el mismo que ya tenía, no se
+// revisa (para no trabar la edición de clientes cargados antes de esta validación).
+const cleanTaxId = (data, current = null) => {
+  if (!('cuit' in data)) return data;
+  if (current && taxIdDigits(current) && taxIdDigits(current) === taxIdDigits(data.cuit)) {
+    delete data.cuit;
+    return data;
+  }
+  const { value, error } = normalizeTaxId(data.cuit);
+  if (error) throw httpError(error);
+  data.cuit = value;
+  return data;
+};
 
 const displayName = (c) => c.businessName || [c.firstName, c.lastName].filter(Boolean).join(' ') || 'El cliente';
 
@@ -24,7 +50,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
 
 export const createCustomer = asyncHandler(async (req, res) => {
   const customer = await Customer.create({
-    ...pick(req.body, CUSTOMER_FIELDS),
+    ...cleanTaxId(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS))),
     businessId: req.user.businessId,
   });
   res.status(201).json(customer);
@@ -32,7 +58,10 @@ export const createCustomer = asyncHandler(async (req, res) => {
 
 export const updateCustomer = asyncHandler(async (req, res) => {
   const customer = await findOwnCustomer(req.params.id, req.user.businessId);
-  await customer.update(pick(req.body, CUSTOMER_FIELDS));
+  if (customer.anonymizedAt) {
+    throw httpError('Este cliente fue anonimizado por un pedido de supresión de datos: no se puede editar.', 409);
+  }
+  await customer.update(cleanTaxId(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS)), customer.cuit));
   res.json(customer);
 });
 

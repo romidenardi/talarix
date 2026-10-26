@@ -3,6 +3,7 @@ import { parseSpreadsheet } from '../utils/parseSpreadsheet.js';
 import { runImport } from '../services/import.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
+import { normalizeTaxId } from '../utils/taxId.js';
 import {
   normalizeText, text, parseAmount, parseUnit, parseVat, parsePercent, normalizeFiscalCondition, FISCAL_CONDITIONS,
 } from '../utils/importValues.js';
@@ -179,6 +180,13 @@ export const importProducts = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------------------------
 const digits = (value) => String(value ?? '').replace(/\D/g, '');
 const identityKey = (cuit, name) => (digits(cuit) ? `cuit:${digits(cuit)}` : `nombre:${normalizeText(name)}`);
+// Valida el CUIT y lo deja con formato (20-12345678-6); devuelve el mensaje si está mal
+const taxIdProblem = (d) => {
+  const { value, error } = normalizeTaxId(d.cuit);
+  if (error) return `${error} ("${d.cuit}")`;
+  d.cuit = value;
+  return null;
+};
 const emailProblem = (email) => (email && !EMAIL_REGEX.test(email) ? `El email no es válido ("${email}")` : null);
 
 export const importCustomers = asyncHandler(async (req, res) => {
@@ -221,7 +229,7 @@ export const importCustomers = asyncHandler(async (req, res) => {
       if (!d.fiscalCondition) {
         return `Condición fiscal desconocida ("${d.fiscalRaw}"): usá ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`;
       }
-      return emailProblem(d.email);
+      return taxIdProblem(d) || emailProblem(d.email);
     },
     keys: [{
       of: (d) => identityKey(d.cuit, customerName(d)),
@@ -277,7 +285,7 @@ export const importSuppliers = asyncHandler(async (req, res) => {
       ['name', 'El nombre'], ['cuit', 'El CUIT'], ['contactPerson', 'El contacto'], ['phone', 'El teléfono'],
       ['email', 'El email'], ['address', 'La dirección'], ['city', 'La localidad'], ['province', 'La provincia'],
     ],
-    validate: (d) => (d.name ? emailProblem(d.email) : 'Falta el nombre'),
+    validate: (d) => (d.name ? taxIdProblem(d) || emailProblem(d.email) : 'Falta el nombre'),
     keys: [{
       of: (d) => identityKey(d.cuit, d.name),
       existing,
