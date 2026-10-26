@@ -20,8 +20,11 @@ after(async () => {
 
 const secondAdmin = async (label) => {
   const user = await models.User.create({
-    businessId: A.business.id, name: `Admin ${label}`, email: `admin-${label}@usuarios-a.test`,
-    role: 'admin', passwordHash: await bcrypt.hash('clave-de-prueba-123', 4),
+    businessId: A.business.id,
+    name: `Admin ${label}`,
+    email: `admin-${label}@usuarios-a.test`,
+    role: 'admin',
+    passwordHash: await bcrypt.hash('clave-de-prueba-123', 4),
   });
   return { ...user.toJSON(), token: tokenFor(user) };
 };

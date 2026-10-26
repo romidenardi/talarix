@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
-import { User, Business } from '../models/index.js';
+import pkg from 'sequelize';
+import { User, Business, sequelize } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { sendMail, appUrl } from '../utils/mailer.js';
@@ -8,8 +9,40 @@ import { issueAccessLink } from '../utils/accessLinks.js';
 import { checkPassword, BCRYPT_ROUNDS } from '../utils/password.js';
 import { audit } from '../utils/audit.js';
 
+const { Op } = pkg;
+
 const ROLES = ['admin', 'editor', 'operador'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Los cambios de usuarios de un comercio se hacen de a uno: se bloquea la fila del comercio durante
+// la transacción. Así, si dos administradores se quitan el rol al mismo tiempo, el segundo espera
+// al primero y ve el resultado (si no, los dos podían pasar y el comercio quedaba sin administrador).
+const lockUsersOf = (businessId, transaction) =>
+  Business.findOne({ where: { id: businessId }, attributes: ['id'], transaction, lock: transaction.LOCK.UPDATE });
+
+// Antes de quitarle el rol, desactivar o borrar a un administrador: quien lo pide tiene que seguir
+// siendo administrador (pudo perder el rol hace un instante) y tiene que quedar otro activo.
+// Se leen con bloqueo para ver lo último guardado, no una foto vieja de la transacción.
+const assertAnotherAdmin = async (req, targetId, transaction) => {
+  const me = await User.findOne({
+    where: { id: req.user.id, businessId: req.user.businessId },
+    attributes: ['id', 'role', 'active'],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!me || me.role !== 'admin' || !me.active) {
+    throw httpError('Ya no sos administrador de este comercio. Volvé a ingresar.', 403);
+  }
+  const others = await User.findAll({
+    where: { businessId: req.user.businessId, role: 'admin', active: true, id: { [Op.ne]: targetId } },
+    attributes: ['id'],
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!others.length) {
+    throw httpError('Tiene que quedar al menos un administrador activo en el comercio.', 409);
+  }
+};
 
 const toSafeUser = (user) => {
   const { passwordHash, inviteTokenHash, inviteExpiresAt, tokenVersion, ...safe } = user.toJSON();
@@ -92,47 +125,64 @@ export const createUser = asyncHandler(async (req, res) => {
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const user = await User.findOne({
-    where: { id: req.params.id, businessId: req.user.businessId },
-  });
-  if (!user) throw httpError('Usuario no encontrado', 404);
-
+  const { businessId } = req.user;
   const { name, role, active, password } = req.body;
   const email = req.body.email !== undefined ? String(req.body.email).trim().toLowerCase() : undefined;
-
   if (role && !ROLES.includes(role)) throw httpError('Rol inválido');
-  if (user.id === req.user.id && role && role !== 'admin') {
-    throw httpError('No podés quitarte tu propio rol de administrador');
-  }
-  if (user.id === req.user.id && active === false) {
-    throw httpError('No podés desactivar tu propio usuario');
-  }
 
-  // Qué cambió, para el registro de auditoría (sin datos personales: solo qué campos y el rol)
+  const t = await sequelize.transaction();
+  let user;
   const changes = {};
-  if (role !== undefined && role !== user.role) changes.role = { from: user.role, to: role };
-  if (active !== undefined && active !== user.active) changes.active = active;
-  if (password) changes.password = true;
-  if (email !== undefined && email !== user.email) changes.email = true;
+  try {
+    // Los cambios de usuarios de un mismo comercio se hacen de a uno (ver lockUsersOf)
+    await lockUsersOf(businessId, t);
+    user = await User.findOne({
+      where: { id: req.params.id, businessId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!user) throw httpError('Usuario no encontrado', 404);
 
-  if (email !== undefined && email !== user.email) {
-    const taken = await User.findOne({ where: { email } });
-    if (taken) throw httpError('Ese email ya está en uso en Talarix. Usá otro email para este usuario.');
-    user.email = email;
+    if (user.id === req.user.id && role && role !== 'admin') {
+      throw httpError('No podés quitarte tu propio rol de administrador');
+    }
+    if (user.id === req.user.id && active === false) {
+      throw httpError('No podés desactivar tu propio usuario');
+    }
+    const losesAdmin =
+      user.role === 'admin' && user.active && ((role !== undefined && role !== 'admin') || active === false);
+    if (losesAdmin) await assertAnotherAdmin(req, user.id, t);
+
+    // Qué cambió, para el registro de auditoría (sin datos personales: solo qué campos y el rol)
+    if (role !== undefined && role !== user.role) changes.role = { from: user.role, to: role };
+    if (active !== undefined && active !== user.active) changes.active = active;
+    if (password) changes.password = true;
+    if (email !== undefined && email !== user.email) changes.email = true;
+
+    if (email !== undefined && email !== user.email) {
+      const taken = await User.findOne({ where: { email }, transaction: t });
+      if (taken) throw httpError('Ese email ya está en uso en Talarix. Usá otro email para este usuario.');
+      user.email = email;
+    }
+
+    if (name !== undefined) user.name = name;
+    if (role !== undefined) user.role = role;
+    if (active !== undefined) user.active = active;
+    if (password) {
+      checkPassword(String(password), { email: user.email, name: user.name });
+      user.passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
+      user.inviteTokenHash = null;
+      user.inviteExpiresAt = null;
+      user.tokenVersion += 1; // cierra las sesiones abiertas con la contraseña anterior
+    }
+
+    await user.save({ transaction: t });
+    await t.commit();
+  } catch (error) {
+    await t.rollback();
+    throw error;
   }
 
-  if (name !== undefined) user.name = name;
-  if (role !== undefined) user.role = role;
-  if (active !== undefined) user.active = active;
-  if (password) {
-    checkPassword(String(password), { email: user.email, name: user.name });
-    user.passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
-    user.inviteTokenHash = null;
-    user.inviteExpiresAt = null;
-    user.tokenVersion += 1; // cierra las sesiones abiertas con la contraseña anterior
-  }
-
-  await user.save();
   if (Object.keys(changes).length) {
     await audit(req, { action: 'user.updated', targetType: 'user', targetId: user.id, detail: changes });
   }
@@ -166,21 +216,24 @@ export const sendAccessLink = asyncHandler(async (req, res) => {
 });
 
 export const deleteUser = asyncHandler(async (req, res) => {
-  const user = await User.findOne({
-    where: { id: req.params.id, businessId: req.user.businessId },
-  });
-  if (!user) throw httpError('Usuario no encontrado', 404);
+  const { businessId } = req.user;
+  if (req.params.id === req.user.id) throw httpError('No podés eliminar tu propio usuario');
 
-  if (user.id === req.user.id) throw httpError('No podés eliminar tu propio usuario');
+  const t = await sequelize.transaction();
+  let user;
+  try {
+    await lockUsersOf(businessId, t);
+    user = await User.findOne({ where: { id: req.params.id, businessId }, transaction: t, lock: t.LOCK.UPDATE });
+    if (!user) throw httpError('Usuario no encontrado', 404);
+    if (user.role === 'admin' && user.active) await assertAnotherAdmin(req, user.id, t);
 
-  if (user.role === 'admin') {
-    const adminCount = await User.count({
-      where: { businessId: req.user.businessId, role: 'admin', active: true },
-    });
-    if (adminCount <= 1) throw httpError('No podés eliminar al único administrador del comercio');
+    await user.destroy({ transaction: t });
+    await t.commit();
+  } catch (error) {
+    await t.rollback();
+    throw error;
   }
 
-  await user.destroy();
   await audit(req, { action: 'user.deleted', targetType: 'user', targetId: user.id, detail: { role: user.role } });
   res.status(204).send();
 });

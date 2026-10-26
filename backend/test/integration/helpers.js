@@ -95,7 +95,7 @@ export const startTestServer = async () => {
   return { api, upload, models, stop };
 };
 
-const tokenFor = (user) =>
+export const tokenFor = (user) =>
   jwt.sign(
     { id: user.id, businessId: user.businessId, role: user.role, tv: user.tokenVersion ?? 0 },
     process.env.JWT_SECRET,
