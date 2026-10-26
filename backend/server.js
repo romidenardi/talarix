@@ -10,8 +10,14 @@ import { initMonitoring, captureError, flushMonitoring } from './src/utils/monit
 const PORT = process.env.PORT || 3000;
 
 const REQUIRED_ENV = [
-  'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT',
-  'JWT_SECRET', 'PLATFORM_JWT_SECRET', 'APP_URL',
+  'DB_NAME',
+  'DB_USER',
+  'DB_PASSWORD',
+  'DB_HOST',
+  'DB_PORT',
+  'JWT_SECRET',
+  'PLATFORM_JWT_SECRET',
+  'APP_URL',
 ];
 
 let server = null;

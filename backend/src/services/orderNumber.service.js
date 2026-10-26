@@ -19,11 +19,11 @@ export const nextOrderNumber = async (businessId, transaction) => {
   });
   const [row] = await sequelize.query(
     'SELECT MAX(`number`) AS maxNumber FROM orders WHERE business_id = :businessId FOR UPDATE',
-    { replacements: { businessId }, type: QueryTypes.SELECT, transaction }
+    { replacements: { businessId }, type: QueryTypes.SELECT, transaction },
   );
   return (Number(row?.maxNumber) || 0) + 1;
 };
 
 // Cómo se muestra: 00000123. Un remito sin número (no debería haber) muestra el comienzo del id.
 export const formatOrderNumber = (order) =>
-  (order.number ? String(order.number).padStart(8, '0') : String(order.id).slice(0, 8).toUpperCase());
+  order.number ? String(order.number).padStart(8, '0') : String(order.id).slice(0, 8).toUpperCase();

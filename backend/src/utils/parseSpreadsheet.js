@@ -28,7 +28,9 @@ export const parseSpreadsheet = (file) => {
 
   if (!buffer || buffer.length === 0) throw httpError('El archivo está vacío');
   if (!contentMatches(buffer, ext)) {
-    throw httpError('El contenido del archivo no corresponde a un Excel o CSV. Revisá que no esté dañado o renombrado.');
+    throw httpError(
+      'El contenido del archivo no corresponde a un Excel o CSV. Revisá que no esté dañado o renombrado.',
+    );
   }
 
   let workbook;
@@ -53,7 +55,7 @@ export const parseSpreadsheet = (file) => {
   const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: '' });
   if (rows.length > MAX_IMPORT_ROWS) {
     throw httpError(
-      `El archivo tiene más de ${MAX_IMPORT_ROWS.toLocaleString('es-AR')} filas. Dividilo en archivos más chicos e importalos de a uno.`
+      `El archivo tiene más de ${MAX_IMPORT_ROWS.toLocaleString('es-AR')} filas. Dividilo en archivos más chicos e importalos de a uno.`,
     );
   }
   return rows;

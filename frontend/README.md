@@ -12,7 +12,8 @@ npm install
 npm run dev      # http://localhost:5173
 npm run build    # genera dist/ (no se versiona)
 npm run preview  # sirve el build localmente
-npm run lint     # oxlint
+npm run lint     # ESLint (reglas recomendadas), igual que el backend
+npm run format   # ordena el formato con Prettier (format:check solo revisa)
 ```
 
 ## Variables de entorno
@@ -76,6 +77,7 @@ src/
 - **Códigos de barras:** se pueden cargar y buscar con la **cámara del celular** (librería `html5-qrcode`) o con un **lector USB**, que funciona como teclado: escribe el código y envía Enter. Dentro de los campos de código de barras el Enter está bloqueado para no enviar el formulario por error. La cámara solo funciona con **HTTPS** (en `localhost` también).
 - **Productos por peso:** el precio, el costo y la promo se guardan **por kg**. Al cargar o editar el producto se puede elegir "Cargo precio y costo por" (kg, 500 g, 250 g, 100 g o 1 g) y el sistema lo convierte y muestra cómo queda guardado. En remitos y compras la cantidad se escribe en **kg o g** (selector al lado) y se muestra el cálculo (`0,100 kg × $30.000,00 por kg = $3.000,00`). Las tablas y el remito impreso muestran `/kg`. Los productos por peso no se ofrecen en combos. Las ayudas están en `utils/quantity.js`.
 - **Balanza** (Productos → pestaña **Balanza**): activa la lectura de etiquetas EAN-13 (valores de fábrica de Systel) y permite ajustar prefijo, posiciones, si la etiqueta trae peso (CANTID) o importe (TOTAL), decimales y dígito de control. Tiene un probador donde se pega el número de una etiqueta. Cada producto por peso lleva su **PLU de balanza**. En **Remitos**, la barra "Escanear código de barras" reconoce la etiqueta (`utils/scale.js`), busca el producto por PLU y suma el peso, o el importe dividido por el precio del sistema (redondeado al gramo). Ojo: una etiqueta que trae solo el importe no dice el peso, así que no hay forma de detectar si la balanza tenía otro precio: hay que mantener los precios de la balanza iguales a los del sistema. Con etiquetas de peso no hay ese problema. Un código que coincide con un código de barras o interno se toma primero como producto. Las Compras no leen etiquetas de balanza.
+- **Listas** (`hooks/useResource.js`): después de un alta, un cambio o una baja, la lista se actualiza con lo que devolvió el servidor, sin volver a pedir todo. Categorías y Productos recargan la lista entera (`{ reloadAfterChange: true }`), porque un cambio afecta a otros registros (subcategorías, combos).
 - **Avisos:** no hay avisos flotantes. Cada aviso aparece donde ocurrió la acción:
   - **Errores de un campo** (de la validación del formulario o del servidor) debajo del campo. Para los errores del servidor se usa `applyServerFieldErrors` y `fieldFromMessage` de `utils/serverErrors.js`.
   - **Otros errores** (por ejemplo "no se puede eliminar porque tiene remitos") en un recuadro rojo junto al botón del formulario, o en la fila de la tabla donde se apretó Eliminar o Anular. Quedan hasta que se cierran (×) o se hace otra acción.
@@ -129,4 +131,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 26/10/2026 (recuadros propios en lugar de los del navegador, encabezados de seguridad, token fuera de la URL y tipografías propias).
+Última actualización: 26/10/2026 (ESLint y Prettier; useResource actualiza la lista sin recargar todo).

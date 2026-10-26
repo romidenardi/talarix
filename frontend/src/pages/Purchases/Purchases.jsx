@@ -46,7 +46,14 @@ const Purchases = () => {
   const canManageData = role === 'admin' || role === 'editor';
 
   const {
-    register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting },
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: emptyForm(),
   });
@@ -80,7 +87,7 @@ const Purchases = () => {
 
   const total = (watchedItems || []).reduce(
     (sum, item) => sum + Math.round(toKg(item.quantity, item.qtyUnit) * (Number(item.unitCost) || 0) * 100) / 100,
-    0
+    0,
   );
 
   // Código leído con el lector USB o con la cámara
@@ -110,11 +117,13 @@ const Purchases = () => {
       msg.error(`No hay ningún producto con el código ${code}`, 'scan');
       return;
     }
-    if (!(await dialog.confirm({
-      title: 'Código no registrado',
-      message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
-      confirmLabel: 'Crear producto',
-    }))) {
+    if (
+      !(await dialog.confirm({
+        title: 'Código no registrado',
+        message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
+        confirmLabel: 'Crear producto',
+      }))
+    ) {
       return;
     }
     if (emptyIndex >= 0) {
@@ -239,12 +248,14 @@ const Purchases = () => {
     } catch (err) {
       // La misma factura del mismo proveedor ya estaba cargada: se pregunta antes de sumar el stock otra vez
       if (payload && err.response?.data?.code === 'DUPLICATE_INVOICE') {
-        if (!(await dialog.confirm({
-          title: 'Factura ya cargada',
-          message: `${err.response.data.message}\n\n¿Cargarla igual?`,
-          confirmLabel: 'Cargarla igual',
-          cancelLabel: 'No cargar',
-        }))) {
+        if (
+          !(await dialog.confirm({
+            title: 'Factura ya cargada',
+            message: `${err.response.data.message}\n\n¿Cargarla igual?`,
+            confirmLabel: 'Cargarla igual',
+            cancelLabel: 'No cargar',
+          }))
+        ) {
           msg.error('No se cargó la compra: la factura ya estaba registrada.');
           return;
         }
@@ -260,8 +271,8 @@ const Purchases = () => {
       const text = serverMessage(err, 'Error al registrar la compra');
       if (created.length) {
         msg.error(
-          `${text} La compra no se registró, pero ya quedaron creados ${created.join(' y ')}: `
-          + 'están elegidos en el formulario, no hace falta cargarlos de nuevo.'
+          `${text} La compra no se registró, pero ya quedaron creados ${created.join(' y ')}: ` +
+            'están elegidos en el formulario, no hace falta cargarlos de nuevo.',
         );
         return;
       }
@@ -279,9 +290,10 @@ const Purchases = () => {
     const name = purchase.Supplier?.name || supplierName(purchase.supplierId);
     const reason = await dialog.prompt({
       title: 'Anular compra',
-      message: `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} `
-        + `por $${Number(purchase.total).toFixed(2)}.\n`
-        + 'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.',
+      message:
+        `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} ` +
+        `por $${Number(purchase.total).toFixed(2)}.\n` +
+        'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.',
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular compra',
       cancelLabel: 'Volver',
@@ -302,18 +314,24 @@ const Purchases = () => {
   };
 
   // Los proveedores inactivos no se ofrecen (salvo el que ya está elegido)
-  const supplierOptions = suppliers.filter((s) => s.active !== false || s.id === selectedSupplierId).map((s) => ({
-    value: s.id,
-    label: s.name,
-    detail: s.cuit ? `CUIT ${s.cuit}` : '',
-    keywords: [s.cuit, s.email],
-  }));
-  const productOptions = products.filter((p) => !p.isCombo).map((p) => ({
-    value: p.id,
-    label: p.name,
-    detail: [p.internalCode && `Cód. ${p.internalCode}`, `Stock: ${formatQuantity(p.stock, p.unitType)}`].filter(Boolean).join(' · '),
-    keywords: [p.internalCode, p.barcode, p.brand, p.model],
-  }));
+  const supplierOptions = suppliers
+    .filter((s) => s.active !== false || s.id === selectedSupplierId)
+    .map((s) => ({
+      value: s.id,
+      label: s.name,
+      detail: s.cuit ? `CUIT ${s.cuit}` : '',
+      keywords: [s.cuit, s.email],
+    }));
+  const productOptions = products
+    .filter((p) => !p.isCombo)
+    .map((p) => ({
+      value: p.id,
+      label: p.name,
+      detail: [p.internalCode && `Cód. ${p.internalCode}`, `Stock: ${formatQuantity(p.stock, p.unitType)}`]
+        .filter(Boolean)
+        .join(' · '),
+      keywords: [p.internalCode, p.barcode, p.brand, p.model],
+    }));
 
   if (loading) return <Spinner label="Cargando compras..." />;
 
@@ -324,7 +342,10 @@ const Purchases = () => {
 
       <form onSubmit={handleSubmit(onSubmit)} className="purchase-form">
         <div className="field">
-          <label htmlFor="supplierId">Proveedor<RequiredMark /></label>
+          <label htmlFor="supplierId">
+            Proveedor
+            <RequiredMark />
+          </label>
           <Controller
             name="supplierId"
             control={control}
@@ -350,7 +371,10 @@ const Purchases = () => {
         {isNewSupplier && (
           <div className="inline-customer-form">
             <div className="field">
-              <label htmlFor="newSupplierName">Nombre<RequiredMark /></label>
+              <label htmlFor="newSupplierName">
+                Nombre
+                <RequiredMark />
+              </label>
               <input id="newSupplierName" placeholder="Ej: Distribuidora Norte SRL" {...register('newSupplier.name')} />
               {errors.newSupplier?.name && <span className="error">{errors.newSupplier?.name.message}</span>}
             </div>
@@ -364,7 +388,12 @@ const Purchases = () => {
             </div>
             <div className="field">
               <label htmlFor="newSupplierEmail">Email</label>
-              <input id="newSupplierEmail" type="email" placeholder="Ej: ventas@distribuidora.com" {...register('newSupplier.email')} />
+              <input
+                id="newSupplierEmail"
+                type="email"
+                placeholder="Ej: ventas@distribuidora.com"
+                {...register('newSupplier.email')}
+              />
             </div>
           </div>
         )}
@@ -383,14 +412,17 @@ const Purchases = () => {
             const isNewProduct = rowProductId === NEW_PRODUCT;
             const rowProduct = products.find((p) => p.id === rowProductId);
             const rowUnitType = isNewProduct ? watchedItems?.[index]?.newProduct?.unitType : rowProduct?.unitType;
-            const rowQtyUnit = rowUnitType === 'weight' ? (watchedItems?.[index]?.qtyUnit || 'kg') : 'kg';
+            const rowQtyUnit = rowUnitType === 'weight' ? watchedItems?.[index]?.qtyUnit || 'kg' : 'kg';
             const rowQuantity = toKg(watchedItems?.[index]?.quantity, rowQtyUnit);
             const rowCost = Number(watchedItems?.[index]?.unitCost) || 0;
 
             return (
               <div key={field.id} className="purchase-item-row">
                 <div className="field">
-                  <label htmlFor={`item-product-${index}`}>Producto<RequiredMark /></label>
+                  <label htmlFor={`item-product-${index}`}>
+                    Producto
+                    <RequiredMark />
+                  </label>
                   <Controller
                     name={`items.${index}.productId`}
                     control={control}
@@ -410,19 +442,29 @@ const Purchases = () => {
                       />
                     )}
                   />
-                  {errors.items?.[index]?.productId && <span className="error">{errors.items?.[index]?.productId.message}</span>}
+                  {errors.items?.[index]?.productId && (
+                    <span className="error">{errors.items?.[index]?.productId.message}</span>
+                  )}
                 </div>
                 <div className="field">
-                  <label htmlFor={`item-quantity-${index}`}>Cantidad<RequiredMark /></label>
+                  <label htmlFor={`item-quantity-${index}`}>
+                    Cantidad
+                    <RequiredMark />
+                  </label>
                   <div className={rowUnitType === 'weight' ? 'input-with-action' : undefined}>
                     <input
                       id={`item-quantity-${index}`}
                       type="number"
                       step={rowQtyUnit === 'g' ? '1' : quantityStep(rowUnitType)}
-                      placeholder={rowUnitType === 'weight' ? (rowQtyUnit === 'g' ? 'Ej: 500' : 'Ej: 10,500') : 'Ej: 10'}
+                      placeholder={
+                        rowUnitType === 'weight' ? (rowQtyUnit === 'g' ? 'Ej: 500' : 'Ej: 10,500') : 'Ej: 10'
+                      }
                       {...register(`items.${index}.quantity`, {
                         required: 'Cargá la cantidad',
-                        min: { value: rowQtyUnit === 'g' ? 1 : quantityMin(rowUnitType), message: 'La cantidad tiene que ser mayor a 0' },
+                        min: {
+                          value: rowQtyUnit === 'g' ? 1 : quantityMin(rowUnitType),
+                          message: 'La cantidad tiene que ser mayor a 0',
+                        },
                       })}
                     />
                     {rowUnitType === 'weight' && (
@@ -432,11 +474,14 @@ const Purchases = () => {
                       </select>
                     )}
                   </div>
-                  {errors.items?.[index]?.quantity && <span className="error">{errors.items?.[index]?.quantity.message}</span>}
+                  {errors.items?.[index]?.quantity && (
+                    <span className="error">{errors.items?.[index]?.quantity.message}</span>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor={`item-unitCost-${index}`}>
-                    {rowUnitType === 'weight' ? 'Costo por kg' : 'Costo unitario'}<RequiredMark />
+                    {rowUnitType === 'weight' ? 'Costo por kg' : 'Costo unitario'}
+                    <RequiredMark />
                   </label>
                   <input
                     id={`item-unitCost-${index}`}
@@ -448,7 +493,9 @@ const Purchases = () => {
                       min: { value: 0, message: 'El costo no puede ser negativo' },
                     })}
                   />
-                  {errors.items?.[index]?.unitCost && <span className="error">{errors.items?.[index]?.unitCost.message}</span>}
+                  {errors.items?.[index]?.unitCost && (
+                    <span className="error">{errors.items?.[index]?.unitCost.message}</span>
+                  )}
                 </div>
                 <div className="field item-remove-field">
                   <label aria-hidden="true">&nbsp;</label>
@@ -465,7 +512,8 @@ const Purchases = () => {
                 {rowUnitType === 'weight' && rowQuantity > 0 && (
                   <div className="field field-full">
                     <small className="report-note">
-                      {formatQuantity(rowQuantity, 'weight')} × ${rowCost.toFixed(2)} por kg = ${(Math.round(rowQuantity * rowCost * 100) / 100).toFixed(2)}
+                      {formatQuantity(rowQuantity, 'weight')} × ${rowCost.toFixed(2)} por kg = $
+                      {(Math.round(rowQuantity * rowCost * 100) / 100).toFixed(2)}
                     </small>
                   </div>
                 )}
@@ -473,32 +521,42 @@ const Purchases = () => {
                 {isNewProduct && (
                   <div className="inline-customer-form field-full">
                     <div className="field">
-                      <label htmlFor={`new-product-code-${index}`}>Código interno<RequiredMark /></label>
+                      <label htmlFor={`new-product-code-${index}`}>
+                        Código interno
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-code-${index}`}
                         placeholder="Ej: P001"
                         {...register(`items.${index}.newProduct.internalCode`)}
                       />
-                      {errors.items?.[index]?.newProduct?.internalCode && <span className="error">{errors.items?.[index]?.newProduct?.internalCode.message}</span>}
+                      {errors.items?.[index]?.newProduct?.internalCode && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.internalCode.message}</span>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor={`new-product-barcode-${index}`}>Código de barras</label>
-                      <input
-                        id={`new-product-barcode-${index}`}
-                        {...register(`items.${index}.newProduct.barcode`)}
-                      />
+                      <input id={`new-product-barcode-${index}`} {...register(`items.${index}.newProduct.barcode`)} />
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-name-${index}`}>Producto<RequiredMark /></label>
+                      <label htmlFor={`new-product-name-${index}`}>
+                        Producto
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-name-${index}`}
                         placeholder="Ej: Cerveza IPA 500ml"
                         {...register(`items.${index}.newProduct.name`)}
                       />
-                      {errors.items?.[index]?.newProduct?.name && <span className="error">{errors.items?.[index]?.newProduct?.name.message}</span>}
+                      {errors.items?.[index]?.newProduct?.name && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.name.message}</span>
+                      )}
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-price-${index}`}>{rowUnitType === 'weight' ? 'Precio de venta por kg' : 'Precio de venta'}<RequiredMark /></label>
+                      <label htmlFor={`new-product-price-${index}`}>
+                        {rowUnitType === 'weight' ? 'Precio de venta por kg' : 'Precio de venta'}
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-price-${index}`}
                         type="number"
@@ -506,7 +564,9 @@ const Purchases = () => {
                         placeholder="Ej: 1500"
                         {...register(`items.${index}.newProduct.price`)}
                       />
-                      {errors.items?.[index]?.newProduct?.price && <span className="error">{errors.items?.[index]?.newProduct?.price.message}</span>}
+                      {errors.items?.[index]?.newProduct?.price && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.price.message}</span>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor={`new-product-vat-${index}`}>IVA</label>
@@ -516,7 +576,9 @@ const Purchases = () => {
                       />
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-internal-${index}`}>Impuestos internos (%) <small>(opcional)</small></label>
+                      <label htmlFor={`new-product-internal-${index}`}>
+                        Impuestos internos (%) <small>(opcional)</small>
+                      </label>
                       <input
                         id={`new-product-internal-${index}`}
                         type="number"
@@ -536,8 +598,8 @@ const Purchases = () => {
                     </div>
                     <div className="field field-full stock-warning">
                       <span>
-                        El costo del producto será el "Costo unitario" de esta fila. Se crea con stock 0 y la
-                        compra le suma {formatQuantity(rowQuantity, rowUnitType)}.
+                        El costo del producto será el "Costo unitario" de esta fila. Se crea con stock 0 y la compra le
+                        suma {formatQuantity(rowQuantity, rowUnitType)}.
                       </span>
                     </div>
                   </div>
@@ -582,36 +644,44 @@ const Purchases = () => {
             {purchases.map((purchase) => {
               const cancelled = purchase.status === 'cancelled';
               return (
-              <tr key={purchase.id} className={cancelled ? 'order-cancelled' : ''}>
-                <td data-label="Fecha">
-                  {new Date(purchase.date).toLocaleDateString('es-AR')}
-                  {purchase.createdByName && <small className="row-author">por {purchase.createdByName}</small>}
-                </td>
-                <td data-label="Proveedor">
-                  {purchase.Supplier?.name || supplierName(purchase.supplierId)}
-                  {cancelled && (
-                    <span className="badge-cancelled" title={purchase.cancelReason || undefined}>Anulada</span>
-                  )}
-                </td>
-                <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
-                <td data-label="Artículos">{purchase.items?.map((i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`).join(', ')}</td>
-                <td data-label="Total"><span className="amount">${Number(purchase.total).toFixed(2)}</span></td>
-                {canManageData && (
-                  <td data-label="Acciones">
-                    {!cancelled && (
-                      <button
-                        type="button"
-                        className="btn-danger"
-                        disabled={cancellingId === purchase.id}
-                        onClick={() => handleCancel(purchase)}
-                      >
-                        {cancellingId === purchase.id ? 'Anulando…' : 'Anular'}
-                      </button>
-                    )}
-                    <FormMessage message={msg.at(purchase.id)} onClose={msg.clear} />
+                <tr key={purchase.id} className={cancelled ? 'order-cancelled' : ''}>
+                  <td data-label="Fecha">
+                    {new Date(purchase.date).toLocaleDateString('es-AR')}
+                    {purchase.createdByName && <small className="row-author">por {purchase.createdByName}</small>}
                   </td>
-                )}
-              </tr>
+                  <td data-label="Proveedor">
+                    {purchase.Supplier?.name || supplierName(purchase.supplierId)}
+                    {cancelled && (
+                      <span className="badge-cancelled" title={purchase.cancelReason || undefined}>
+                        Anulada
+                      </span>
+                    )}
+                  </td>
+                  <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
+                  <td data-label="Artículos">
+                    {purchase.items
+                      ?.map((i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`)
+                      .join(', ')}
+                  </td>
+                  <td data-label="Total">
+                    <span className="amount">${Number(purchase.total).toFixed(2)}</span>
+                  </td>
+                  {canManageData && (
+                    <td data-label="Acciones">
+                      {!cancelled && (
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          disabled={cancellingId === purchase.id}
+                          onClick={() => handleCancel(purchase)}
+                        >
+                          {cancellingId === purchase.id ? 'Anulando…' : 'Anular'}
+                        </button>
+                      )}
+                      <FormMessage message={msg.at(purchase.id)} onClose={msg.clear} />
+                    </td>
+                  )}
+                </tr>
               );
             })}
           </tbody>

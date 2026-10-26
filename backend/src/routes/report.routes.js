@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import {
-  salesSummary, salesByProduct, salesByCustomer, salesByPayment, vatReport, dashboard,
+  salesSummary,
+  salesByProduct,
+  salesByCustomer,
+  salesByPayment,
+  vatReport,
+  dashboard,
 } from '../controllers/report.controller.js';
 
 const router = Router();

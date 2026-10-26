@@ -4,10 +4,10 @@
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export const cleanRequestId = (value) =>
-  (typeof value === 'string' && UUID_RE.test(value) ? value.toLowerCase() : null);
+  typeof value === 'string' && UUID_RE.test(value) ? value.toLowerCase() : null;
 
 export const isDuplicateRequest = (err) =>
-  err?.name === 'SequelizeUniqueConstraintError'
-  && /request_id|requestId|_request/i.test(
-    `${err?.parent?.sqlMessage || ''} ${err?.original?.sqlMessage || ''} ${Object.keys(err?.fields || {}).join(' ')}`
+  err?.name === 'SequelizeUniqueConstraintError' &&
+  /request_id|requestId|_request/i.test(
+    `${err?.parent?.sqlMessage || ''} ${err?.original?.sqlMessage || ''} ${Object.keys(err?.fields || {}).join(' ')}`,
   );

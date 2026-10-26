@@ -29,27 +29,31 @@ export const actorFields = (user) => ({
 // Suma (delta > 0) o resta (delta < 0) stock y deja el movimiento.
 //   type: 'in' | 'out' | 'adjustment'
 //   allowNegative: solo para casos excepcionales; por defecto el stock nunca queda negativo
-export const moveStock = async ({
-  product, type, delta, reason = null, actor = null, date = null, allowNegative = false,
-}, transaction) => {
+export const moveStock = async (
+  { product, type, delta, reason = null, actor = null, date = null, allowNegative = false },
+  transaction,
+) => {
   const amount = round3(Number(delta));
   const newStock = round3(Number(product.stock) + amount);
   if (newStock < 0 && !allowNegative) {
     throw httpError(
-      `Stock insuficiente para ${product.name} (disponible: ${Number(product.stock)} ${unitWord(product)}, `
-      + `se necesitan ${Math.abs(amount)})`
+      `Stock insuficiente para ${product.name} (disponible: ${Number(product.stock)} ${unitWord(product)}, ` +
+        `se necesitan ${Math.abs(amount)})`,
     );
   }
 
-  const movement = await StockMovement.create({
-    businessId: product.businessId,
-    productId: product.id,
-    type,
-    quantity: amount,
-    reason: reason ? String(reason).slice(0, 255) : null,
-    ...(date ? { date } : {}),
-    ...actorFields(actor),
-  }, { transaction });
+  const movement = await StockMovement.create(
+    {
+      businessId: product.businessId,
+      productId: product.id,
+      type,
+      quantity: amount,
+      reason: reason ? String(reason).slice(0, 255) : null,
+      ...(date ? { date } : {}),
+      ...actorFields(actor),
+    },
+    { transaction },
+  );
 
   product.stock = newStock;
   await product.save({ transaction });

@@ -1,13 +1,33 @@
 import * as XLSX from 'xlsx';
 import {
-  Business, Category, Product, StockMovement, Payment, InstallmentPlan, User, Customer,
-  Supplier, Purchase, PurchaseItem, Order, OrderItem, ComboItem,
+  Business,
+  Category,
+  Product,
+  StockMovement,
+  Payment,
+  InstallmentPlan,
+  User,
+  Customer,
+  Supplier,
+  Purchase,
+  PurchaseItem,
+  Order,
+  OrderItem,
+  ComboItem,
 } from '../models/index.js';
 
 const TIMEZONE = 'America/Argentina/Buenos_Aires';
 
 const NUMERIC_TYPES = new Set([
-  'DECIMAL', 'INTEGER', 'BIGINT', 'FLOAT', 'DOUBLE', 'REAL', 'SMALLINT', 'TINYINT', 'MEDIUMINT',
+  'DECIMAL',
+  'INTEGER',
+  'BIGINT',
+  'FLOAT',
+  'DOUBLE',
+  'REAL',
+  'SMALLINT',
+  'TINYINT',
+  'MEDIUMINT',
 ]);
 
 const ALWAYS_EXCLUDED = ['businessId'];
@@ -30,7 +50,7 @@ const formatValue = (value, typeKey) => {
 
 export const columnsOf = (Model) =>
   Object.keys(Model.rawAttributes).filter(
-    (name) => !ALWAYS_EXCLUDED.includes(name) && !(EXCLUDED_BY_MODEL[Model.name] || []).includes(name)
+    (name) => !ALWAYS_EXCLUDED.includes(name) && !(EXCLUDED_BY_MODEL[Model.name] || []).includes(name),
   );
 
 export const sheetFrom = (Model, rows, extras = {}) => {
@@ -67,8 +87,7 @@ export const buildWorkbookBuffer = (sheets) => {
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 };
 
-const orderByCreated = (Model) =>
-  Model.rawAttributes.createdAt ? [['createdAt', 'ASC']] : undefined;
+const orderByCreated = (Model) => (Model.rawAttributes.createdAt ? [['createdAt', 'ASC']] : undefined);
 
 const byBusiness = (Model, businessId) =>
   Model.findAll({ where: { businessId }, order: orderByCreated(Model), raw: true });
@@ -79,11 +98,7 @@ const byParent = (Model, Parent, businessId, as) => {
   return Model.findAll({ include: [include], order: orderByCreated(Model), raw: true });
 };
 
-const labelOf = (row) =>
-  row.name ||
-  row.businessName ||
-  [row.lastName, row.firstName].filter(Boolean).join(' ') ||
-  '';
+const labelOf = (row) => row.name || row.businessName || [row.lastName, row.firstName].filter(Boolean).join(' ') || '';
 
 const namesById = (rows) => new Map(rows.map((row) => [row.id, labelOf(row)]));
 
@@ -91,8 +106,19 @@ export const buildBusinessExport = async (businessId) => {
   const business = await Business.findByPk(businessId, { attributes: ['id', 'name'] });
 
   const [
-    categories, products, comboItems, customers, suppliers, purchases, purchaseItems,
-    orders, orderItems, payments, installmentPlans, stockMovements, users,
+    categories,
+    products,
+    comboItems,
+    customers,
+    suppliers,
+    purchases,
+    purchaseItems,
+    orders,
+    orderItems,
+    payments,
+    installmentPlans,
+    stockMovements,
+    users,
   ] = await Promise.all([
     byBusiness(Category, businessId),
     byBusiness(Product, businessId),
@@ -122,7 +148,10 @@ export const buildBusinessExport = async (businessId) => {
         ['Exportación de datos', business?.name || ''],
         ['Fecha', formatDateTime(new Date())],
         ['Contenido', 'Cada hoja corresponde a un tema: productos, clientes, remitos, compras, etc.'],
-        ['Identificadores', 'Las columnas que terminan en "Id" relacionan unas hojas con otras. Las columnas de nombre al final de cada hoja se agregaron para facilitar la lectura.'],
+        [
+          'Identificadores',
+          'Las columnas que terminan en "Id" relacionan unas hojas con otras. Las columnas de nombre al final de cada hoja se agregaron para facilitar la lectura.',
+        ],
         ['Usuarios', 'No incluyen contraseñas ni enlaces de acceso.'],
       ],
     },

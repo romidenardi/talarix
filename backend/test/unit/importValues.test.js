@@ -1,7 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  normalizeText, isEmptyRow, parseAmount, parseUnit, parseVat, parsePercent, normalizeFiscalCondition,
+  normalizeText,
+  isEmptyRow,
+  parseAmount,
+  parseUnit,
+  parseVat,
+  parsePercent,
+  normalizeFiscalCondition,
 } from '../../src/utils/importValues.js';
 
 test('normalizeText ignora tildes, mayúsculas y espacios', () => {
@@ -17,9 +23,19 @@ test('fila vacía', () => {
 
 test('importes con coma o punto decimal', () => {
   const cases = {
-    '1234,50': 1234.5, '1.234,50': 1234.5, '$ 1.234,50': 1234.5, '1234.50': 1234.5, '1,234.50': 1234.5,
-    '1.234': 1234, '1.234.567': 1234567, '1,234,567': 1234567, '0.250': 0.25, '0,250': 0.25, '10,5': 10.5,
-    '1500': 1500, '-5': -5,
+    '1234,50': 1234.5,
+    '1.234,50': 1234.5,
+    '$ 1.234,50': 1234.5,
+    '1234.50': 1234.5,
+    '1,234.50': 1234.5,
+    1.234: 1234,
+    '1.234.567': 1234567,
+    '1,234,567': 1234567,
+    '0.250': 0.25,
+    '0,250': 0.25,
+    '10,5': 10.5,
+    1500: 1500,
+    '-5': -5,
   };
   for (const [input, expected] of Object.entries(cases)) assert.equal(parseAmount(input), expected, input);
   assert.equal(parseAmount(1500.75), 1500.75);
@@ -35,7 +51,18 @@ test('unidad: peso, kg, kilo… o unidad', () => {
 });
 
 test('IVA: 21, 10,5, %, exento y formato porcentaje de Excel', () => {
-  const cases = { '': 21, 21: 21, '21%': 21, '10,5': 10.5, '10.5': 10.5, '10,5 %': 10.5, 0: 0, exento: 0, 0.21: 21, 0.105: 10.5 };
+  const cases = {
+    '': 21,
+    21: 21,
+    '21%': 21,
+    '10,5': 10.5,
+    10.5: 10.5,
+    '10,5 %': 10.5,
+    0: 0,
+    exento: 0,
+    0.21: 21,
+    0.105: 10.5,
+  };
   for (const [input, expected] of Object.entries(cases)) assert.equal(parseVat(input), expected, String(input));
   assert.ok(Number.isNaN(parseVat('27')));
   assert.ok(Number.isNaN(parseVat('mucho')));
@@ -50,8 +77,13 @@ test('impuestos internos', () => {
 
 test('condición fiscal con variantes y abreviaturas', () => {
   const cases = {
-    'Responsable inscripto': 'Responsable Inscripto', RI: 'Responsable Inscripto', 'resp. inscripto': 'Responsable Inscripto',
-    'consumidor final': 'Consumidor Final', CF: 'Consumidor Final', Monotributo: 'Monotributista', exenta: 'Exento',
+    'Responsable inscripto': 'Responsable Inscripto',
+    RI: 'Responsable Inscripto',
+    'resp. inscripto': 'Responsable Inscripto',
+    'consumidor final': 'Consumidor Final',
+    CF: 'Consumidor Final',
+    Monotributo: 'Monotributista',
+    exenta: 'Exento',
   };
   for (const [input, expected] of Object.entries(cases)) assert.equal(normalizeFiscalCondition(input), expected, input);
   assert.equal(normalizeFiscalCondition('otra cosa'), null);

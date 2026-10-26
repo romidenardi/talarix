@@ -11,14 +11,16 @@ const OrderPrint = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getOrder(id).then(({ data }) => setOrder(data)).finally(() => setLoading(false));
+    getOrder(id)
+      .then(({ data }) => setOrder(data))
+      .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) return <Spinner label="Cargando remito..." />;
   if (!order) return <p>Remito no encontrado.</p>;
 
-  const customerLabel = order.Customer.businessName
-    || `${order.Customer.firstName} ${order.Customer.lastName || ''}`.trim();
+  const customerLabel =
+    order.Customer.businessName || `${order.Customer.firstName} ${order.Customer.lastName || ''}`.trim();
 
   const hasDiscount = Number(order.discountPercent) > 0 || Number(order.discountAmount) > 0;
   const totalDiscount = Number(order.grossTotal || 0) - Number(order.total || 0);
@@ -55,7 +57,11 @@ const OrderPrint = () => {
           <p>{customerLabel}</p>
           <p>{order.Customer.fiscalCondition}</p>
           {order.Customer.cuit && <p>CUIT: {order.Customer.cuit}</p>}
-          {order.Customer.address && <p>{order.Customer.address}, {order.Customer.city}</p>}
+          {order.Customer.address && (
+            <p>
+              {order.Customer.address}, {order.Customer.city}
+            </p>
+          )}
         </section>
 
         <table className="print-items">
@@ -79,7 +85,10 @@ const OrderPrint = () => {
                   )}
                 </td>
                 <td>{formatQuantity(item.quantity, item.Product?.unitType)}</td>
-                <td>${Number(item.unitPrice).toFixed(2)}{perKg(item.Product?.unitType)}</td>
+                <td>
+                  ${Number(item.unitPrice).toFixed(2)}
+                  {perKg(item.Product?.unitType)}
+                </td>
                 <td>${(Math.round(Number(item.quantity) * Number(item.unitPrice) * 100) / 100).toFixed(2)}</td>
               </tr>
             ))}
@@ -107,17 +116,26 @@ const OrderPrint = () => {
               {Number(order.internalTaxAmount) > 0 && (
                 <p>Impuestos internos: ${Number(order.internalTaxAmount).toFixed(2)}</p>
               )}
-              <p><strong>Total: ${Number(order.total).toFixed(2)}</strong></p>
+              <p>
+                <strong>Total: ${Number(order.total).toFixed(2)}</strong>
+              </p>
             </>
           ) : (
-            <p><strong>Total: ${Number(order.total).toFixed(2)}</strong></p>
+            <p>
+              <strong>Total: ${Number(order.total).toFixed(2)}</strong>
+            </p>
           )}
 
           {order.installmentsCount && (
             <>
-              <p>Plan: {order.installmentsCount} cuotas {Number(order.interestRate) > 0 ? `(+${order.interestRate}% interés)` : '(sin interés)'}</p>
+              <p>
+                Plan: {order.installmentsCount} cuotas{' '}
+                {Number(order.interestRate) > 0 ? `(+${order.interestRate}% interés)` : '(sin interés)'}
+              </p>
               <p>Monto de cada cuota: ${Number(order.installmentAmount).toFixed(2)}</p>
-              <p><strong>Total financiado: ${Number(order.totalFinanced).toFixed(2)}</strong></p>
+              <p>
+                <strong>Total financiado: ${Number(order.totalFinanced).toFixed(2)}</strong>
+              </p>
             </>
           )}
         </div>

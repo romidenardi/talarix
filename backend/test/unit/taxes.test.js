@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { splitPrice, splitLineParts } from '../../src/utils/taxes.js';
 
-const close = (actual, expected, msg) => assert.ok(Math.abs(actual - expected) < 0.005, `${msg}: ${actual} ≠ ${expected}`);
+const close = (actual, expected, msg) =>
+  assert.ok(Math.abs(actual - expected) < 0.005, `${msg}: ${actual} ≠ ${expected}`);
 
 test('precio con IVA 21%: neto + IVA = total', () => {
   const { net, vat, internal } = splitPrice(1210, 21, 0);
@@ -33,7 +34,11 @@ test('combo: reparte el total según el precio de cada producto y respeta su al�
   close(parts[1].total, 2000, 'parte 2');
   assert.equal(parts[0].vatRate, 21);
   assert.equal(parts[1].vatRate, 10.5);
-  close(parts.reduce((s, p) => s + p.net + p.vat + p.internal, 0), 3000, 'suma de partes');
+  close(
+    parts.reduce((s, p) => s + p.net + p.vat + p.internal, 0),
+    3000,
+    'suma de partes',
+  );
 });
 
 test('combo con productos sin precio: reparte por cantidad', () => {

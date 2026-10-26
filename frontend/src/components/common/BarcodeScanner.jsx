@@ -2,14 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats as Formats } from 'html5-qrcode';
 
 const REGION_ID = 'barcode-scanner-region';
-const FORMATS = [
-  Formats.EAN_13,
-  Formats.EAN_8,
-  Formats.UPC_A,
-  Formats.UPC_E,
-  Formats.CODE_128,
-  Formats.CODE_39,
-];
+const FORMATS = [Formats.EAN_13, Formats.EAN_8, Formats.UPC_A, Formats.UPC_E, Formats.CODE_128, Formats.CODE_39];
 
 // Serializa arranques y paradas de la cámara (React monta dos veces en desarrollo)
 let queue = Promise.resolve();
@@ -51,7 +44,7 @@ const BarcodeScanner = ({ onDetected, onClose }) => {
             if (navigator.vibrate) navigator.vibrate(80);
             onDetectedRef.current(text);
           },
-          () => {}
+          () => {},
         );
       } catch (err) {
         if (!cancelled) setError(describeError(err));
@@ -96,7 +89,9 @@ const BarcodeScanner = ({ onDetected, onClose }) => {
         ) : (
           <p className="report-note">Apuntá la cámara al código, a unos 15 cm, con buena luz.</p>
         )}
-        <button type="button" onClick={onClose}>Cancelar</button>
+        <button type="button" onClick={onClose}>
+          Cancelar
+        </button>
       </div>
     </div>
   );

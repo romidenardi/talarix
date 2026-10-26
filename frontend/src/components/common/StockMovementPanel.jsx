@@ -68,26 +68,29 @@ const StockMovementPanel = ({ product, onStockChange }) => {
 
         <div className="field">
           <label htmlFor={`stock-value-${product.id}`}>
-            {type === 'adjustment' ? 'Stock real contado' : 'Cantidad'}<RequiredMark />
+            {type === 'adjustment' ? 'Stock real contado' : 'Cantidad'}
+            <RequiredMark />
           </label>
           <input
             id={`stock-value-${product.id}`}
             type="number"
             step={quantityStep(product.unitType)}
-            placeholder={type === 'adjustment'
-              ? (product.unitType === 'weight' ? 'Ej: 24,500' : 'Ej: 24')
-              : (product.unitType === 'weight' ? 'Ej: 10,250' : 'Ej: 10')}
+            placeholder={
+              type === 'adjustment'
+                ? product.unitType === 'weight'
+                  ? 'Ej: 24,500'
+                  : 'Ej: 24'
+                : product.unitType === 'weight'
+                  ? 'Ej: 10,250'
+                  : 'Ej: 10'
+            }
             {...register('value', { required: true, min: 0 })}
           />
         </div>
 
         <div className="field">
           <label htmlFor={`stock-reason-${product.id}`}>Motivo (opcional)</label>
-          <input
-            id={`stock-reason-${product.id}`}
-            placeholder="Ej: Compra a proveedor"
-            {...register('reason')}
-          />
+          <input id={`stock-reason-${product.id}`} placeholder="Ej: Compra a proveedor" {...register('reason')} />
         </div>
 
         <button type="submit">Registrar</button>

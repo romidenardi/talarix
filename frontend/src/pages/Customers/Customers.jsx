@@ -40,7 +40,13 @@ const Customers = () => {
   const [personType, setPersonType] = useState('individual');
   const [search, setSearch] = useState('');
 
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm();
   const editForm = useForm();
   const { errors: editErrors } = editForm.formState;
   // Campos que muestran su error debajo (alta y edición)
@@ -118,8 +124,7 @@ const Customers = () => {
     else msg.error(result.message, id);
   };
 
-  const displayName = (c) =>
-    c.businessName || [c.firstName, c.lastName].filter(Boolean).join(' ');
+  const displayName = (c) => c.businessName || [c.firstName, c.lastName].filter(Boolean).join(' ');
 
   const onExportData = async (customer) => {
     try {
@@ -136,7 +141,8 @@ const Customers = () => {
       `Se borrarán los datos personales de "${displayName(customer)}" ` +
       `(nombre, CUIT, dirección, teléfono y email). Sus remitos se conservan. ` +
       `Esta acción no se puede deshacer. ¿Continuar?`;
-    if (!(await dialog.confirm({ title: 'Anonimizar cliente', message, confirmLabel: 'Anonimizar', danger: true }))) return;
+    if (!(await dialog.confirm({ title: 'Anonimizar cliente', message, confirmLabel: 'Anonimizar', danger: true })))
+      return;
 
     try {
       const { data } = await anonymizeCustomer(customer.id);
@@ -147,9 +153,21 @@ const Customers = () => {
     }
   };
 
-  const visibleCustomers = customers.filter((c) => c.id === editingId || matchesSearch(search, [
-    c.businessName, c.firstName, c.lastName, c.cuit, c.city, c.province, c.fiscalCondition, c.phone, c.email,
-  ]));
+  const visibleCustomers = customers.filter(
+    (c) =>
+      c.id === editingId ||
+      matchesSearch(search, [
+        c.businessName,
+        c.firstName,
+        c.lastName,
+        c.cuit,
+        c.city,
+        c.province,
+        c.fiscalCondition,
+        c.phone,
+        c.email,
+      ]),
+  );
 
   if (loading) return <Spinner label="Cargando clientes..." />;
 
@@ -172,7 +190,10 @@ const Customers = () => {
 
         {personType === 'business' ? (
           <div className="field">
-            <label htmlFor="businessName">Razón social<RequiredMark /></label>
+            <label htmlFor="businessName">
+              Razón social
+              <RequiredMark />
+            </label>
             <input
               id="businessName"
               placeholder="Ej: Distribuidora del Sur SA"
@@ -183,7 +204,10 @@ const Customers = () => {
         ) : (
           <>
             <div className="field">
-              <label htmlFor="firstName">Nombre<RequiredMark /></label>
+              <label htmlFor="firstName">
+                Nombre
+                <RequiredMark />
+              </label>
               <input
                 id="firstName"
                 placeholder="Ej: Juan"
@@ -199,11 +223,19 @@ const Customers = () => {
         )}
 
         <div className="field">
-          <label htmlFor="fiscalCondition">Condición fiscal<RequiredMark /></label>
-          <select id="fiscalCondition" {...register('fiscalCondition', { required: 'La condición fiscal es obligatoria' })}>
+          <label htmlFor="fiscalCondition">
+            Condición fiscal
+            <RequiredMark />
+          </label>
+          <select
+            id="fiscalCondition"
+            {...register('fiscalCondition', { required: 'La condición fiscal es obligatoria' })}
+          >
             <option value="">Elegí una opción...</option>
             {FISCAL_CONDITIONS.map((fc) => (
-              <option key={fc} value={fc}>{fc}</option>
+              <option key={fc} value={fc}>
+                {fc}
+              </option>
             ))}
           </select>
           {errors.fiscalCondition && <span className="error">{errors.fiscalCondition.message}</span>}
@@ -211,7 +243,11 @@ const Customers = () => {
 
         <div className="field">
           <label htmlFor="cuit">CUIT</label>
-          <input id="cuit" placeholder="Ej: 20-12345678-6 (o DNI)" {...register('cuit', { validate: validateTaxId(null) })} />
+          <input
+            id="cuit"
+            placeholder="Ej: 20-12345678-6 (o DNI)"
+            {...register('cuit', { validate: validateTaxId(null) })}
+          />
           {errors.cuit && <span className="error">{errors.cuit.message}</span>}
         </div>
         <div className="field">
@@ -280,21 +316,38 @@ const Customers = () => {
                     <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                       <div className="field">
                         <label htmlFor={`edit-businessName-${customer.id}`}>Razón social</label>
-                        <input id={`edit-businessName-${customer.id}`} placeholder="Ej: Distribuidora del Sur SA" {...editForm.register('businessName')} />
+                        <input
+                          id={`edit-businessName-${customer.id}`}
+                          placeholder="Ej: Distribuidora del Sur SA"
+                          {...editForm.register('businessName')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-firstName-${customer.id}`}>Nombre</label>
-                        <input id={`edit-firstName-${customer.id}`} placeholder="Ej: Juan" {...editForm.register('firstName')} />
+                        <input
+                          id={`edit-firstName-${customer.id}`}
+                          placeholder="Ej: Juan"
+                          {...editForm.register('firstName')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-lastName-${customer.id}`}>Apellido</label>
-                        <input id={`edit-lastName-${customer.id}`} placeholder="Ej: Pérez" {...editForm.register('lastName')} />
+                        <input
+                          id={`edit-lastName-${customer.id}`}
+                          placeholder="Ej: Pérez"
+                          {...editForm.register('lastName')}
+                        />
                       </div>
                       <div className="field">
-                        <label htmlFor={`edit-fiscalCondition-${customer.id}`}>Condición fiscal<RequiredMark /></label>
+                        <label htmlFor={`edit-fiscalCondition-${customer.id}`}>
+                          Condición fiscal
+                          <RequiredMark />
+                        </label>
                         <select id={`edit-fiscalCondition-${customer.id}`} {...editForm.register('fiscalCondition')}>
                           {FISCAL_CONDITIONS.map((fc) => (
-                            <option key={fc} value={fc}>{fc}</option>
+                            <option key={fc} value={fc}>
+                              {fc}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -309,32 +362,59 @@ const Customers = () => {
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-address-${customer.id}`}>Dirección</label>
-                        <input id={`edit-address-${customer.id}`} placeholder="Ej: San Martín 850" {...editForm.register('address')} />
+                        <input
+                          id={`edit-address-${customer.id}`}
+                          placeholder="Ej: San Martín 850"
+                          {...editForm.register('address')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-zipCode-${customer.id}`}>Código postal</label>
-                        <input id={`edit-zipCode-${customer.id}`} placeholder="Ej: 2300" {...editForm.register('zipCode')} />
+                        <input
+                          id={`edit-zipCode-${customer.id}`}
+                          placeholder="Ej: 2300"
+                          {...editForm.register('zipCode')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-city-${customer.id}`}>Localidad</label>
-                        <input id={`edit-city-${customer.id}`} placeholder="Ej: Rafaela" {...editForm.register('city')} />
+                        <input
+                          id={`edit-city-${customer.id}`}
+                          placeholder="Ej: Rafaela"
+                          {...editForm.register('city')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-province-${customer.id}`}>Provincia</label>
-                        <input id={`edit-province-${customer.id}`} placeholder="Ej: Santa Fe" {...editForm.register('province')} />
+                        <input
+                          id={`edit-province-${customer.id}`}
+                          placeholder="Ej: Santa Fe"
+                          {...editForm.register('province')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-phone-${customer.id}`}>Teléfono</label>
-                        <input id={`edit-phone-${customer.id}`} placeholder="Ej: 3492555111" {...editForm.register('phone')} />
+                        <input
+                          id={`edit-phone-${customer.id}`}
+                          placeholder="Ej: 3492555111"
+                          {...editForm.register('phone')}
+                        />
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-email-${customer.id}`}>Email</label>
-                        <input id={`edit-email-${customer.id}`} type="email" placeholder="Ej: juan.perez@mail.com" {...editForm.register('email')} />
+                        <input
+                          id={`edit-email-${customer.id}`}
+                          type="email"
+                          placeholder="Ej: juan.perez@mail.com"
+                          {...editForm.register('email')}
+                        />
                         {editErrors.email && <span className="error">{editErrors.email.message}</span>}
                       </div>
                       <div className="inline-edit-actions">
                         <button type="submit">Guardar</button>
-                        <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                        <button type="button" onClick={() => setEditingId(null)}>
+                          Cancelar
+                        </button>
                       </div>
                       <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                       <RequiredLegend />

@@ -64,25 +64,38 @@ export default function Activate() {
             <p>Elegí la contraseña con la que vas a ingresar.</p>
             <div className="field">
               <label htmlFor="password">Contraseña</label>
-              <input id="password" type="password" autoComplete="new-password"
-                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
             <div className="field">
               <label htmlFor="confirm">Repetir contraseña</label>
-              <input id="confirm" type="password" autoComplete="new-password"
-                value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+              <input
+                id="confirm"
+                type="password"
+                autoComplete="new-password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+              />
             </div>
 
             <label className="terms-check">
-              <input type="checkbox" checked={accepted}
-                onChange={(e) => setAccepted(e.target.checked)} />
+              <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
               <span>
                 Leí y acepto los{' '}
-                <Link to="/terminos" target="_blank" rel="noopener noreferrer">Términos y Condiciones de la beta</Link>
-                {' '}y el{' '}
-                <Link to="/privacidad" target="_blank" rel="noopener noreferrer">Aviso de Privacidad</Link>.
-                Entiendo que durante la beta no hay copias de seguridad garantizadas y que mis datos
-                pueden almacenarse en servidores fuera de Argentina.
+                <Link to="/terminos" target="_blank" rel="noopener noreferrer">
+                  Términos y Condiciones de la beta
+                </Link>{' '}
+                y el{' '}
+                <Link to="/privacidad" target="_blank" rel="noopener noreferrer">
+                  Aviso de Privacidad
+                </Link>
+                . Entiendo que durante la beta no hay copias de seguridad garantizadas y que mis datos pueden
+                almacenarse en servidores fuera de Argentina.
               </span>
             </label>
 

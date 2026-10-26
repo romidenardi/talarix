@@ -4,9 +4,7 @@ import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { audit } from '../utils/audit.js';
-import {
-  isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor,
-} from '../utils/numbers.js';
+import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_COST = 99999999;
@@ -21,11 +19,13 @@ const purchaseIncludes = [
   },
 ];
 
-const arDate = (date) =>
-  new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+const arDate = (date) => new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
 
 // Para comparar números de factura escritos distinto: "A 0001-00001234" = "a0001 00001234"
-const invoiceKey = (value) => String(value ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const invoiceKey = (value) =>
+  String(value ?? '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 
 export const getPurchases = asyncHandler(async (req, res) => {
   const purchases = await Purchase.findAll({
@@ -58,7 +58,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
 
   const rows = items.map((item, index) => {
     const n = index + 1;
-    if (!item || typeof item.productId !== 'string' || !item.productId) throw httpError(`Artículo ${n}: falta el producto`);
+    if (!item || typeof item.productId !== 'string' || !item.productId)
+      throw httpError(`Artículo ${n}: falta el producto`);
     if (!isPositiveQuantity(item.quantity)) {
       throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales`);
     }
@@ -101,16 +102,20 @@ export const createPurchase = asyncHandler(async (req, res) => {
       const duplicate = key && sameSupplier.find((p) => invoiceKey(p.invoiceNumber) === key);
       if (duplicate) {
         throw httpError(
-          `La factura ${invoiceNumber} de ${supplier.name} ya está cargada (compra del ${arDate(duplicate.date)} `
-          + `por $${Number(duplicate.total).toFixed(2)}). Si la cargás de nuevo, el stock se suma dos veces.`,
+          `La factura ${invoiceNumber} de ${supplier.name} ya está cargada (compra del ${arDate(duplicate.date)} ` +
+            `por $${Number(duplicate.total).toFixed(2)}). Si la cargás de nuevo, el stock se suma dos veces.`,
           409,
-          'DUPLICATE_INVOICE'
+          'DUPLICATE_INVOICE',
         );
       }
     }
 
     // Los productos se bloquean ordenados por id, igual que al vender (evita deadlocks)
-    const locked = await lockProducts(rows.map((r) => r.productId), businessId, t);
+    const locked = await lockProducts(
+      rows.map((r) => r.productId),
+      businessId,
+      t,
+    );
     const byProduct = new Map();
     let total = 0;
     for (const [index, row] of rows.entries()) {
@@ -119,36 +124,46 @@ export const createPurchase = asyncHandler(async (req, res) => {
         const product = locked.get(row.productId);
         if (!product) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
         if (product.isCombo) {
-          throw httpError(`Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`);
+          throw httpError(
+            `Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`,
+          );
         }
         entry = { product, quantity: 0, amount: 0 };
         byProduct.set(row.productId, entry);
       }
       if (!quantityAllowedFor(entry.product, row.quantity)) {
-        throw httpError(`Artículo ${index + 1}: ${entry.product.name} se maneja por unidad, la cantidad debe ser un entero`);
+        throw httpError(
+          `Artículo ${index + 1}: ${entry.product.name} se maneja por unidad, la cantidad debe ser un entero`,
+        );
       }
       entry.quantity = round3(entry.quantity + row.quantity);
       entry.amount += row.quantity * row.unitCost;
       total += row.quantity * row.unitCost;
     }
 
-    const purchase = await Purchase.create({
-      supplierId: supplier.id,
-      invoiceNumber,
-      date: purchaseDate,
-      total: round2(total),
-      requestId,
-      businessId,
-      ...actorFields(req.user),
-    }, { transaction: t });
+    const purchase = await Purchase.create(
+      {
+        supplierId: supplier.id,
+        invoiceNumber,
+        date: purchaseDate,
+        total: round2(total),
+        requestId,
+        businessId,
+        ...actorFields(req.user),
+      },
+      { transaction: t },
+    );
     purchaseId = purchase.id;
 
-    await PurchaseItem.bulkCreate(rows.map((row) => ({
-      purchaseId: purchase.id,
-      productId: row.productId,
-      quantity: row.quantity,
-      unitCost: row.unitCost,
-    })), { transaction: t });
+    await PurchaseItem.bulkCreate(
+      rows.map((row) => ({
+        purchaseId: purchase.id,
+        productId: row.productId,
+        quantity: row.quantity,
+        unitCost: row.unitCost,
+      })),
+      { transaction: t },
+    );
 
     for (const { product, quantity, amount } of byProduct.values()) {
       // Costo del producto: el promedio de esta compra (si el mismo producto vino en dos renglones
@@ -156,13 +171,16 @@ export const createPurchase = asyncHandler(async (req, res) => {
       // se conserva el costo que tenía.
       const averageCost = round2(amount / quantity);
       if (averageCost > 0) product.cost = averageCost;
-      await moveStock({
-        product,
-        type: 'in',
-        delta: quantity,
-        reason: `Compra a ${supplier.name}${invoiceNumber ? `, factura ${invoiceNumber}` : ''}`,
-        actor: req.user,
-      }, t);
+      await moveStock(
+        {
+          product,
+          type: 'in',
+          delta: quantity,
+          reason: `Compra a ${supplier.name}${invoiceNumber ? `, factura ${invoiceNumber}` : ''}`,
+          actor: req.user,
+        },
+        t,
+      );
     }
 
     await t.commit();
@@ -188,7 +206,10 @@ export const createPurchase = asyncHandler(async (req, res) => {
 // El costo de los productos no se toca. Para corregir una compra: anularla y cargarla de nuevo.
 export const cancelPurchase = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
-  const reason = String(req.body?.reason || '').trim().slice(0, 255) || null;
+  const reason =
+    String(req.body?.reason || '')
+      .trim()
+      .slice(0, 255) || null;
 
   const t = await sequelize.transaction();
   let purchase;
@@ -204,9 +225,16 @@ export const cancelPurchase = asyncHandler(async (req, res) => {
     const items = await PurchaseItem.findAll({ where: { purchaseId: purchase.id }, transaction: t });
     const quantityByProduct = new Map();
     for (const item of items) {
-      quantityByProduct.set(item.productId, round3((quantityByProduct.get(item.productId) || 0) + Number(item.quantity)));
+      quantityByProduct.set(
+        item.productId,
+        round3((quantityByProduct.get(item.productId) || 0) + Number(item.quantity)),
+      );
     }
-    const supplier = await Supplier.findOne({ where: { id: purchase.supplierId }, attributes: ['name'], transaction: t });
+    const supplier = await Supplier.findOne({
+      where: { id: purchase.supplierId },
+      attributes: ['name'],
+      transaction: t,
+    });
     const label = `compra a ${supplier?.name || 'proveedor'}${purchase.invoiceNumber ? `, factura ${purchase.invoiceNumber}` : ''}`;
 
     const locked = await lockProducts([...quantityByProduct.keys()], businessId, t);
@@ -215,27 +243,33 @@ export const cancelPurchase = asyncHandler(async (req, res) => {
       if (!product) throw httpError('Un producto de la compra ya no existe: no se puede anular', 409);
       if (Number(product.stock) < quantity) {
         throw httpError(
-          `No se puede anular: de ${product.name} quedan ${Number(product.stock)} y la compra había sumado ${quantity}. `
-          + 'Si ya vendiste parte, corregí el stock con un ajuste.',
-          409
+          `No se puede anular: de ${product.name} quedan ${Number(product.stock)} y la compra había sumado ${quantity}. ` +
+            'Si ya vendiste parte, corregí el stock con un ajuste.',
+          409,
         );
       }
-      await moveStock({
-        product,
-        type: 'out',
-        delta: -quantity,
-        reason: `Anulación de la ${label}`,
-        actor: req.user,
-      }, t);
+      await moveStock(
+        {
+          product,
+          type: 'out',
+          delta: -quantity,
+          reason: `Anulación de la ${label}`,
+          actor: req.user,
+        },
+        t,
+      );
     }
 
-    await purchase.update({
-      status: 'cancelled',
-      cancelledAt: new Date(),
-      cancelReason: reason,
-      cancelledById: req.user.id,
-      cancelledByName: req.user.name ? String(req.user.name).slice(0, 100) : null,
-    }, { transaction: t });
+    await purchase.update(
+      {
+        status: 'cancelled',
+        cancelledAt: new Date(),
+        cancelReason: reason,
+        cancelledById: req.user.id,
+        cancelledByName: req.user.name ? String(req.user.name).slice(0, 100) : null,
+      },
+      { transaction: t },
+    );
 
     await t.commit();
   } catch (error) {

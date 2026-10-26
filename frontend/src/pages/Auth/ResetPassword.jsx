@@ -40,7 +40,9 @@ export default function ResetPassword() {
         <div className="auth-card">
           <h1>Link inválido</h1>
           <p>El link está incompleto. Pedí uno nuevo.</p>
-          <p><Link to="/olvide-contrasena">Pedir un link nuevo</Link></p>
+          <p>
+            <Link to="/olvide-contrasena">Pedir un link nuevo</Link>
+          </p>
         </div>
       </div>
     );
@@ -80,7 +82,9 @@ export default function ResetPassword() {
             <button type="submit" disabled={loading}>
               {loading ? 'Guardando…' : 'Guardar contraseña'}
             </button>
-            <p><Link to="/olvide-contrasena">¿El link venció? Pedí uno nuevo</Link></p>
+            <p>
+              <Link to="/olvide-contrasena">¿El link venció? Pedí uno nuevo</Link>
+            </p>
           </>
         )}
       </form>

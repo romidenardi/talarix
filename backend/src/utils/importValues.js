@@ -31,7 +31,7 @@ export const parseAmount = (value) => {
     s = lastComma > lastDot ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
   } else if (lastComma !== -1) {
     // Solo comas: una sola es decimal (1234,50); varias son miles (1,234,567)
-    s = (s.match(/,/g).length === 1) ? s.replace(',', '.') : s.replace(/,/g, '');
+    s = s.match(/,/g).length === 1 ? s.replace(',', '.') : s.replace(/,/g, '');
   } else if (lastDot !== -1) {
     // Solo puntos: varios son miles (1.234.567); uno seguido de exactamente 3 cifras también
     // (1.234 = 1234, como se escribe en Argentina), salvo que empiece con 0 (0.250)
@@ -44,7 +44,20 @@ export const parseAmount = (value) => {
 };
 
 // Columna Unidad: null = no se entiende
-const WEIGHT_WORDS = ['peso', 'kg', 'kgs', 'kilo', 'kilos', 'kilogramo', 'kilogramos', 'granel', 'a granel', 'por kg', 'x kg', 'por peso'];
+const WEIGHT_WORDS = [
+  'peso',
+  'kg',
+  'kgs',
+  'kilo',
+  'kilos',
+  'kilogramo',
+  'kilogramos',
+  'granel',
+  'a granel',
+  'por kg',
+  'x kg',
+  'por peso',
+];
 const UNIT_WORDS = ['', 'unidad', 'unidades', 'u', 'un', 'und', 'unid', 'c/u', 'por unidad', 'x unidad'];
 export const parseUnit = (value) => {
   const v = normalizeText(value).replace(/\.$/, '');
@@ -79,10 +92,24 @@ export const parsePercent = (value) => {
 // Condición fiscal: los cuatro valores que usa el sistema, aceptando abreviaturas y variantes
 export const FISCAL_CONDITIONS = ['Consumidor Final', 'Responsable Inscripto', 'Monotributista', 'Exento'];
 const FISCAL_ALIASES = {
-  'consumidor final': 'Consumidor Final', cf: 'Consumidor Final', 'cons. final': 'Consumidor Final', final: 'Consumidor Final',
-  'responsable inscripto': 'Responsable Inscripto', 'responsable inscripta': 'Responsable Inscripto', ri: 'Responsable Inscripto', 'resp. inscripto': 'Responsable Inscripto', 'iva responsable inscripto': 'Responsable Inscripto',
-  monotributista: 'Monotributista', monotributo: 'Monotributista', mono: 'Monotributista', 'responsable monotributo': 'Monotributista', mt: 'Monotributista',
-  exento: 'Exento', exenta: 'Exento', 'iva exento': 'Exento', ex: 'Exento',
+  'consumidor final': 'Consumidor Final',
+  cf: 'Consumidor Final',
+  'cons. final': 'Consumidor Final',
+  final: 'Consumidor Final',
+  'responsable inscripto': 'Responsable Inscripto',
+  'responsable inscripta': 'Responsable Inscripto',
+  ri: 'Responsable Inscripto',
+  'resp. inscripto': 'Responsable Inscripto',
+  'iva responsable inscripto': 'Responsable Inscripto',
+  monotributista: 'Monotributista',
+  monotributo: 'Monotributista',
+  mono: 'Monotributista',
+  'responsable monotributo': 'Monotributista',
+  mt: 'Monotributista',
+  exento: 'Exento',
+  exenta: 'Exento',
+  'iva exento': 'Exento',
+  ex: 'Exento',
 };
 export const normalizeFiscalCondition = (value) => FISCAL_ALIASES[normalizeText(value)] ?? null;
 

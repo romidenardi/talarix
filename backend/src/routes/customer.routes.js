@@ -1,11 +1,6 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import {
-  getCustomers,
-  createCustomer,
-  updateCustomer,
-  deleteCustomer,
-} from '../controllers/customer.controller.js';
+import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from '../controllers/customer.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 

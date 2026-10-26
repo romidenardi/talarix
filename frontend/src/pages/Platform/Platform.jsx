@@ -113,7 +113,14 @@ export default function Platform() {
       next === 'suspended'
         ? `¿Suspender "${business.name}"? Los usuarios no van a poder ingresar.`
         : `¿Reactivar "${business.name}"?`;
-    if (!(await dialog.confirm({ message, confirmLabel: next === 'suspended' ? 'Suspender' : 'Reactivar', danger: next === 'suspended' }))) return;
+    if (
+      !(await dialog.confirm({
+        message,
+        confirmLabel: next === 'suspended' ? 'Suspender' : 'Reactivar',
+        danger: next === 'suspended',
+      }))
+    )
+      return;
 
     setError('');
     try {
@@ -192,8 +199,7 @@ export default function Platform() {
   };
 
   const handleResetDemo = async (business) => {
-    const message =
-      `Se borrarán todos los datos de "${business.name}" y se cargarán los datos de ejemplo. ¿Continuar?`;
+    const message = `Se borrarán todos los datos de "${business.name}" y se cargarán los datos de ejemplo. ¿Continuar?`;
     if (!(await dialog.confirm({ message, confirmLabel: 'Reiniciar demo', danger: true }))) return;
 
     setError('');
@@ -217,7 +223,7 @@ export default function Platform() {
   const whatsappUrl = invite
     ? `https://wa.me/?text=${encodeURIComponent(
         `¡Hola! Te invito a probar el sistema. Activá tu cuenta y elegí tu contraseña desde este link ` +
-          `(vence el ${formatDate(invite.expires)}): ${invite.url}`
+          `(vence el ${formatDate(invite.expires)}): ${invite.url}`,
       )}`
     : '#';
 
@@ -225,7 +231,9 @@ export default function Platform() {
     <div className="platform-page">
       <header className="platform-header">
         <h1>Plataforma · Comercios</h1>
-        <button type="button" onClick={handleLogout}>Cerrar sesión</button>
+        <button type="button" onClick={handleLogout}>
+          Cerrar sesión
+        </button>
       </header>
 
       {error && <p className="auth-error">{error}</p>}
@@ -233,22 +241,23 @@ export default function Platform() {
       {invite && (
         <section className="invite-box">
           <strong>{invite.title}</strong>
-          <span
-            className={`invite-mail ${invite.emailSent ? 'invite-mail-ok' : 'invite-mail-warn'}`}
-            role="status"
-          >
+          <span className={`invite-mail ${invite.emailSent ? 'invite-mail-ok' : 'invite-mail-warn'}`} role="status">
             {invite.emailSent
               ? `Se envió el mail con la invitación a ${invite.email}.`
               : `No se pudo enviar el mail a ${invite.email}. Pasale el link por otro medio.`}
           </span>
-          <span>
-            Se muestra una sola vez: copialo ahora. Vence el {formatDate(invite.expires)}.
-          </span>
+          <span>Se muestra una sola vez: copialo ahora. Vence el {formatDate(invite.expires)}.</span>
           <input type="text" readOnly value={invite.url} onFocus={(e) => e.target.select()} />
           <div className="platform-actions">
-            <button type="button" onClick={copyInvite}>{copied ? '¡Copiado!' : 'Copiar link'}</button>
-            <a href={whatsappUrl} target="_blank" rel="noreferrer">Compartir por WhatsApp</a>
-            <button type="button" onClick={() => setInvite(null)}>Cerrar</button>
+            <button type="button" onClick={copyInvite}>
+              {copied ? '¡Copiado!' : 'Copiar link'}
+            </button>
+            <a href={whatsappUrl} target="_blank" rel="noreferrer">
+              Compartir por WhatsApp
+            </a>
+            <button type="button" onClick={() => setInvite(null)}>
+              Cerrar
+            </button>
           </div>
         </section>
       )}
@@ -266,8 +275,13 @@ export default function Platform() {
           </div>
           <div className="field">
             <label htmlFor="pf-admin-email">Email del administrador</label>
-            <input id="pf-admin-email" type="email" required value={form.adminEmail}
-              onChange={setField('adminEmail')} />
+            <input
+              id="pf-admin-email"
+              type="email"
+              required
+              value={form.adminEmail}
+              onChange={setField('adminEmail')}
+            />
           </div>
           <div className="field">
             <label htmlFor="pf-type">Tipo</label>
@@ -278,8 +292,14 @@ export default function Platform() {
           </div>
           <div className="field">
             <label htmlFor="pf-trial">Días de prueba (opcional)</label>
-            <input id="pf-trial" type="number" min="1" max="365" value={form.trialDays}
-              onChange={setField('trialDays')} />
+            <input
+              id="pf-trial"
+              type="number"
+              min="1"
+              max="365"
+              value={form.trialDays}
+              onChange={setField('trialDays')}
+            />
           </div>
           <button type="submit" disabled={submitting}>
             {submitting ? 'Creando…' : 'Crear y enviar invitación'}
@@ -350,7 +370,9 @@ export default function Platform() {
                               </>
                             )}
                           </>
-                        ) : '—'}
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td>{formatDate(admin?.lastLoginAt, true)}</td>
                       <td>{formatDate(business.createdAt)}</td>

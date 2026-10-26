@@ -16,7 +16,6 @@ const toSafeUser = (user) => {
   return { ...safe, pendingActivation: !passwordHash };
 };
 
-
 export const getUsers = asyncHandler(async (req, res) => {
   const users = await User.findAll({
     where: { businessId: req.user.businessId },
@@ -28,7 +27,9 @@ export const getUsers = asyncHandler(async (req, res) => {
 
 export const createUser = asyncHandler(async (req, res) => {
   const name = String(req.body.name || '').trim();
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase();
   const password = String(req.body.password || '');
   const sendInvite = req.body.sendInvite === true;
   const { role } = req.body;
@@ -82,7 +83,9 @@ export const createUser = asyncHandler(async (req, res) => {
   }
 
   await audit(req, {
-    action: 'user.created', targetType: 'user', targetId: user.id,
+    action: 'user.created',
+    targetType: 'user',
+    targetId: user.id,
     detail: { role: user.role, invite: sendInvite },
   });
   res.status(201).json({ ...toSafeUser(user), mail });
@@ -145,7 +148,12 @@ export const sendAccessLink = asyncHandler(async (req, res) => {
 
   const business = await Business.findByPk(req.user.businessId, { attributes: ['name'] });
   const result = await issueAccessLink(user, business?.name || 'tu comercio');
-  await audit(req, { action: 'user.access_link_sent', targetType: 'user', targetId: user.id, detail: { type: result.type } });
+  await audit(req, {
+    action: 'user.access_link_sent',
+    targetType: 'user',
+    targetId: user.id,
+    detail: { type: result.type },
+  });
 
   res.json({
     email: user.email,

@@ -12,15 +12,19 @@ import { resetDemoBusiness } from '../services/demo.service.js';
 import { audit } from '../utils/audit.js';
 import { compareWithDummy } from '../utils/password.js';
 import {
-  generateTotpSecret, verifyTotp, otpauthUrl, generateRecoveryCodes, consumeRecoveryCode, looksLikeRecoveryCode,
+  generateTotpSecret,
+  verifyTotp,
+  otpauthUrl,
+  generateRecoveryCodes,
+  consumeRecoveryCode,
+  looksLikeRecoveryCode,
 } from '../utils/totp.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const CLOSURE_DAYS = 30;
 
-const buildInviteUrl = (token) =>
-  `${process.env.APP_URL.replace(/\/$/, '')}/activar?token=${token}`;
+const buildInviteUrl = (token) => `${process.env.APP_URL.replace(/\/$/, '')}/activar?token=${token}`;
 
 // ---------------------------------------------------------------------------------------------
 // Ingreso del superadmin en dos pasos: contraseña y después el código de la app de autenticación.
@@ -68,7 +72,9 @@ const respondWithSession = (res, admin, extra = {}) => {
 };
 
 export const platformLogin = asyncHandler(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase();
   const password = String(req.body.password || '');
 
   const admin = email ? await PlatformAdmin.findOne({ where: { email } }) : null;
@@ -77,7 +83,10 @@ export const platformLogin = asyncHandler(async (req, res) => {
   const valid = admin && admin.active && matches;
   if (!valid) {
     await audit(req, {
-      action: 'platform.login_failed', actorType: 'platform', actorId: admin?.id ?? null, businessId: null,
+      action: 'platform.login_failed',
+      actorType: 'platform',
+      actorId: admin?.id ?? null,
+      businessId: null,
     });
     throw httpError('Credenciales inválidas', 401);
   }
@@ -169,18 +178,20 @@ export const listAuditLog = asyncHandler(async (req, res) => {
   const label = new Map([...admins, ...users].map((x) => [x.id, x.email]));
   const businessName = new Map(businesses.map((b) => [b.id, b.name]));
 
-  res.json(rows.map((r) => ({
-    id: r.id,
-    createdAt: r.createdAt,
-    action: r.action,
-    actorType: r.actorType,
-    actor: r.actorType === 'system' ? 'Sistema' : (label.get(r.actorId) || (r.actorId ? 'Usuario borrado' : '—')),
-    business: r.businessId ? (businessName.get(r.businessId) || 'Comercio borrado') : null,
-    targetType: r.targetType,
-    targetId: r.targetId,
-    detail: r.detail,
-    ip: r.ip,
-  })));
+  res.json(
+    rows.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      action: r.action,
+      actorType: r.actorType,
+      actor: r.actorType === 'system' ? 'Sistema' : label.get(r.actorId) || (r.actorId ? 'Usuario borrado' : '—'),
+      business: r.businessId ? businessName.get(r.businessId) || 'Comercio borrado' : null,
+      targetType: r.targetType,
+      targetId: r.targetId,
+      detail: r.detail,
+      ip: r.ip,
+    })),
+  );
 });
 
 export const listBusinesses = asyncHandler(async (req, res) => {
@@ -190,7 +201,17 @@ export const listBusinesses = asyncHandler(async (req, res) => {
   });
 
   const users = await User.findAll({
-    attributes: ['id', 'businessId', 'name', 'email', 'role', 'active', 'lastLoginAt', 'passwordHash', 'inviteExpiresAt'],
+    attributes: [
+      'id',
+      'businessId',
+      'name',
+      'email',
+      'role',
+      'active',
+      'lastLoginAt',
+      'passwordHash',
+      'inviteExpiresAt',
+    ],
   });
 
   const result = businesses.map((business) => {
@@ -218,7 +239,9 @@ export const listBusinesses = asyncHandler(async (req, res) => {
 export const createBusiness = asyncHandler(async (req, res) => {
   const name = String(req.body.name || '').trim();
   const adminName = String(req.body.adminName || '').trim();
-  const adminEmail = String(req.body.adminEmail || '').trim().toLowerCase();
+  const adminEmail = String(req.body.adminEmail || '')
+    .trim()
+    .toLowerCase();
   const type = req.body.type === 'demo' ? 'demo' : 'client';
 
   if (!name || !adminName || !adminEmail) {
@@ -244,26 +267,32 @@ export const createBusiness = asyncHandler(async (req, res) => {
   const t = await sequelize.transaction();
   let business;
   try {
-    business = await Business.create(
-      { name, type, trialEndsAt, contactEmail: adminEmail },
-      { transaction: t }
+    business = await Business.create({ name, type, trialEndsAt, contactEmail: adminEmail }, { transaction: t });
+    await User.create(
+      {
+        name: adminName,
+        email: adminEmail,
+        role: 'admin',
+        passwordHash: null,
+        inviteTokenHash: hash,
+        inviteExpiresAt,
+        businessId: business.id,
+      },
+      { transaction: t },
     );
-    await User.create({
-      name: adminName,
-      email: adminEmail,
-      role: 'admin',
-      passwordHash: null,
-      inviteTokenHash: hash,
-      inviteExpiresAt,
-      businessId: business.id,
-    }, { transaction: t });
     await t.commit();
   } catch (error) {
     await t.rollback();
     throw error;
   }
 
-  await audit(req, { action: 'business.created', businessId: business.id, targetType: 'business', targetId: business.id, detail: { type } });
+  await audit(req, {
+    action: 'business.created',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
+    detail: { type },
+  });
 
   let demoSeeded = null;
   if (type === 'demo') {
@@ -310,7 +339,10 @@ export const setBusinessStatus = asyncHandler(async (req, res) => {
   const previous = business.status;
   await business.update({ status });
   await audit(req, {
-    action: 'business.status_changed', businessId: business.id, targetType: 'business', targetId: business.id,
+    action: 'business.status_changed',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
     detail: { from: previous, to: status },
   });
   res.json({ id: business.id, name: business.name, status: business.status });
@@ -330,7 +362,10 @@ export const startClosure = asyncHandler(async (req, res) => {
   const deleteAt = new Date(Date.now() + CLOSURE_DAYS * 24 * 60 * 60 * 1000);
   await business.update({ status: 'closing', deleteAt });
   await audit(req, {
-    action: 'business.closure_started', businessId: business.id, targetType: 'business', targetId: business.id,
+    action: 'business.closure_started',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
     detail: { deleteAt },
   });
 
@@ -368,7 +403,12 @@ export const cancelClosure = asyncHandler(async (req, res) => {
   if (business.status !== 'closing') throw httpError('El comercio no tiene una baja pendiente', 409);
 
   await business.update({ status: 'active', deleteAt: null });
-  await audit(req, { action: 'business.closure_cancelled', businessId: business.id, targetType: 'business', targetId: business.id });
+  await audit(req, {
+    action: 'business.closure_cancelled',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
+  });
   res.json({ id: business.id, name: business.name, status: business.status });
 });
 
@@ -387,7 +427,11 @@ export const reinviteUser = asyncHandler(async (req, res) => {
 
   await user.update({ passwordHash: null, inviteTokenHash: hash, inviteExpiresAt, active: true });
   await audit(req, {
-    action: 'user.reinvited', businessId: business.id, targetType: 'user', targetId: user.id, detail: { role: user.role },
+    action: 'user.reinvited',
+    businessId: business.id,
+    targetType: 'user',
+    targetId: user.id,
+    detail: { role: user.role },
   });
 
   const inviteUrl = buildInviteUrl(token);
@@ -411,6 +455,11 @@ export const reinviteUser = asyncHandler(async (req, res) => {
 
 export const resetDemo = asyncHandler(async (req, res) => {
   await resetDemoBusiness(req.params.id);
-  await audit(req, { action: 'demo.reset', businessId: req.params.id, targetType: 'business', targetId: req.params.id });
+  await audit(req, {
+    action: 'demo.reset',
+    businessId: req.params.id,
+    targetType: 'business',
+    targetId: req.params.id,
+  });
   res.json({ message: 'Demo reiniciada' });
 });

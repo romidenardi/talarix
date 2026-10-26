@@ -5,7 +5,14 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { normalizeTaxId } from '../utils/taxId.js';
 import {
-  normalizeText, text, parseAmount, parseUnit, parseVat, parsePercent, normalizeFiscalCondition, FISCAL_CONDITIONS,
+  normalizeText,
+  text,
+  parseAmount,
+  parseUnit,
+  parseVat,
+  parsePercent,
+  normalizeFiscalCondition,
+  FISCAL_CONDITIONS,
 } from '../utils/importValues.js';
 
 const MAX_PRICE = 99999999;
@@ -85,8 +92,13 @@ export const importProducts = asyncHandler(async (req, res) => {
       };
     },
     textFields: [
-      ['internalCode', 'El código interno'], ['barcode', 'El código de barras'], ['name', 'El nombre'],
-      ['brand', 'La marca'], ['model', 'El modelo'], ['description', 'La descripción'], ['categoryName', 'La categoría'],
+      ['internalCode', 'El código interno'],
+      ['barcode', 'El código de barras'],
+      ['name', 'El nombre'],
+      ['brand', 'La marca'],
+      ['model', 'El modelo'],
+      ['description', 'La descripción'],
+      ['categoryName', 'La categoría'],
     ],
     validate: (d) => {
       if (!d.internalCode) return 'Falta el código interno';
@@ -94,9 +106,11 @@ export const importProducts = asyncHandler(async (req, res) => {
       if (d.price === null) return 'Falta el precio';
       const priceProblem = amountProblem('Precio', d.price, d.raw.price) || amountProblem('Costo', d.cost, d.raw.cost);
       if (priceProblem) return priceProblem;
-      if (d.unitType === null) return `Unidad desconocida ("${text(d.raw.unit)}"): usá "unidad" o "peso" (también sirven kg o kilo)`;
+      if (d.unitType === null)
+        return `Unidad desconocida ("${text(d.raw.unit)}"): usá "unidad" o "peso" (también sirven kg o kilo)`;
       if (Number.isNaN(d.vatRate)) return `IVA inválido ("${text(d.raw.vat)}"): usá 21, 10,5 o 0`;
-      if (Number.isNaN(d.otherTaxes)) return `Impuestos internos inválidos ("${text(d.raw.internal)}"): tiene que ser un porcentaje entre 0 y 100`;
+      if (Number.isNaN(d.otherTaxes))
+        return `Impuestos internos inválidos ("${text(d.raw.internal)}"): tiene que ser un porcentaje entre 0 y 100`;
       if (d.scalePlu) {
         const plu = Number(d.scalePlu);
         if (!Number.isInteger(plu) || plu < 1 || plu > 9999) return 'PLU de balanza inválido (entero entre 1 y 9999)';
@@ -113,7 +127,8 @@ export const importProducts = asyncHandler(async (req, res) => {
         existing: byCode,
         onExisting: 'skip',
         inFile: 'error',
-        existsMessage: (d, name) => `Ya existe el producto con código interno ${d.internalCode} ("${name}"): se dejó como estaba`,
+        existsMessage: (d, name) =>
+          `Ya existe el producto con código interno ${d.internalCode} ("${name}"): se dejó como estaba`,
         repeatMessage: (d, first) => `El código interno ${d.internalCode} ya está en la fila ${first}`,
       },
       {
@@ -147,26 +162,31 @@ export const importProducts = asyncHandler(async (req, res) => {
         createdCategories.push(data.categoryName);
       }
 
-      await Product.bulkCreate(items.map(({ data }) => ({
-        businessId,
-        internalCode: data.internalCode,
-        barcode: data.barcode,
-        name: data.name,
-        brand: data.brand,
-        model: data.model,
-        description: data.description,
-        categoryId: categoryIds.get(normalizeText(data.categoryName)) ?? null,
-        price: data.price,
-        cost: data.cost,
-        vatRate: data.vatRate,
-        otherTaxes: data.otherTaxes,
-        unitType: data.unitType,
-        scalePlu: data.scalePlu,
-      })), { transaction });
+      await Product.bulkCreate(
+        items.map(({ data }) => ({
+          businessId,
+          internalCode: data.internalCode,
+          barcode: data.barcode,
+          name: data.name,
+          brand: data.brand,
+          model: data.model,
+          description: data.description,
+          categoryId: categoryIds.get(normalizeText(data.categoryName)) ?? null,
+          price: data.price,
+          cost: data.cost,
+          vatRate: data.vatRate,
+          otherTaxes: data.otherTaxes,
+          unitType: data.unitType,
+          scalePlu: data.scalePlu,
+        })),
+        { transaction },
+      );
 
       return {
         notes: createdCategories.length
-          ? [`Se crearon ${createdCategories.length === 1 ? 'la categoría' : 'las categorías'}: ${createdCategories.join(', ')}`]
+          ? [
+              `Se crearon ${createdCategories.length === 1 ? 'la categoría' : 'las categorías'}: ${createdCategories.join(', ')}`,
+            ]
           : [],
       };
     },
@@ -219,9 +239,16 @@ export const importCustomers = asyncHandler(async (req, res) => {
       };
     },
     textFields: [
-      ['businessName', 'La razón social'], ['firstName', 'El nombre'], ['lastName', 'El apellido'], ['cuit', 'El CUIT'],
-      ['address', 'La dirección'], ['zipCode', 'El código postal'], ['city', 'La localidad'], ['province', 'La provincia'],
-      ['phone', 'El teléfono'], ['email', 'El email'],
+      ['businessName', 'La razón social'],
+      ['firstName', 'El nombre'],
+      ['lastName', 'El apellido'],
+      ['cuit', 'El CUIT'],
+      ['address', 'La dirección'],
+      ['zipCode', 'El código postal'],
+      ['city', 'La localidad'],
+      ['province', 'La provincia'],
+      ['phone', 'El teléfono'],
+      ['email', 'El email'],
     ],
     validate: (d) => {
       if (!d.businessName && !d.firstName) return 'Falta la razón social o el nombre';
@@ -231,29 +258,34 @@ export const importCustomers = asyncHandler(async (req, res) => {
       }
       return taxIdProblem(d) || emailProblem(d.email);
     },
-    keys: [{
-      of: (d) => identityKey(d.cuit, customerName(d)),
-      existing,
-      onExisting: 'skip',
-      inFile: 'skip',
-      existsMessage: (d, name) => `Ya existe el cliente "${name}": se dejó como estaba`,
-      repeatMessage: (d, first) => `Es el mismo cliente de la fila ${first}: se importa una sola vez`,
-    }],
+    keys: [
+      {
+        of: (d) => identityKey(d.cuit, customerName(d)),
+        existing,
+        onExisting: 'skip',
+        inFile: 'skip',
+        existsMessage: (d, name) => `Ya existe el cliente "${name}": se dejó como estaba`,
+        repeatMessage: (d, first) => `Es el mismo cliente de la fila ${first}: se importa una sola vez`,
+      },
+    ],
     create: async (items, transaction) => {
-      await Customer.bulkCreate(items.map(({ data }) => ({
-        businessId,
-        businessName: data.businessName,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        fiscalCondition: data.fiscalCondition,
-        cuit: data.cuit,
-        address: data.address,
-        zipCode: data.zipCode,
-        city: data.city,
-        province: data.province,
-        phone: data.phone,
-        email: data.email,
-      })), { transaction });
+      await Customer.bulkCreate(
+        items.map(({ data }) => ({
+          businessId,
+          businessName: data.businessName,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          fiscalCondition: data.fiscalCondition,
+          cuit: data.cuit,
+          address: data.address,
+          zipCode: data.zipCode,
+          city: data.city,
+          province: data.province,
+          phone: data.phone,
+          email: data.email,
+        })),
+        { transaction },
+      );
     },
   });
 
@@ -282,20 +314,31 @@ export const importSuppliers = asyncHandler(async (req, res) => {
       province: text(getField(row, 'Provincia')) || null,
     }),
     textFields: [
-      ['name', 'El nombre'], ['cuit', 'El CUIT'], ['contactPerson', 'El contacto'], ['phone', 'El teléfono'],
-      ['email', 'El email'], ['address', 'La dirección'], ['city', 'La localidad'], ['province', 'La provincia'],
+      ['name', 'El nombre'],
+      ['cuit', 'El CUIT'],
+      ['contactPerson', 'El contacto'],
+      ['phone', 'El teléfono'],
+      ['email', 'El email'],
+      ['address', 'La dirección'],
+      ['city', 'La localidad'],
+      ['province', 'La provincia'],
     ],
     validate: (d) => (d.name ? taxIdProblem(d) || emailProblem(d.email) : 'Falta el nombre'),
-    keys: [{
-      of: (d) => identityKey(d.cuit, d.name),
-      existing,
-      onExisting: 'skip',
-      inFile: 'skip',
-      existsMessage: (d, name) => `Ya existe el proveedor "${name}": se dejó como estaba`,
-      repeatMessage: (d, first) => `Es el mismo proveedor de la fila ${first}: se importa una sola vez`,
-    }],
+    keys: [
+      {
+        of: (d) => identityKey(d.cuit, d.name),
+        existing,
+        onExisting: 'skip',
+        inFile: 'skip',
+        existsMessage: (d, name) => `Ya existe el proveedor "${name}": se dejó como estaba`,
+        repeatMessage: (d, first) => `Es el mismo proveedor de la fila ${first}: se importa una sola vez`,
+      },
+    ],
     create: async (items, transaction) => {
-      await Supplier.bulkCreate(items.map(({ data }) => ({ businessId, ...data })), { transaction });
+      await Supplier.bulkCreate(
+        items.map(({ data }) => ({ businessId, ...data })),
+        { transaction },
+      );
     },
   });
 

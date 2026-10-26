@@ -58,8 +58,22 @@ const rethrowDuplicate = (err) => {
 // Campos que se pueden cargar o editar desde la API. El stock no está: solo cambia con
 // movimientos de stock, compras y remitos. Tampoco businessId, id, isCombo ni specialPrice.
 const PRODUCT_FIELDS = [
-  'internalCode', 'barcode', 'scalePlu', 'name', 'description', 'brand', 'model', 'unitType',
-  'price', 'promoPrice', 'cost', 'fiscalActivity', 'vatRate', 'otherTaxes', 'categoryId', 'active',
+  'internalCode',
+  'barcode',
+  'scalePlu',
+  'name',
+  'description',
+  'brand',
+  'model',
+  'unitType',
+  'price',
+  'promoPrice',
+  'cost',
+  'fiscalActivity',
+  'vatRate',
+  'otherTaxes',
+  'categoryId',
+  'active',
 ];
 
 // La categoría tiene que ser del mismo comercio
@@ -115,9 +129,7 @@ export const getProducts = asyncHandler(async (req, res) => {
 
 export const getProductByBarcode = asyncHandler(async (req, res) => {
   const barcode = cleanBarcode(req.params.barcode);
-  const product = barcode
-    ? await Product.findOne({ where: { barcode, businessId: req.user.businessId } })
-    : null;
+  const product = barcode ? await Product.findOne({ where: { barcode, businessId: req.user.businessId } }) : null;
   if (!product) throw httpError('Producto no encontrado', 404);
   const [data] = await withComboData([product], req.user.businessId);
   res.json(data);
@@ -209,11 +221,13 @@ export const deleteProduct = asyncHandler(async (req, res) => {
     const parts = [
       sold > 0 && `${sold} ${sold === 1 ? 'remito' : 'remitos'}`,
       bought > 0 && `${bought} ${bought === 1 ? 'compra' : 'compras'}`,
-    ].filter(Boolean).join(' y ');
+    ]
+      .filter(Boolean)
+      .join(' y ');
     throw httpError(
-      `"${product.name}" aparece en ${parts} y no se puede eliminar, porque se perdería el historial. `
-      + 'Si ya no lo vendés, editalo y marcalo como inactivo.',
-      409
+      `"${product.name}" aparece en ${parts} y no se puede eliminar, porque se perdería el historial. ` +
+        'Si ya no lo vendés, editalo y marcalo como inactivo.',
+      409,
     );
   }
 

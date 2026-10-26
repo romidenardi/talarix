@@ -101,7 +101,8 @@ describe('Remitos', () => {
     assert.equal(await stockOf(models, A.products.yerba), before - 2);
 
     const cancelled = await api('POST', `/api/orders/${created.body.id}/cancel`, {
-      token: A.users.admin.token, body: { reason: 'Prueba' },
+      token: A.users.admin.token,
+      body: { reason: 'Prueba' },
     });
     assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
     assert.equal(cancelled.body.status, 'cancelled');
@@ -119,7 +120,13 @@ describe('Remitos', () => {
 
   it('no vende productos ni formas de pago inactivos', async () => {
     const inactive = await models.Product.create({
-      businessId: A.business.id, internalCode: 'INA', name: 'Inactivo', price: 100, cost: 50, stock: 10, active: false,
+      businessId: A.business.id,
+      internalCode: 'INA',
+      name: 'Inactivo',
+      price: 100,
+      cost: 50,
+      stock: 10,
+      active: false,
     });
     const res = await api('POST', '/api/orders', {
       token: A.users.admin.token,
@@ -129,7 +136,10 @@ describe('Remitos', () => {
     assert.match(res.body.message, /inactivo/);
 
     const oldPayment = await models.Payment.create({ businessId: A.business.id, name: 'Cheque', active: false });
-    const res2 = await api('POST', '/api/orders', { token: A.users.admin.token, body: orderBody({ paymentId: oldPayment.id }) });
+    const res2 = await api('POST', '/api/orders', {
+      token: A.users.admin.token,
+      body: orderBody({ paymentId: oldPayment.id }),
+    });
     assert.equal(res2.status, 400);
     assert.match(res2.body.message, /inactiva/);
   });
@@ -159,7 +169,8 @@ describe('Operador: descuentos y precios con autorización', () => {
   it('con descuento y sin autorización responde APPROVAL_REQUIRED y no toca el stock', async () => {
     const before = await stockOf(models, A.products.yerba);
     const res = await api('POST', '/api/orders', {
-      token: A.users.operador.token, body: orderBody({ discountPercent: 10 }),
+      token: A.users.operador.token,
+      body: orderBody({ discountPercent: 10 }),
     });
     assert.equal(res.status, 403);
     assert.equal(res.body.code, 'APPROVAL_REQUIRED');
@@ -179,26 +190,45 @@ describe('Operador: descuentos y precios con autorización', () => {
     const body = orderBody({ discountPercent: 10 });
     const wrong = await api('POST', '/api/orders/approval', {
       token: A.users.operador.token,
-      body: { email: A.users.admin.email, password: 'incorrecta', requestId: body.requestId, discountPercent: 10, items: [] },
+      body: {
+        email: A.users.admin.email,
+        password: 'incorrecta',
+        requestId: body.requestId,
+        discountPercent: 10,
+        items: [],
+      },
     });
     assert.equal(wrong.status, 403);
     assert.equal(wrong.body.approvalToken, undefined);
 
     const byOperator = await api('POST', '/api/orders/approval', {
       token: A.users.operador.token,
-      body: { email: A.users.operador.email, password: A.password, requestId: body.requestId, discountPercent: 10, items: [] },
+      body: {
+        email: A.users.operador.email,
+        password: A.password,
+        requestId: body.requestId,
+        discountPercent: 10,
+        items: [],
+      },
     });
     assert.equal(byOperator.status, 403, 'un operador no puede autorizar');
 
     const approval = await api('POST', '/api/orders/approval', {
       token: A.users.operador.token,
-      body: { email: A.users.admin.email, password: A.password, requestId: body.requestId, discountPercent: 10, items: [] },
+      body: {
+        email: A.users.admin.email,
+        password: A.password,
+        requestId: body.requestId,
+        discountPercent: 10,
+        items: [],
+      },
     });
     assert.equal(approval.status, 200, JSON.stringify(approval.body));
     assert.ok(approval.body.approvalToken);
 
     const created = await api('POST', '/api/orders', {
-      token: A.users.operador.token, body: { ...body, approvalToken: approval.body.approvalToken },
+      token: A.users.operador.token,
+      body: { ...body, approvalToken: approval.body.approvalToken },
     });
     assert.equal(created.status, 201, JSON.stringify(created.body));
     assert.equal(Number(created.body.total), 1800);
@@ -220,14 +250,23 @@ describe('Operador: descuentos y precios con autorización', () => {
     const body = orderBody({ discountPercent: 5 });
     const res = await api('POST', '/api/orders/approval', {
       token: A.users.operador.token,
-      body: { email: B.users.admin.email, password: B.password, requestId: body.requestId, discountPercent: 5, items: [] },
+      body: {
+        email: B.users.admin.email,
+        password: B.password,
+        requestId: body.requestId,
+        discountPercent: 5,
+        items: [],
+      },
     });
     assert.equal(res.status, 403);
   });
 
   it('admin y editor aplican descuentos sin autorización', async () => {
     for (const role of ['admin', 'editor']) {
-      const res = await api('POST', '/api/orders', { token: A.users[role].token, body: orderBody({ discountPercent: 50 }) });
+      const res = await api('POST', '/api/orders', {
+        token: A.users[role].token,
+        body: orderBody({ discountPercent: 50 }),
+      });
       assert.equal(res.status, 201, `${role}: ${JSON.stringify(res.body)}`);
       assert.equal(Number(res.body.total), 1000);
     }
@@ -242,7 +281,10 @@ describe('Aislamiento entre comercios', () => {
   });
 
   it('no puede editar ni borrar datos de otro comercio', async () => {
-    const edit = await api('PUT', `/api/customers/${A.customer.id}`, { token: B.users.admin.token, body: { city: 'Otra' } });
+    const edit = await api('PUT', `/api/customers/${A.customer.id}`, {
+      token: B.users.admin.token,
+      body: { city: 'Otra' },
+    });
     assert.equal(edit.status, 404);
     const del = await api('DELETE', `/api/products/${A.products.yerba.id}`, { token: B.users.admin.token });
     assert.equal(del.status, 404);
@@ -250,7 +292,8 @@ describe('Aislamiento entre comercios', () => {
 
   it('no puede mover un cliente a otro comercio cambiando businessId', async () => {
     const res = await api('PUT', `/api/customers/${A.customer.id}`, {
-      token: A.users.admin.token, body: { city: 'Rafaela', businessId: B.business.id },
+      token: A.users.admin.token,
+      body: { city: 'Rafaela', businessId: B.business.id },
     });
     assert.equal(res.status, 200);
     const customer = await models.Customer.findByPk(A.customer.id);
@@ -274,11 +317,17 @@ describe('Aislamiento entre comercios', () => {
 describe('Productos', () => {
   it('no se puede pisar el stock ni poner precios negativos al editar', async () => {
     const before = await stockOf(models, A.products.queso);
-    const stock = await api('PUT', `/api/products/${A.products.queso.id}`, { token: A.users.admin.token, body: { stock: 9999 } });
+    const stock = await api('PUT', `/api/products/${A.products.queso.id}`, {
+      token: A.users.admin.token,
+      body: { stock: 9999 },
+    });
     assert.ok(stock.status < 300);
     assert.equal(await stockOf(models, A.products.queso), before);
 
-    const negative = await api('PUT', `/api/products/${A.products.queso.id}`, { token: A.users.admin.token, body: { price: -5 } });
+    const negative = await api('PUT', `/api/products/${A.products.queso.id}`, {
+      token: A.users.admin.token,
+      body: { price: -5 },
+    });
     assert.equal(negative.status, 400);
   });
 
@@ -287,7 +336,11 @@ describe('Productos', () => {
     assert.equal(sold.status, 409);
 
     const fresh = await models.Product.create({
-      businessId: A.business.id, internalCode: 'NUE', name: 'Nuevo', price: 10, cost: 5,
+      businessId: A.business.id,
+      internalCode: 'NUE',
+      name: 'Nuevo',
+      price: 10,
+      cost: 5,
     });
     const del = await api('DELETE', `/api/products/${fresh.id}`, { token: A.users.admin.token });
     assert.equal(del.status, 204);

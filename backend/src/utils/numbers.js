@@ -1,5 +1,4 @@
-export const toNumber = (v) =>
-  typeof v === 'number' || (typeof v === 'string' && v.trim() !== '') ? Number(v) : NaN;
+export const toNumber = (v) => (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '') ? Number(v) : NaN);
 
 export const toNumberOrZero = (v) => (v === undefined || v === null || v === '' ? 0 : toNumber(v));
 
@@ -31,7 +30,6 @@ export const isNonNegativeQuantity = (v) => {
   return Number.isFinite(n) && n >= 0 && n < MAX_QUANTITY && hasMaxThreeDecimals(n);
 };
 
-export const quantityAllowedFor = (product, quantity) =>
-  product.unitType === 'weight' || Number.isInteger(quantity);
+export const quantityAllowedFor = (product, quantity) => product.unitType === 'weight' || Number.isInteger(quantity);
 
 export const unitWord = (product) => (product.unitType === 'weight' ? 'kg' : 'unidades');

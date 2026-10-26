@@ -34,7 +34,13 @@ const Suppliers = () => {
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState('');
 
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm();
   const editForm = useForm();
   const { errors: editErrors } = editForm.formState;
 
@@ -76,16 +82,19 @@ const Suppliers = () => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar este proveedor?', confirmLabel: 'Eliminar', danger: true }))) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este proveedor?', confirmLabel: 'Eliminar', danger: true })))
+      return;
     const result = await remove(id);
     if (result.success) msg.success('Proveedor eliminado', 'list');
     else msg.error(result.message, id);
   };
 
   // La fila que se está editando sigue visible aunque el filtro no la incluya
-  const visibleSuppliers = suppliers.filter((s) => s.id === editingId || matchesSearch(search, [
-    s.name, s.cuit, s.contactPerson, s.phone, s.email, s.city, s.province,
-  ]));
+  const visibleSuppliers = suppliers.filter(
+    (s) =>
+      s.id === editingId ||
+      matchesSearch(search, [s.name, s.cuit, s.contactPerson, s.phone, s.email, s.city, s.province]),
+  );
 
   if (loading) return <Spinner label="Cargando proveedores..." />;
 
@@ -96,8 +105,15 @@ const Suppliers = () => {
 
       <form onSubmit={handleSubmit(onCreate)} className="supplier-form">
         <div className="field">
-          <label htmlFor="name">Nombre / Razón social<RequiredMark /></label>
-          <input id="name" placeholder="Ej: Distribuidora Central" {...register('name', { required: 'El nombre es obligatorio' })} />
+          <label htmlFor="name">
+            Nombre / Razón social
+            <RequiredMark />
+          </label>
+          <input
+            id="name"
+            placeholder="Ej: Distribuidora Central"
+            {...register('name', { required: 'El nombre es obligatorio' })}
+          />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
 
@@ -177,13 +193,22 @@ const Suppliers = () => {
                   <td colSpan={5} className="edit-cell">
                     <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                       <div className="field">
-                        <label htmlFor={`edit-name-${supplier.id}`}>Nombre<RequiredMark /></label>
-                        <input id={`edit-name-${supplier.id}`} {...editForm.register('name', { required: 'El nombre es obligatorio' })} />
+                        <label htmlFor={`edit-name-${supplier.id}`}>
+                          Nombre
+                          <RequiredMark />
+                        </label>
+                        <input
+                          id={`edit-name-${supplier.id}`}
+                          {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                        />
                         {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                       </div>
                       <div className="field">
                         <label htmlFor={`edit-cuit-${supplier.id}`}>CUIT</label>
-                        <input id={`edit-cuit-${supplier.id}`} {...editForm.register('cuit', { validate: validateTaxId(supplier.cuit) })} />
+                        <input
+                          id={`edit-cuit-${supplier.id}`}
+                          {...editForm.register('cuit', { validate: validateTaxId(supplier.cuit) })}
+                        />
                         {editErrors.cuit && <span className="error">{editErrors.cuit.message}</span>}
                       </div>
                       <div className="field">
@@ -220,7 +245,9 @@ const Suppliers = () => {
                       </div>
                       <div className="inline-edit-actions">
                         <button type="submit">Guardar</button>
-                        <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                        <button type="button" onClick={() => setEditingId(null)}>
+                          Cancelar
+                        </button>
                       </div>
                       <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                       <RequiredLegend />

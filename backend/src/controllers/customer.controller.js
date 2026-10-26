@@ -7,8 +7,17 @@ import { normalizeFiscalCondition, FISCAL_CONDITIONS } from '../utils/importValu
 
 // Campos que se pueden cargar o editar desde la API (nunca businessId ni id)
 const CUSTOMER_FIELDS = [
-  'businessName', 'firstName', 'lastName', 'fiscalCondition', 'cuit',
-  'address', 'zipCode', 'city', 'province', 'phone', 'email',
+  'businessName',
+  'firstName',
+  'lastName',
+  'fiscalCondition',
+  'cuit',
+  'address',
+  'zipCode',
+  'city',
+  'province',
+  'phone',
+  'email',
 ];
 
 // Condición fiscal: solo los cuatro valores del sistema (acepta variantes: "RI", "responsable
@@ -16,7 +25,8 @@ const CUSTOMER_FIELDS = [
 const cleanFiscalCondition = (data) => {
   if (!('fiscalCondition' in data)) return data;
   const value = normalizeFiscalCondition(data.fiscalCondition);
-  if (!value) throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`);
+  if (!value)
+    throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`);
   data.fiscalCondition = value;
   return data;
 };
@@ -73,9 +83,9 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
   const orders = await Order.count({ where: { customerId: customer.id, businessId } });
   if (orders > 0) {
     throw httpError(
-      `${displayName(customer)} tiene ${orders} ${orders === 1 ? 'remito' : 'remitos'} y no se puede eliminar, `
-      + 'porque se perdería el historial de ventas. Si te pidió que borres sus datos, un administrador puede usar "Anonimizar".',
-      409
+      `${displayName(customer)} tiene ${orders} ${orders === 1 ? 'remito' : 'remitos'} y no se puede eliminar, ` +
+        'porque se perdería el historial de ventas. Si te pidió que borres sus datos, un administrador puede usar "Anonimizar".',
+      409,
     );
   }
 

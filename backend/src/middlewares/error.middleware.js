@@ -62,8 +62,12 @@ const logError = (err, req) => {
   }
   // A Sentry van solo los errores del servidor (500), no los de datos mal cargados (4xx)
   const isDataError = err.name === 'SequelizeDatabaseError' && DATA_ERRORS[err.original?.code];
-  const handled = ['SequelizeUniqueConstraintError', 'SequelizeForeignKeyConstraintError',
-    'SequelizeValidationError', 'MulterError'].includes(err.name);
+  const handled = [
+    'SequelizeUniqueConstraintError',
+    'SequelizeForeignKeyConstraintError',
+    'SequelizeValidationError',
+    'MulterError',
+  ].includes(err.name);
   if (!isDataError && !handled && (err.status || 500) >= 500) {
     captureError(err, { ruta: where });
   }
@@ -87,9 +91,7 @@ export const errorMiddleware = (err, req, res, next) => {
     const details = (err.errors || []).map((e) => e.message);
     const fields = [...new Set((err.errors || []).map((e) => e.path).filter(Boolean))].map(fieldLabel);
     return res.status(400).json({
-      message: fields.length
-        ? `Revisá estos datos: ${fields.join(', ')}`
-        : 'Error de validación',
+      message: fields.length ? `Revisá estos datos: ${fields.join(', ')}` : 'Error de validación',
       errors: details,
     });
   }

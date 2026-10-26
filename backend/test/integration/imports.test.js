@@ -19,11 +19,14 @@ after(async () => {
 });
 
 // CSV como lo guarda Excel en castellano: punto y coma y BOM
-const csv = (rows) => `﻿${rows.map((r) => r.join(';')).join('\r\n')}\r\n`;
+const csv = (rows) => `\uFEFF${rows.map((r) => r.join(';')).join('\r\n')}\r\n`;
 const PRODUCT_HEADER = ['Código Interno', 'Nombre', 'Categoría', 'Precio', 'Costo', 'IVA', 'Unidad'];
-const importProducts = (rows) => upload('/api/imports/products', {
-  token: A.users.admin.token, filename: 'productos.csv', content: csv([PRODUCT_HEADER, ...rows]),
-});
+const importProducts = (rows) =>
+  upload('/api/imports/products', {
+    token: A.users.admin.token,
+    filename: 'productos.csv',
+    content: csv([PRODUCT_HEADER, ...rows]),
+  });
 const productByCode = (code) => models.Product.findOne({ where: { businessId: A.business.id, internalCode: code } });
 
 describe('Importación de productos', () => {
@@ -82,7 +85,10 @@ describe('Importación de productos', () => {
     assert.equal(res.status, 200);
     assert.equal(res.body.imported, false);
     assert.equal(res.body.created, 0);
-    assert.deepEqual(res.body.errors.map((e) => e.row), [3, 4, 5, 6]);
+    assert.deepEqual(
+      res.body.errors.map((e) => e.row),
+      [3, 4, 5, 6],
+    );
     assert.match(res.body.errors[0].message, /Precio inválido/);
     assert.match(res.body.errors[1].message, /IVA/);
     assert.match(res.body.errors[2].message, /Unidad desconocida/);
@@ -92,14 +98,18 @@ describe('Importación de productos', () => {
 
   it('un archivo que no es una planilla da un error claro, no 500', async () => {
     const res = await upload('/api/imports/products', {
-      token: A.users.admin.token, filename: 'catalogo.pdf', content: '%PDF-1.4 nada que ver',
+      token: A.users.admin.token,
+      filename: 'catalogo.pdf',
+      content: '%PDF-1.4 nada que ver',
     });
     assert.ok(res.status >= 400 && res.status < 500, `status ${res.status}`);
   });
 
   it('el operador no puede importar', async () => {
     const res = await upload('/api/imports/products', {
-      token: A.users.operador.token, filename: 'p.csv', content: csv([PRODUCT_HEADER]),
+      token: A.users.operador.token,
+      filename: 'p.csv',
+      content: csv([PRODUCT_HEADER]),
     });
     assert.equal(res.status, 403);
   });
@@ -131,7 +141,11 @@ describe('Importación de clientes y proveedores', () => {
     const res = await upload('/api/imports/customers', {
       token: A.users.admin.token,
       filename: 'c.csv',
-      content: csv([['Nombre', 'Condición Fiscal'], ['Juan', 'Monotributista'], ['Pedro', 'Inventada']]),
+      content: csv([
+        ['Nombre', 'Condición Fiscal'],
+        ['Juan', 'Monotributista'],
+        ['Pedro', 'Inventada'],
+      ]),
     });
     assert.equal(res.body.imported, false);
     assert.match(res.body.errors[0].message, /Condición fiscal desconocida/);
@@ -139,7 +153,11 @@ describe('Importación de clientes y proveedores', () => {
   });
 
   it('proveedores sin duplicar por nombre', async () => {
-    const content = csv([['Nombre', 'Email'], ['Lácteos del Centro', 'ventas@lacteos.com.ar'], ['Molino Sur', '']]);
+    const content = csv([
+      ['Nombre', 'Email'],
+      ['Lácteos del Centro', 'ventas@lacteos.com.ar'],
+      ['Molino Sur', ''],
+    ]);
     const first = await upload('/api/imports/suppliers', { token: A.users.admin.token, filename: 's.csv', content });
     assert.equal(first.body.created, 2, JSON.stringify(first.body));
     const again = await upload('/api/imports/suppliers', { token: A.users.admin.token, filename: 's.csv', content });

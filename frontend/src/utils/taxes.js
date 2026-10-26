@@ -7,10 +7,10 @@ export const VAT_OPTIONS = [
 export const formatRate = (rate) => `${String(Number(rate)).replace('.', ',')}%`;
 
 export const vatToFormValue = (rate) =>
-  (rate === undefined || rate === null || rate === '' ? '21' : String(Number(rate)));
+  rate === undefined || rate === null || rate === '' ? '21' : String(Number(rate));
 
 export const toPercentOrNull = (value) =>
-  (value === '' || value === null || value === undefined ? null : Number(value));
+  value === '' || value === null || value === undefined ? null : Number(value);
 
 export const splitPrice = (total, vatRate, internalRate) => {
   const vat = Number(vatRate) || 0;

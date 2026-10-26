@@ -89,7 +89,22 @@ Product.hasMany(ComboItem, { as: 'usedInCombos', foreignKey: 'productId', onDele
 ComboItem.belongsTo(Product, { as: 'product', foreignKey: 'productId' });
 
 export {
-  sequelize, Business, Category, Product, StockMovement, Payment, InstallmentPlan,
-  User, Customer, Supplier, Purchase, PurchaseItem, Order, OrderItem, ComboItem, PlatformAdmin,
-  ClosureRecord, AuditLog,
+  sequelize,
+  Business,
+  Category,
+  Product,
+  StockMovement,
+  Payment,
+  InstallmentPlan,
+  User,
+  Customer,
+  Supplier,
+  Purchase,
+  PurchaseItem,
+  Order,
+  OrderItem,
+  ComboItem,
+  PlatformAdmin,
+  ClosureRecord,
+  AuditLog,
 };

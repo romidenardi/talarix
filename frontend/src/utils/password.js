@@ -24,4 +24,4 @@ export const passwordProblem = (password, context = {}) => {
 const contextOf = (formValues) => ({ email: formValues?.email, name: formValues?.name });
 export const validatePassword = (value, formValues) => passwordProblem(value, contextOf(formValues)) || true;
 export const validateOptionalPassword = (value, formValues) =>
-  (!value ? true : passwordProblem(value, contextOf(formValues)) || true);
+  !value ? true : passwordProblem(value, contextOf(formValues)) || true;

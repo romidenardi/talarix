@@ -38,10 +38,7 @@ const readComponents = async (raw, businessId, comboId, transaction) => {
     if (!isPositiveInt(component.quantity)) {
       throw httpError(`Producto ${n}: la cantidad debe ser un entero mayor a 0`);
     }
-    quantities.set(
-      component.productId,
-      (quantities.get(component.productId) || 0) + toNumber(component.quantity)
-    );
+    quantities.set(component.productId, (quantities.get(component.productId) || 0) + toNumber(component.quantity));
   });
 
   if (comboId && quantities.has(comboId)) throw httpError('Un combo no puede incluirse a sí mismo');
@@ -91,29 +88,32 @@ export const createCombo = asyncHandler(async (req, res) => {
     const components = await readComponents(req.body.components, businessId, null, t);
     const calc = computeCombo({ specialPrice }, components);
 
-    const combo = await Product.create({
-      businessId,
-      internalCode: String(internalCode).trim(),
-      barcode,
-      name: String(name).trim(),
-      description: description || null,
-      brand: brand || null,
-      model: model || null,
-      categoryId: await resolveCategoryId(categoryId, businessId, t),
-      unitType: 'unit',
-      price: calc.price,
-      cost: calc.cost,
-      vatRate: 21,
-      stock: 0,
-      isCombo: true,
-      specialPrice,
-      active: req.body.active === undefined ? true : Boolean(req.body.active),
-    }, { transaction: t });
+    const combo = await Product.create(
+      {
+        businessId,
+        internalCode: String(internalCode).trim(),
+        barcode,
+        name: String(name).trim(),
+        description: description || null,
+        brand: brand || null,
+        model: model || null,
+        categoryId: await resolveCategoryId(categoryId, businessId, t),
+        unitType: 'unit',
+        price: calc.price,
+        cost: calc.cost,
+        vatRate: 21,
+        stock: 0,
+        isCombo: true,
+        specialPrice,
+        active: req.body.active === undefined ? true : Boolean(req.body.active),
+      },
+      { transaction: t },
+    );
     comboId = combo.id;
 
     await ComboItem.bulkCreate(
       components.map(({ product, quantity }) => ({ comboId: combo.id, productId: product.id, quantity })),
-      { transaction: t }
+      { transaction: t },
     );
 
     await t.commit();
@@ -160,7 +160,7 @@ export const updateCombo = asyncHandler(async (req, res) => {
       await ComboItem.destroy({ where: { comboId: combo.id }, transaction: t });
       await ComboItem.bulkCreate(
         components.map(({ product, quantity }) => ({ comboId: combo.id, productId: product.id, quantity })),
-        { transaction: t }
+        { transaction: t },
       );
     } else {
       const items = await ComboItem.findAll({ where: { comboId: combo.id }, transaction: t });

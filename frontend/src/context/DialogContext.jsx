@@ -72,7 +72,10 @@ function DialogBox({ dialog, onClose }) {
               ref={input}
               value={text}
               placeholder={dialog.placeholder || ''}
-              onChange={(e) => { setText(e.target.value); setError(''); }}
+              onChange={(e) => {
+                setText(e.target.value);
+                setError('');
+              }}
               autoComplete="off"
             />
             {error && <span className="error">{error}</span>}
@@ -105,22 +108,32 @@ export function DialogProvider({ children }) {
     setCurrent(dialog);
   }, []);
 
-  const show = useCallback((kind, options) => new Promise((resolve) => {
-    const dialog = { ...asOptions(options), kind, resolve, id: `${Date.now()}-${Math.random()}` };
-    if (currentRef.current) queue.current.push(dialog);
-    else open(dialog);
-  }), [open]);
+  const show = useCallback(
+    (kind, options) =>
+      new Promise((resolve) => {
+        const dialog = { ...asOptions(options), kind, resolve, id: `${Date.now()}-${Math.random()}` };
+        if (currentRef.current) queue.current.push(dialog);
+        else open(dialog);
+      }),
+    [open],
+  );
 
-  const close = useCallback((result) => {
-    currentRef.current?.resolve(result);
-    open(queue.current.shift() || null);
-  }, [open]);
+  const close = useCallback(
+    (result) => {
+      currentRef.current?.resolve(result);
+      open(queue.current.shift() || null);
+    },
+    [open],
+  );
 
-  const api = useMemo(() => ({
-    confirm: (options) => show('confirm', options),
-    prompt: (options) => show('prompt', options),
-    alert: (options) => show('alert', options),
-  }), [show]);
+  const api = useMemo(
+    () => ({
+      confirm: (options) => show('confirm', options),
+      prompt: (options) => show('prompt', options),
+      alert: (options) => show('alert', options),
+    }),
+    [show],
+  );
 
   return (
     <DialogContext.Provider value={api}>

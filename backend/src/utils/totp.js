@@ -23,7 +23,9 @@ export const base32Encode = (buffer) => {
 };
 
 export const base32Decode = (text) => {
-  const clean = String(text).toUpperCase().replace(/[^A-Z2-7]/g, '');
+  const clean = String(text)
+    .toUpperCase()
+    .replace(/[^A-Z2-7]/g, '');
   let bits = 0;
   let value = 0;
   const bytes = [];
@@ -48,10 +50,7 @@ const codeForStep = (secret, step) => {
   counter.writeBigUInt64BE(BigInt(step));
   const hmac = crypto.createHmac('sha1', base32Decode(secret)).update(counter).digest();
   const offset = hmac[hmac.length - 1] & 0x0f;
-  const binary = ((hmac[offset] & 0x7f) << 24)
-    | (hmac[offset + 1] << 16)
-    | (hmac[offset + 2] << 8)
-    | hmac[offset + 3];
+  const binary = ((hmac[offset] & 0x7f) << 24) | (hmac[offset + 1] << 16) | (hmac[offset + 2] << 8) | hmac[offset + 3];
   return String(binary % 10 ** DIGITS).padStart(DIGITS, '0');
 };
 
@@ -72,12 +71,15 @@ export const verifyTotp = (secret, code, { lastStep = null, now = Date.now(), wi
 };
 
 export const otpauthUrl = ({ issuer, account, secret }) =>
-  `otpauth://totp/${encodeURIComponent(`${issuer}:${account}`)}`
-  + `?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
+  `otpauth://totp/${encodeURIComponent(`${issuer}:${account}`)}` +
+  `?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${DIGITS}&period=${STEP_SECONDS}`;
 
 // ---- Códigos de recuperación: 10 códigos de un solo uso; se guardan solo sus hashes ----
 const RECOVERY_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I, para no confundirlos
-const normalizeRecovery = (code) => String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+const normalizeRecovery = (code) =>
+  String(code || '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
 const hashRecovery = (code) => crypto.createHash('sha256').update(normalizeRecovery(code)).digest('hex');
 
 export const generateRecoveryCodes = (count = 10) => {

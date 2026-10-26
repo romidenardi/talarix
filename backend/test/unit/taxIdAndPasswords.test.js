@@ -26,7 +26,16 @@ test('vacío es null; mal escrito o con dígito verificador incorrecto, error', 
 });
 
 test('contraseñas débiles', () => {
-  for (const p of ['12345678', 'Password1', 'Argentina', 'aaaaaaaa', 'abcdefgh', '87654321', 'Talarix2026', 'qwertyuiop']) {
+  for (const p of [
+    '12345678',
+    'Password1',
+    'Argentina',
+    'aaaaaaaa',
+    'abcdefgh',
+    '87654321',
+    'Talarix2026',
+    'qwertyuiop',
+  ]) {
     assert.ok(weakPasswordReason(p), `debería rechazar ${p}`);
   }
   assert.ok(weakPasswordReason('romina2026!', { email: 'romina@mail.com' }), 'contiene el email');

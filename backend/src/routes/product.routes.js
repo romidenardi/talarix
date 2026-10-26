@@ -27,8 +27,14 @@ const updateRules = [
   body('name').optional().trim().notEmpty().withMessage('El nombre no puede quedar vacío'),
   body('price').optional().isFloat({ min: 0, max: MAX_PRICE }).withMessage('El precio debe ser un número positivo'),
   body('cost').optional().isFloat({ min: 0, max: MAX_PRICE }).withMessage('El costo debe ser un número positivo'),
-  body('promoPrice').optional({ values: 'falsy' }).isFloat({ min: 0, max: MAX_PRICE }).withMessage('El precio promocional debe ser un número positivo'),
-  body('unitType').optional().isIn(['unit', 'weight']).withMessage('La unidad de comercialización debe ser "unidad" o "peso"'),
+  body('promoPrice')
+    .optional({ values: 'falsy' })
+    .isFloat({ min: 0, max: MAX_PRICE })
+    .withMessage('El precio promocional debe ser un número positivo'),
+  body('unitType')
+    .optional()
+    .isIn(['unit', 'weight'])
+    .withMessage('La unidad de comercialización debe ser "unidad" o "peso"'),
   body('active').optional().isBoolean().withMessage('El estado no es válido'),
 ];
 

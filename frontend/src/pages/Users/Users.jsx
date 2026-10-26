@@ -49,14 +49,11 @@ const Notice = ({ notice, onClose }) => {
     <div className={`users-notice users-notice-${notice.type}`} role="status">
       <p>{notice.text}</p>
       {notice.link && (
-        <input
-          readOnly
-          value={notice.link}
-          onFocus={(e) => e.target.select()}
-          aria-label="Link para copiar"
-        />
+        <input readOnly value={notice.link} onFocus={(e) => e.target.select()} aria-label="Link para copiar" />
       )}
-      <button type="button" onClick={onClose}>Cerrar</button>
+      <button type="button" onClick={onClose}>
+        Cerrar
+      </button>
     </div>
   );
 };
@@ -68,7 +65,13 @@ const UsersContent = ({ notice, setNotice, reload }) => {
   const { user: currentUser } = useAuth();
   const [editingId, setEditingId] = useState(null);
 
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm({
     defaultValues: DEFAULT_CREATE,
   });
   const editForm = useForm();
@@ -154,7 +157,14 @@ const UsersContent = ({ notice, setNotice, reload }) => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar este usuario? La acción no se puede deshacer.', confirmLabel: 'Eliminar', danger: true }))) return;
+    if (
+      !(await dialog.confirm({
+        message: '¿Eliminar este usuario? La acción no se puede deshacer.',
+        confirmLabel: 'Eliminar',
+        danger: true,
+      }))
+    )
+      return;
     const result = await remove(id);
     if (result.success) msg.success('Usuario eliminado', 'list');
     else msg.error(result.message, id);
@@ -174,7 +184,10 @@ const UsersContent = ({ notice, setNotice, reload }) => {
 
       <form onSubmit={handleSubmit(onCreate)} className="user-form">
         <div className="field">
-          <label htmlFor="name">Nombre<RequiredMark /></label>
+          <label htmlFor="name">
+            Nombre
+            <RequiredMark />
+          </label>
           <input
             id="name"
             placeholder="Ej: María Gómez"
@@ -184,7 +197,10 @@ const UsersContent = ({ notice, setNotice, reload }) => {
         </div>
 
         <div className="field">
-          <label htmlFor="email">Email<RequiredMark /></label>
+          <label htmlFor="email">
+            Email
+            <RequiredMark />
+          </label>
           <input
             id="email"
             type="email"
@@ -195,10 +211,15 @@ const UsersContent = ({ notice, setNotice, reload }) => {
         </div>
 
         <div className="field field-full">
-          <label htmlFor="role">Rol<RequiredMark /></label>
+          <label htmlFor="role">
+            Rol
+            <RequiredMark />
+          </label>
           <select id="role" {...register('role', { required: true })}>
             {ROLES.map((r) => (
-              <option key={r.value} value={r.value}>{r.label}</option>
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
             ))}
           </select>
         </div>
@@ -213,7 +234,10 @@ const UsersContent = ({ notice, setNotice, reload }) => {
 
         {mode === 'password' && (
           <div className="field">
-            <label htmlFor="password">Contraseña<RequiredMark /></label>
+            <label htmlFor="password">
+              Contraseña
+              <RequiredMark />
+            </label>
             <input
               id="password"
               type="password"
@@ -228,9 +252,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
           </div>
         )}
 
-        <button type="submit">
-          {mode === 'invite' ? 'Crear y enviar invitación' : 'Agregar usuario'}
-        </button>
+        <button type="submit">{mode === 'invite' ? 'Crear y enviar invitación' : 'Agregar usuario'}</button>
         <Notice notice={noticeAt('create')} onClose={() => setNotice(null)} />
         <RequiredLegend />
       </form>
@@ -261,13 +283,26 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                     <td colSpan={5} className="edit-cell">
                       <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                         <div className="field">
-                          <label htmlFor={`edit-name-${user.id}`}>Nombre<RequiredMark /></label>
-                          <input id={`edit-name-${user.id}`} {...editForm.register('name', { required: 'El nombre es obligatorio' })} />
+                          <label htmlFor={`edit-name-${user.id}`}>
+                            Nombre
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-name-${user.id}`}
+                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                          />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
                         <div className="field">
-                          <label htmlFor={`edit-email-${user.id}`}>Email<RequiredMark /></label>
-                          <input id={`edit-email-${user.id}`} type="email" {...editForm.register('email', { required: 'El email es obligatorio' })} />
+                          <label htmlFor={`edit-email-${user.id}`}>
+                            Email
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-email-${user.id}`}
+                            type="email"
+                            {...editForm.register('email', { required: 'El email es obligatorio' })}
+                          />
                           {editErrors.email && <span className="error">{editErrors.email.message}</span>}
                         </div>
                         <div className="field">
@@ -279,15 +314,15 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                             placeholder="Dejar vacío para no cambiarla"
                             {...editForm.register('password', { validate: validateOptionalPassword })}
                           />
-                          {editErrors.password && (
-                            <span className="error">{editErrors.password.message}</span>
-                          )}
+                          {editErrors.password && <span className="error">{editErrors.password.message}</span>}
                         </div>
                         <div className="field">
                           <label htmlFor={`edit-role-${user.id}`}>Rol</label>
                           <select id={`edit-role-${user.id}`} disabled={isSelf} {...editForm.register('role')}>
                             {ROLES.map((r) => (
-                              <option key={r.value} value={r.value}>{r.label}</option>
+                              <option key={r.value} value={r.value}>
+                                {r.label}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -300,18 +335,21 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                         </div>
                         <div className="inline-edit-actions">
                           <button type="submit">Guardar</button>
-                          <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                          <button type="button" onClick={() => setEditingId(null)}>
+                            Cancelar
+                          </button>
                         </div>
                         <FormMessage message={msg.at('edit')} onClose={msg.clear} />
-                        {isSelf && (
-                          <span className="error">No podés cambiar tu propio rol ni desactivarte.</span>
-                        )}
+                        {isSelf && <span className="error">No podés cambiar tu propio rol ni desactivarte.</span>}
                         <RequiredLegend />
                       </form>
                     </td>
                   ) : (
                     <>
-                      <td data-label="Nombre">{user.name}{isSelf && ' (vos)'}</td>
+                      <td data-label="Nombre">
+                        {user.name}
+                        {isSelf && ' (vos)'}
+                      </td>
                       <td data-label="Email">{user.email}</td>
                       <td data-label="Rol">{roleLabel(user.role)}</td>
                       <td data-label="Estado">{statusLabel}</td>
@@ -322,9 +360,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                             {user.pendingActivation ? 'Reenviar invitación' : 'Enviar link de contraseña'}
                           </button>
                         )}
-                        {!isSelf && (
-                          <button onClick={() => onDelete(user.id)}>Eliminar</button>
-                        )}
+                        {!isSelf && <button onClick={() => onDelete(user.id)}>Eliminar</button>}
                         <Notice notice={noticeAt(user.id)} onClose={() => setNotice(null)} />
                         <FormMessage message={msg.at(user.id)} onClose={msg.clear} />
                       </td>
@@ -345,12 +381,7 @@ const Users = () => {
   const [notice, setNotice] = useState(null);
 
   return (
-    <UsersContent
-      key={reloadKey}
-      notice={notice}
-      setNotice={setNotice}
-      reload={() => setReloadKey((k) => k + 1)}
-    />
+    <UsersContent key={reloadKey} notice={notice} setNotice={setNotice} reload={() => setReloadKey((k) => k + 1)} />
   );
 };
 

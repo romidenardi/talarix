@@ -3,11 +3,11 @@ import { LEGAL_VERSION, LEGAL_IS_DRAFT } from '../../legal/legalContent';
 
 // Convierte **negrita** en <strong>
 const renderInline = (text) =>
-  text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i}>{part.slice(2, -2)}</strong>
-      : part
-  );
+  text
+    .split(/(\*\*[^*]+\*\*)/g)
+    .map((part, i) =>
+      part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part,
+    );
 
 export default function LegalPage({ doc }) {
   return (
@@ -19,11 +19,7 @@ export default function LegalPage({ doc }) {
           <Link to="/login">Ingresar</Link>
         </nav>
 
-        {LEGAL_IS_DRAFT && (
-          <p className="legal-draft">
-            Texto en revisión. Puede cambiar antes del lanzamiento.
-          </p>
-        )}
+        {LEGAL_IS_DRAFT && <p className="legal-draft">Texto en revisión. Puede cambiar antes del lanzamiento.</p>}
 
         <h1>{doc.title}</h1>
         <p className="legal-version">Talarix · versión {LEGAL_VERSION}</p>

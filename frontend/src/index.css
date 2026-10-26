@@ -1,22 +1,22 @@
 /* Tipografías: alojadas en el propio sitio (paquetes @fontsource, importados en main.jsx) */
 
 :root {
-  --color-bg: #F4F7FA;
-  --color-surface: #FFFFFF;
-  --color-on-primary: #FFFFFF;
-  --color-primary: #12395C;
-  --color-primary-hover: #0D2C47;
-  --color-accent: #2E7EB0;
-  --color-text: #1C2733;
-  --color-text-muted: #64748B;
-  --color-border: #DCE3EA;
-  --color-danger: #B3392C;
-  --color-danger-bg: #FBEBE8;
-  --color-success: #2F8F5B;
-  --color-success-bg: #E9F5EE;
-  --color-warning: #7A4A00;
-  --color-warning-bg: #FFF4E5;
-  --color-warning-border: #F0C27A;
+  --color-bg: #f4f7fa;
+  --color-surface: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-primary: #12395c;
+  --color-primary-hover: #0d2c47;
+  --color-accent: #2e7eb0;
+  --color-text: #1c2733;
+  --color-text-muted: #64748b;
+  --color-border: #dce3ea;
+  --color-danger: #b3392c;
+  --color-danger-bg: #fbebe8;
+  --color-success: #2f8f5b;
+  --color-success-bg: #e9f5ee;
+  --color-warning: #7a4a00;
+  --color-warning-bg: #fff4e5;
+  --color-warning-border: #f0c27a;
 
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-display: 'Plus Jakarta Sans', 'DM Sans', system-ui, sans-serif;
@@ -212,8 +212,8 @@ textarea {
   min-width: 160px;
 }
 
-input[type="radio"],
-input[type="checkbox"] {
+input[type='radio'],
+input[type='checkbox'] {
   min-width: 0;
   width: auto;
   padding: 0;
@@ -227,7 +227,7 @@ textarea:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 15%, transparent);
 }
 
-input[type="number"] {
+input[type='number'] {
   font-family: var(--font-sans);
   min-width: 110px;
 }
@@ -301,13 +301,13 @@ button:hover {
   background: var(--color-primary-hover);
 }
 
-button[type="button"] {
+button[type='button'] {
   background: transparent;
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
 }
 
-button[type="button"]:hover {
+button[type='button']:hover {
   background: var(--color-bg);
   color: var(--color-text);
 }
@@ -1247,18 +1247,20 @@ button.report-export:disabled {
     height: 2px;
     background: var(--color-on-primary);
     border-radius: 2px;
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease;
   }
 
-  .menu-toggle[aria-expanded="true"] span:nth-child(1) {
+  .menu-toggle[aria-expanded='true'] span:nth-child(1) {
     transform: translateY(7px) rotate(45deg);
   }
 
-  .menu-toggle[aria-expanded="true"] span:nth-child(2) {
+  .menu-toggle[aria-expanded='true'] span:nth-child(2) {
     opacity: 0;
   }
 
-  .menu-toggle[aria-expanded="true"] span:nth-child(3) {
+  .menu-toggle[aria-expanded='true'] span:nth-child(3) {
     transform: translateY(-7px) rotate(-45deg);
   }
 
@@ -1272,7 +1274,9 @@ button.report-export:disabled {
     overflow-y: auto;
     transform: translateX(-100%);
     visibility: hidden;
-    transition: transform 0.25s ease, visibility 0.25s;
+    transition:
+      transform 0.25s ease,
+      visibility 0.25s;
   }
 
   .sidebar.open {

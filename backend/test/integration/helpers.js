@@ -59,7 +59,7 @@ export const startTestServer = async () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const text = await response.text();
-    let data = null;
+    let data;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -78,7 +78,7 @@ export const startTestServer = async () => {
       body: form,
     });
     const text = await response.text();
-    let data = null;
+    let data;
     try {
       data = text ? JSON.parse(text) : null;
     } catch {
@@ -99,7 +99,7 @@ const tokenFor = (user) =>
   jwt.sign(
     { id: user.id, businessId: user.businessId, role: user.role, tv: user.tokenVersion ?? 0 },
     process.env.JWT_SECRET,
-    { expiresIn: '1h' }
+    { expiresIn: '1h' },
   );
 
 // Un comercio completo para probar: usuarios de cada rol (con su token), un cliente, una forma
@@ -124,16 +124,32 @@ export const createBusiness = async (models, name) => {
   }
 
   const customer = await Customer.create({
-    businessId: business.id, firstName: 'Cliente', lastName: name, fiscalCondition: 'Consumidor Final',
+    businessId: business.id,
+    firstName: 'Cliente',
+    lastName: name,
+    fiscalCondition: 'Consumidor Final',
   });
   const payment = await Payment.create({ businessId: business.id, name: 'Efectivo' });
   const yerba = await Product.create({
-    businessId: business.id, internalCode: 'YER', name: 'Yerba 1 kg', unitType: 'unit',
-    price: 1000, promoPrice: 900, cost: 600, vatRate: 21, stock: 1000,
+    businessId: business.id,
+    internalCode: 'YER',
+    name: 'Yerba 1 kg',
+    unitType: 'unit',
+    price: 1000,
+    promoPrice: 900,
+    cost: 600,
+    vatRate: 21,
+    stock: 1000,
   });
   const queso = await Product.create({
-    businessId: business.id, internalCode: 'QUE', name: 'Queso por kg', unitType: 'weight',
-    price: 30000, cost: 18000, vatRate: 21, stock: 5,
+    businessId: business.id,
+    internalCode: 'QUE',
+    name: 'Queso por kg',
+    unitType: 'weight',
+    price: 30000,
+    cost: 18000,
+    vatRate: 21,
+    stock: 5,
   });
 
   return { business, users, password, customer, payment, products: { yerba, queso } };

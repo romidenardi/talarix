@@ -22,10 +22,9 @@ export const resolveScaleConfig = (stored) => ({
 
 // Dígito de control EAN-13: pesos 1 y 3 alternados sobre los primeros 12 dígitos
 export const ean13CheckDigit = (first12) => {
-  const sum = String(first12).split('').reduce(
-    (acc, digit, index) => acc + Number(digit) * (index % 2 === 0 ? 1 : 3),
-    0
-  );
+  const sum = String(first12)
+    .split('')
+    .reduce((acc, digit, index) => acc + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
   return (10 - (sum % 10)) % 10;
 };
 

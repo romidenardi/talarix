@@ -1,6 +1,21 @@
 import {
-  sequelize, Business, Category, Product, StockMovement, Payment, InstallmentPlan, User,
-  Customer, Supplier, Purchase, PurchaseItem, Order, OrderItem, ComboItem, ClosureRecord, AuditLog,
+  sequelize,
+  Business,
+  Category,
+  Product,
+  StockMovement,
+  Payment,
+  InstallmentPlan,
+  User,
+  Customer,
+  Supplier,
+  Purchase,
+  PurchaseItem,
+  Order,
+  OrderItem,
+  ComboItem,
+  ClosureRecord,
+  AuditLog,
 } from '../models/index.js';
 import { audit } from '../utils/audit.js';
 
@@ -64,7 +79,7 @@ export const purgeBusiness = async (businessId) => {
         deletedAt: new Date(),
         userCount,
       },
-      { transaction }
+      { transaction },
     );
     // El registro de auditoría del comercio también se borra (tiene ids de usuarios e IP);
     // queda solo la constancia del borrado, sin datos personales
@@ -77,5 +92,11 @@ export const purgeBusiness = async (businessId) => {
     throw error;
   }
 
-  await audit(null, { action: 'business.purged', actorType: 'system', businessId, targetType: 'business', targetId: businessId });
+  await audit(null, {
+    action: 'business.purged',
+    actorType: 'system',
+    businessId,
+    targetType: 'business',
+    targetId: businessId,
+  });
 };

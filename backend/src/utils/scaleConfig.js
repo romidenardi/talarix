@@ -55,7 +55,7 @@ export const normalizeScaleConfig = (input) => {
     throw httpError(
       checkDigit
         ? 'El PLU y el valor tienen que entrar en los primeros 12 dígitos (el 13 es el de control)'
-        : 'El PLU y el valor tienen que entrar en los 13 dígitos del código'
+        : 'El PLU y el valor tienen que entrar en los 13 dígitos del código',
     );
   }
   if (pluStart <= prefix.length || valueStart <= prefix.length) {

@@ -17,7 +17,13 @@ export const discriminatesVatFor = (fiscalCondition) => FISCAL_CONDITIONS_WITH_V
 // lines: [{ quantity, unitPrice, vatRate, otherTaxes, components? }]
 //   components (combos): [{ price, quantity, vatRate, otherTaxes }]
 // plan: { installments, interestRate } o null
-export const priceOrder = ({ lines, discountPercent = 0, discountAmount = 0, discriminatesVat = false, plan = null }) => {
+export const priceOrder = ({
+  lines,
+  discountPercent = 0,
+  discountAmount = 0,
+  discriminatesVat = false,
+  plan = null,
+}) => {
   let grossSubtotal = 0;
   let grossVat = 0;
   let grossInternal = 0;
@@ -26,9 +32,10 @@ export const priceOrder = ({ lines, discountPercent = 0, discountAmount = 0, dis
   const lineTotals = lines.map((line) => {
     const unitPrice = round2(Number(line.unitPrice) || 0);
     const lineTotal = round2(Number(line.quantity) * unitPrice);
-    const parts = Array.isArray(line.components) && line.components.length
-      ? splitLineParts(lineTotal, line.components)
-      : [splitPrice(lineTotal, line.vatRate, line.otherTaxes)];
+    const parts =
+      Array.isArray(line.components) && line.components.length
+        ? splitLineParts(lineTotal, line.components)
+        : [splitPrice(lineTotal, line.vatRate, line.otherTaxes)];
     for (const part of parts) {
       grossSubtotal += part.net;
       grossVat += part.vat;

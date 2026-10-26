@@ -53,9 +53,26 @@ describe('Número de remito', () => {
 
 describe('Ventas simultáneas', () => {
   it('muchos remitos a la vez con los mismos productos en distinto orden: todos salen, sin deadlock', async () => {
-    const x = await models.Product.create({ businessId: A.business.id, internalCode: 'X', name: 'X', price: 100, cost: 50, stock: 100 });
-    const y = await models.Product.create({ businessId: A.business.id, internalCode: 'Y', name: 'Y', price: 100, cost: 50, stock: 100 });
-    const lineXY = [{ productId: x.id, quantity: 1, unitPrice: 100 }, { productId: y.id, quantity: 1, unitPrice: 100 }];
+    const x = await models.Product.create({
+      businessId: A.business.id,
+      internalCode: 'X',
+      name: 'X',
+      price: 100,
+      cost: 50,
+      stock: 100,
+    });
+    const y = await models.Product.create({
+      businessId: A.business.id,
+      internalCode: 'Y',
+      name: 'Y',
+      price: 100,
+      cost: 50,
+      stock: 100,
+    });
+    const lineXY = [
+      { productId: x.id, quantity: 1, unitPrice: 100 },
+      { productId: y.id, quantity: 1, unitPrice: 100 },
+    ];
     const lineYX = [...lineXY].reverse();
 
     const results = await Promise.all(Array.from({ length: 10 }, (_, i) => sell(A, i % 2 ? lineXY : lineYX)));
@@ -71,12 +88,19 @@ describe('Ventas simultáneas', () => {
 
 describe('Quién hizo cada cosa', () => {
   it('el remito y su movimiento de stock guardan el usuario', async () => {
-    const res = await sell(A, [{ productId: A.products.queso.id, quantity: 0.1, unitPrice: 30000 }], {}, A.users.editor.token);
+    const res = await sell(
+      A,
+      [{ productId: A.products.queso.id, quantity: 0.1, unitPrice: 30000 }],
+      {},
+      A.users.editor.token,
+    );
     assert.equal(res.status, 201, JSON.stringify(res.body));
     assert.equal(res.body.createdByName, A.users.editor.name);
     assert.equal(res.body.createdById, A.users.editor.id);
 
-    const movements = await api('GET', `/api/stock-movements/product/${A.products.queso.id}`, { token: A.users.admin.token });
+    const movements = await api('GET', `/api/stock-movements/product/${A.products.queso.id}`, {
+      token: A.users.admin.token,
+    });
     assert.equal(movements.body[0].createdByName, A.users.editor.name);
     assert.match(movements.body[0].reason, /remito \d{8}/);
   });
@@ -115,12 +139,21 @@ describe('Quién hizo cada cosa', () => {
 
   it('no se puede cargar una compra de un combo', async () => {
     const combo = await models.Product.create({
-      businessId: A.business.id, internalCode: 'CMB', name: 'Combo', price: 10, cost: 5, isCombo: true,
+      businessId: A.business.id,
+      internalCode: 'CMB',
+      name: 'Combo',
+      price: 10,
+      cost: 5,
+      isCombo: true,
     });
     const supplier = await models.Supplier.findOne({ where: { businessId: A.business.id } });
     const res = await api('POST', '/api/purchases', {
       token: A.users.admin.token,
-      body: { supplierId: supplier.id, requestId: newRequestId(), items: [{ productId: combo.id, quantity: 1, unitCost: 5 }] },
+      body: {
+        supplierId: supplier.id,
+        requestId: newRequestId(),
+        items: [{ productId: combo.id, quantity: 1, unitCost: 5 }],
+      },
     });
     assert.equal(res.status, 400);
   });
@@ -136,22 +169,35 @@ describe('Importes e IVA', () => {
 
   it('cada renglón guarda el IVA del momento, y el reporte usa ese aunque después cambie el producto', async () => {
     const ri = await models.Customer.create({
-      businessId: A.business.id, businessName: 'Empresa RI', fiscalCondition: 'Responsable Inscripto',
+      businessId: A.business.id,
+      businessName: 'Empresa RI',
+      fiscalCondition: 'Responsable Inscripto',
     });
     const product = await models.Product.create({
-      businessId: A.business.id, internalCode: 'IVA', name: 'Con IVA', price: 1210, cost: 500, vatRate: 21, stock: 10,
+      businessId: A.business.id,
+      internalCode: 'IVA',
+      name: 'Con IVA',
+      price: 1210,
+      cost: 500,
+      vatRate: 21,
+      stock: 10,
     });
     const res = await api('POST', '/api/orders', {
       token: A.users.admin.token,
       body: {
-        customerId: ri.id, paymentId: A.payment.id, requestId: newRequestId(),
+        customerId: ri.id,
+        paymentId: A.payment.id,
+        requestId: newRequestId(),
         items: [{ productId: product.id, quantity: 1, unitPrice: 1210 }],
       },
     });
     assert.equal(res.status, 201, JSON.stringify(res.body));
     assert.equal(res.body.items[0].vatRate, 21);
 
-    const change = await api('PUT', `/api/products/${product.id}`, { token: A.users.admin.token, body: { vatRate: 10.5 } });
+    const change = await api('PUT', `/api/products/${product.id}`, {
+      token: A.users.admin.token,
+      body: { vatRate: 10.5 },
+    });
     assert.equal(change.status, 200, JSON.stringify(change.body));
 
     const report = await api('GET', '/api/reports/vat', { token: A.users.admin.token });

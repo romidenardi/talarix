@@ -19,7 +19,11 @@ test('producto por peso: 0,250 kg × $30.000', () => {
 });
 
 test('descuento por porcentaje y por monto', () => {
-  const r = priceOrder({ lines: [{ quantity: 2, unitPrice: 1000, vatRate: 21 }], discountPercent: 10, discountAmount: 100 });
+  const r = priceOrder({
+    lines: [{ quantity: 2, unitPrice: 1000, vatRate: 21 }],
+    discountPercent: 10,
+    discountAmount: 100,
+  });
   assert.equal(r.grossTotal, 2000);
   assert.equal(r.totalDiscount, 300);
   assert.equal(r.total, 1700);
@@ -54,14 +58,16 @@ test('consumidor final: no discrimina IVA', () => {
 
 test('combo con productos de distinta alícuota', () => {
   const r = priceOrder({
-    lines: [{
-      quantity: 1,
-      unitPrice: 3000,
-      components: [
-        { price: 1000, quantity: 1, vatRate: 21 },
-        { price: 1000, quantity: 2, vatRate: 10.5 },
-      ],
-    }],
+    lines: [
+      {
+        quantity: 1,
+        unitPrice: 3000,
+        components: [
+          { price: 1000, quantity: 1, vatRate: 21 },
+          { price: 1000, quantity: 2, vatRate: 10.5 },
+        ],
+      },
+    ],
     discriminatesVat: true,
   });
   assert.equal(r.total, 3000);

@@ -47,8 +47,8 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
       >
         <h3 id="approval-title">Autorización necesaria</h3>
         <p>
-          {notice || 'Este remito tiene un descuento o un precio distinto al de lista.'}{' '}
-          Un <strong>administrador o editor</strong> tiene que autorizarlo con su email y contraseña.
+          {notice || 'Este remito tiene un descuento o un precio distinto al de lista.'} Un{' '}
+          <strong>administrador o editor</strong> tiene que autorizarlo con su email y contraseña.
         </p>
 
         <ul className="approval-summary">
@@ -56,27 +56,46 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
           {summary.discountAmount > 0 && <li>Descuento por monto: {money(summary.discountAmount)}</li>}
           {summary.prices.map((p) => (
             <li key={`${p.name}-${p.unitPrice}`}>
-              {p.name}: {money(p.unitPrice)}{p.perKg ? ' por kg' : ''}{' '}
-              <span className="approval-list-price">(lista {money(p.listPrice)})</span>
+              {p.name}: {money(p.unitPrice)}
+              {p.perKg ? ' por kg' : ''} <span className="approval-list-price">(lista {money(p.listPrice)})</span>
             </li>
           ))}
         </ul>
 
         <div className="field">
           <label htmlFor="approval-email">Email de quien autoriza</label>
-          <input id="approval-email" type="email" autoComplete="off" autoFocus
-            value={email} onChange={(e) => setEmail(e.target.value)} />
+          <input
+            id="approval-email"
+            type="email"
+            autoComplete="off"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="field">
           <label htmlFor="approval-password">Contraseña</label>
-          <input id="approval-password" type="password" autoComplete="off"
-            value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            id="approval-password"
+            type="password"
+            autoComplete="off"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
-        {error && <p className="error" role="alert">{error}</p>}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
         <div className="approval-actions">
-          <button type="submit" disabled={sending}>{sending ? 'Autorizando…' : 'Autorizar y generar remito'}</button>
-          <button type="button" onClick={onCancel} disabled={sending}>Volver al remito</button>
+          <button type="submit" disabled={sending}>
+            {sending ? 'Autorizando…' : 'Autorizar y generar remito'}
+          </button>
+          <button type="button" onClick={onCancel} disabled={sending}>
+            Volver al remito
+          </button>
         </div>
       </form>
     </div>

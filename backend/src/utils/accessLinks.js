@@ -19,9 +19,7 @@ export const issueAccessLink = async (user, businessName) => {
   const expiresAt = new Date(Date.now() + ttl);
   await user.update({ inviteTokenHash: hash, inviteExpiresAt: expiresAt });
 
-  const link = isPending
-    ? appUrl(`/activar?token=${token}`)
-    : appUrl(`/restablecer?token=${token}`);
+  const link = isPending ? appUrl(`/activar?token=${token}`) : appUrl(`/restablecer?token=${token}`);
 
   const message = isPending
     ? inviteEmail({ name: user.name, businessName, url: link, expiresInMs: ttl })

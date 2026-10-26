@@ -21,9 +21,7 @@ import VatSelect from '../../components/common/VatSelect.jsx';
 import { splitPrice, splitLineParts, toPercentOrNull } from '../../utils/taxes.js';
 import { parseScaleCode, lineFromLabel, resolveScaleConfig } from '../../utils/scale.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
-import {
-  formatQuantity, quantityStep, quantityMin, round3, toKg,
-} from '../../utils/quantity.js';
+import { formatQuantity, quantityStep, quantityMin, round3, toKg } from '../../utils/quantity.js';
 
 const NEW_CUSTOMER = '__new__';
 const NEW_PRODUCT = '__new_product__';
@@ -37,8 +35,8 @@ const cents = (value) => Math.round((Number(value) || 0) * 100) / 100;
 // Es la misma regla que aplica el servidor (services/orderApproval.service.js).
 const samePrice = (a, b) => Math.abs(Number(a) - Number(b)) < 0.005;
 const isListPrice = (product, unitPrice) =>
-  samePrice(unitPrice, product.price)
-  || (product.promoPrice !== null && product.promoPrice !== undefined && samePrice(unitPrice, product.promoPrice));
+  samePrice(unitPrice, product.price) ||
+  (product.promoPrice !== null && product.promoPrice !== undefined && samePrice(unitPrice, product.promoPrice));
 
 const emptyItem = () => ({
   productId: '',
@@ -67,7 +65,14 @@ const Orders = () => {
   const approvalTokenRef = useRef(null);
 
   const {
-    register, control, handleSubmit, reset, watch, setValue, setError, formState: { errors, isSubmitting },
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    setError,
+    formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
       customerId: '',
@@ -141,26 +146,35 @@ const Orders = () => {
     return round3(Math.max((requestedByProduct[productId] || 0) - Number(product.stock), 0));
   };
 
-  const { grossSubtotal, grossVat, grossInternal, grossTotal } = (watchedItems || []).reduce((acc, item) => {
-    const isNew = item.productId === NEW_PRODUCT;
-    const product = isNew ? null : products.find((p) => p.id === item.productId);
-    const itemTotal = Math.round(toKg(item.quantity, item.qtyUnit) * cents(item.unitPrice) * 100) / 100;
+  const { grossSubtotal, grossVat, grossInternal, grossTotal } = (watchedItems || []).reduce(
+    (acc, item) => {
+      const isNew = item.productId === NEW_PRODUCT;
+      const product = isNew ? null : products.find((p) => p.id === item.productId);
+      const itemTotal = Math.round(toKg(item.quantity, item.qtyUnit) * cents(item.unitPrice) * 100) / 100;
 
-    const parts = product?.isCombo && (product.components || []).length
-      ? splitLineParts(itemTotal, product.components)
-      : [splitPrice(
-        itemTotal,
-        isNew ? item.newProduct?.vatRate : product?.vatRate,
-        isNew ? item.newProduct?.otherTaxes : product?.otherTaxes
-      )];
+      const parts =
+        product?.isCombo && (product.components || []).length
+          ? splitLineParts(itemTotal, product.components)
+          : [
+              splitPrice(
+                itemTotal,
+                isNew ? item.newProduct?.vatRate : product?.vatRate,
+                isNew ? item.newProduct?.otherTaxes : product?.otherTaxes,
+              ),
+            ];
 
-    return parts.reduce((sum, part) => ({
-      grossSubtotal: sum.grossSubtotal + part.net,
-      grossVat: sum.grossVat + part.vat,
-      grossInternal: sum.grossInternal + part.internal,
-      grossTotal: sum.grossTotal,
-    }), { ...acc, grossTotal: acc.grossTotal + itemTotal });
-  }, { grossSubtotal: 0, grossVat: 0, grossInternal: 0, grossTotal: 0 });
+      return parts.reduce(
+        (sum, part) => ({
+          grossSubtotal: sum.grossSubtotal + part.net,
+          grossVat: sum.grossVat + part.vat,
+          grossInternal: sum.grossInternal + part.internal,
+          grossTotal: sum.grossTotal,
+        }),
+        { ...acc, grossTotal: acc.grossTotal + itemTotal },
+      );
+    },
+    { grossSubtotal: 0, grossVat: 0, grossInternal: 0, grossTotal: 0 },
+  );
 
   const discountPercent = Number(watchedDiscountPercent) || 0;
   const discountAmount = Number(watchedDiscountAmount) || 0;
@@ -241,7 +255,10 @@ const Orders = () => {
   const handleScaleLabel = (label) => {
     const product = products.find((p) => !p.isCombo && p.scalePlu === label.plu);
     if (!product) {
-      msg.error(`No hay ningún producto con el PLU ${label.plu}. Cargalo en Productos → campo "PLU de balanza".`, 'scan');
+      msg.error(
+        `No hay ningún producto con el PLU ${label.plu}. Cargalo en Productos → campo "PLU de balanza".`,
+        'scan',
+      );
       return;
     }
     if (product.active === false) {
@@ -260,7 +277,10 @@ const Orders = () => {
     const emptyIndex = items.findIndex((it) => !it.productId);
 
     if (existing >= 0) {
-      setValue(`items.${existing}.quantity`, round3(toKg(items[existing].quantity, items[existing].qtyUnit) + line.quantity));
+      setValue(
+        `items.${existing}.quantity`,
+        round3(toKg(items[existing].quantity, items[existing].qtyUnit) + line.quantity),
+      );
       setValue(`items.${existing}.qtyUnit`, 'kg');
     } else if (emptyIndex >= 0) {
       setValue(`items.${emptyIndex}.productId`, product.id);
@@ -274,7 +294,7 @@ const Orders = () => {
     if (line.priceMismatch) {
       msg.error(
         `${added} Ojo: el importe de la etiqueta ($${label.value.toFixed(2)}) no coincide con el precio de ${product.name} en el sistema. Revisá que sean iguales.`,
-        'scan'
+        'scan',
       );
     } else {
       msg.success(added, 'scan');
@@ -320,11 +340,13 @@ const Orders = () => {
       msg.error(`No hay ningún producto con el código ${code}`, 'scan');
       return;
     }
-    if (!(await dialog.confirm({
-      title: 'Código no registrado',
-      message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
-      confirmLabel: 'Crear producto',
-    }))) {
+    if (
+      !(await dialog.confirm({
+        title: 'Código no registrado',
+        message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
+        confirmLabel: 'Crear producto',
+      }))
+    ) {
       return;
     }
     if (emptyIndex >= 0) {
@@ -474,8 +496,8 @@ const Orders = () => {
       const savedTotal = Number(saved?.total);
       if (Number.isFinite(savedTotal) && Math.abs(savedTotal - previewTotal) > 0.01) {
         msg.error(
-          `Remito ${orderNumberLabel(saved)} generado, pero el total guardado ($${savedTotal.toFixed(2)}) es distinto `
-          + `del que mostraba la pantalla ($${previewTotal.toFixed(2)}). Vale el guardado: revisalo antes de entregarlo.`
+          `Remito ${orderNumberLabel(saved)} generado, pero el total guardado ($${savedTotal.toFixed(2)}) es distinto ` +
+            `del que mostraba la pantalla ($${previewTotal.toFixed(2)}). Vale el guardado: revisalo antes de entregarlo.`,
         );
       } else {
         msg.success('Remito generado, stock actualizado');
@@ -501,8 +523,8 @@ const Orders = () => {
       const text = serverMessage(err, 'Error al generar el remito');
       if (created.length) {
         msg.error(
-          `${text} El remito no se generó, pero ya quedaron creados ${created.join(' y ')}: `
-          + 'están elegidos en el formulario, no hace falta cargarlos de nuevo.'
+          `${text} El remito no se generó, pero ya quedaron creados ${created.join(' y ')}: ` +
+            'están elegidos en el formulario, no hace falta cargarlos de nuevo.',
         );
         return;
       }
@@ -514,27 +536,38 @@ const Orders = () => {
 
   const customerLabel = (c) => c.businessName || `${c.firstName} ${c.lastName || ''}`.trim();
   // Los clientes anonimizados (pedido de supresión) no se ofrecen: no se les puede vender
-  const customerOptions = customers.filter((c) => !c.anonymizedAt).map((c) => ({
-    value: c.id,
-    label: customerLabel(c),
-    detail: [c.fiscalCondition, c.cuit && `CUIT ${c.cuit}`].filter(Boolean).join(' · '),
-    keywords: [c.firstName, c.lastName, c.businessName, c.cuit],
-  }));
+  const customerOptions = customers
+    .filter((c) => !c.anonymizedAt)
+    .map((c) => ({
+      value: c.id,
+      label: customerLabel(c),
+      detail: [c.fiscalCondition, c.cuit && `CUIT ${c.cuit}`].filter(Boolean).join(' · '),
+      keywords: [c.firstName, c.lastName, c.businessName, c.cuit],
+    }));
   // Los productos inactivos no se pueden vender (el servidor también lo controla)
-  const productOptions = products.filter((p) => p.active !== false).map((p) => ({
-    value: p.id,
-    label: p.name,
-    detail: [p.isCombo && 'Combo', p.internalCode && `Cód. ${p.internalCode}`, p.scalePlu && `PLU ${p.scalePlu}`, `Stock: ${formatQuantity(p.stock, p.unitType)}`]
-      .filter(Boolean).join(' · '),
-    keywords: [p.internalCode, p.barcode, p.brand, p.model],
-  }));
+  const productOptions = products
+    .filter((p) => p.active !== false)
+    .map((p) => ({
+      value: p.id,
+      label: p.name,
+      detail: [
+        p.isCombo && 'Combo',
+        p.internalCode && `Cód. ${p.internalCode}`,
+        p.scalePlu && `PLU ${p.scalePlu}`,
+        `Stock: ${formatQuantity(p.stock, p.unitType)}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      keywords: [p.internalCode, p.barcode, p.brand, p.model],
+    }));
   const displayCustomer = (order) => (order.Customer ? customerLabel(order.Customer) : '—');
 
   const handleCancel = async (order) => {
     const reason = await dialog.prompt({
       title: 'Anular remito',
-      message: `Vas a anular el remito de ${displayCustomer(order)} por $${Number(order.total).toFixed(2)}.\n`
-        + 'El stock de los productos vendidos se devuelve y el remito deja de contar en los reportes.',
+      message:
+        `Vas a anular el remito de ${displayCustomer(order)} por $${Number(order.total).toFixed(2)}.\n` +
+        'El stock de los productos vendidos se devuelve y el remito deja de contar en los reportes.',
       label: 'Motivo (opcional)',
       placeholder: 'Ej: el cliente devolvió la mercadería',
       confirmLabel: 'Anular remito',
@@ -564,7 +597,10 @@ const Orders = () => {
 
       <form onSubmit={handleSubmit(onSubmit)} className="order-form">
         <div className="field">
-          <label htmlFor="customerId">Cliente<RequiredMark /></label>
+          <label htmlFor="customerId">
+            Cliente
+            <RequiredMark />
+          </label>
           <Controller
             name="customerId"
             control={control}
@@ -591,7 +627,11 @@ const Orders = () => {
           <div className="inline-customer-form">
             <div className="field">
               <label htmlFor="newCustomerBusinessName">Razón social (si es empresa)</label>
-              <input id="newCustomerBusinessName" placeholder="Ej: Distribuidora del Sur SA" {...register('newCustomer.businessName')} />
+              <input
+                id="newCustomerBusinessName"
+                placeholder="Ej: Distribuidora del Sur SA"
+                {...register('newCustomer.businessName')}
+              />
             </div>
             <div className="field">
               <label htmlFor="newCustomerFirstName">Nombre</label>
@@ -603,25 +643,39 @@ const Orders = () => {
               <input id="newCustomerLastName" placeholder="Ej: Pérez" {...register('newCustomer.lastName')} />
             </div>
             <div className="field">
-              <label htmlFor="newCustomerFiscalCondition">Condición fiscal<RequiredMark /></label>
+              <label htmlFor="newCustomerFiscalCondition">
+                Condición fiscal
+                <RequiredMark />
+              </label>
               <select id="newCustomerFiscalCondition" {...register('newCustomer.fiscalCondition')}>
                 <option value="">Condición fiscal...</option>
                 {FISCAL_CONDITIONS.map((fc) => (
-                  <option key={fc} value={fc}>{fc}</option>
+                  <option key={fc} value={fc}>
+                    {fc}
+                  </option>
                 ))}
               </select>
-              {errors.newCustomer?.fiscalCondition && <span className="error">{errors.newCustomer?.fiscalCondition.message}</span>}
+              {errors.newCustomer?.fiscalCondition && (
+                <span className="error">{errors.newCustomer?.fiscalCondition.message}</span>
+              )}
             </div>
           </div>
         )}
 
         <div className="field">
-          <label htmlFor="paymentId">Forma de pago<RequiredMark /></label>
+          <label htmlFor="paymentId">
+            Forma de pago
+            <RequiredMark />
+          </label>
           <select id="paymentId" {...register('paymentId', { required: 'Elegí la forma de pago' })}>
             <option value="">Forma de pago...</option>
-            {payments.filter((p) => p.active).map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {payments
+              .filter((p) => p.active)
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
           </select>
           {errors.paymentId && <span className="error">{errors.paymentId.message}</span>}
         </div>
@@ -633,7 +687,8 @@ const Orders = () => {
               <option value="">Pago único (sin financiación)</option>
               {availablePlans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
-                  {plan.installments} cuotas {Number(plan.interestRate) > 0 ? `(+${plan.interestRate}% interés)` : '(sin interés)'}
+                  {plan.installments} cuotas{' '}
+                  {Number(plan.interestRate) > 0 ? `(+${plan.interestRate}% interés)` : '(sin interés)'}
                 </option>
               ))}
             </select>
@@ -668,8 +723,8 @@ const Orders = () => {
 
         {needsApprovalForChanges && (
           <p className="report-note">
-            Los descuentos y los precios distintos a los de lista tiene que autorizarlos un administrador o editor:
-            al generar el remito se te va a pedir su email y contraseña.
+            Los descuentos y los precios distintos a los de lista tiene que autorizarlos un administrador o editor: al
+            generar el remito se te va a pedir su email y contraseña.
           </p>
         )}
 
@@ -688,7 +743,7 @@ const Orders = () => {
             const rowProduct = products.find((p) => p.id === rowProductId);
             const isCombo = Boolean(rowProduct?.isCombo);
             const rowUnitType = isNewProduct ? watchedItems?.[index]?.newProduct?.unitType : rowProduct?.unitType;
-            const rowQtyUnit = rowUnitType === 'weight' ? (watchedItems?.[index]?.qtyUnit || 'kg') : 'kg';
+            const rowQtyUnit = rowUnitType === 'weight' ? watchedItems?.[index]?.qtyUnit || 'kg' : 'kg';
             const rowQuantity = toKg(watchedItems?.[index]?.quantity, rowQtyUnit);
             const rowPrice = Number(watchedItems?.[index]?.unitPrice) || 0;
             const shortfall = rowProductId && !isNewProduct && !isCombo ? getShortfall(rowProductId) : 0;
@@ -697,7 +752,10 @@ const Orders = () => {
             return (
               <div key={field.id} className="purchase-item-row">
                 <div className="field">
-                  <label htmlFor={`order-item-product-${index}`}>Producto<RequiredMark /></label>
+                  <label htmlFor={`order-item-product-${index}`}>
+                    Producto
+                    <RequiredMark />
+                  </label>
                   <Controller
                     name={`items.${index}.productId`}
                     control={control}
@@ -720,10 +778,15 @@ const Orders = () => {
                       />
                     )}
                   />
-                  {errors.items?.[index]?.productId && <span className="error">{errors.items?.[index]?.productId.message}</span>}
+                  {errors.items?.[index]?.productId && (
+                    <span className="error">{errors.items?.[index]?.productId.message}</span>
+                  )}
                 </div>
                 <div className="field">
-                  <label htmlFor={`order-item-quantity-${index}`}>Cantidad<RequiredMark /></label>
+                  <label htmlFor={`order-item-quantity-${index}`}>
+                    Cantidad
+                    <RequiredMark />
+                  </label>
                   <div className={rowUnitType === 'weight' ? 'input-with-action' : undefined}>
                     <input
                       id={`order-item-quantity-${index}`}
@@ -732,7 +795,10 @@ const Orders = () => {
                       placeholder={rowUnitType === 'weight' ? (rowQtyUnit === 'g' ? 'Ej: 250' : 'Ej: 1,250') : 'Ej: 2'}
                       {...register(`items.${index}.quantity`, {
                         required: 'Cargá la cantidad',
-                        min: { value: rowQtyUnit === 'g' ? 1 : quantityMin(rowUnitType), message: 'La cantidad tiene que ser mayor a 0' },
+                        min: {
+                          value: rowQtyUnit === 'g' ? 1 : quantityMin(rowUnitType),
+                          message: 'La cantidad tiene que ser mayor a 0',
+                        },
                       })}
                     />
                     {rowUnitType === 'weight' && (
@@ -742,11 +808,14 @@ const Orders = () => {
                       </select>
                     )}
                   </div>
-                  {errors.items?.[index]?.quantity && <span className="error">{errors.items?.[index]?.quantity.message}</span>}
+                  {errors.items?.[index]?.quantity && (
+                    <span className="error">{errors.items?.[index]?.quantity.message}</span>
+                  )}
                 </div>
                 <div className="field">
                   <label htmlFor={`order-item-price-${index}`}>
-                    {rowUnitType === 'weight' ? 'Precio por kg' : 'Precio unitario'}<RequiredMark />
+                    {rowUnitType === 'weight' ? 'Precio por kg' : 'Precio unitario'}
+                    <RequiredMark />
                   </label>
                   <input
                     id={`order-item-price-${index}`}
@@ -758,7 +827,9 @@ const Orders = () => {
                       min: { value: 0, message: 'El precio no puede ser negativo' },
                     })}
                   />
-                  {errors.items?.[index]?.unitPrice && <span className="error">{errors.items?.[index]?.unitPrice.message}</span>}
+                  {errors.items?.[index]?.unitPrice && (
+                    <span className="error">{errors.items?.[index]?.unitPrice.message}</span>
+                  )}
                 </div>
                 <div className="field item-remove-field">
                   <label aria-hidden="true">&nbsp;</label>
@@ -775,7 +846,8 @@ const Orders = () => {
                 {rowUnitType === 'weight' && rowQuantity > 0 && (
                   <div className="field field-full">
                     <small className="report-note">
-                      {formatQuantity(rowQuantity, 'weight')} × ${rowPrice.toFixed(2)} por kg = ${(Math.round(rowQuantity * rowPrice * 100) / 100).toFixed(2)}
+                      {formatQuantity(rowQuantity, 'weight')} × ${rowPrice.toFixed(2)} por kg = $
+                      {(Math.round(rowQuantity * rowPrice * 100) / 100).toFixed(2)}
                     </small>
                   </div>
                 )}
@@ -783,32 +855,42 @@ const Orders = () => {
                 {isNewProduct && (
                   <div className="inline-customer-form field-full">
                     <div className="field">
-                      <label htmlFor={`new-product-code-${index}`}>Código interno<RequiredMark /></label>
+                      <label htmlFor={`new-product-code-${index}`}>
+                        Código interno
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-code-${index}`}
                         placeholder="Ej: P001"
                         {...register(`items.${index}.newProduct.internalCode`)}
                       />
-                      {errors.items?.[index]?.newProduct?.internalCode && <span className="error">{errors.items?.[index]?.newProduct?.internalCode.message}</span>}
+                      {errors.items?.[index]?.newProduct?.internalCode && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.internalCode.message}</span>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor={`new-product-barcode-${index}`}>Código de barras</label>
-                      <input
-                        id={`new-product-barcode-${index}`}
-                        {...register(`items.${index}.newProduct.barcode`)}
-                      />
+                      <input id={`new-product-barcode-${index}`} {...register(`items.${index}.newProduct.barcode`)} />
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-name-${index}`}>Producto<RequiredMark /></label>
+                      <label htmlFor={`new-product-name-${index}`}>
+                        Producto
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-name-${index}`}
                         placeholder="Ej: Cerveza IPA 500ml"
                         {...register(`items.${index}.newProduct.name`)}
                       />
-                      {errors.items?.[index]?.newProduct?.name && <span className="error">{errors.items?.[index]?.newProduct?.name.message}</span>}
+                      {errors.items?.[index]?.newProduct?.name && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.name.message}</span>
+                      )}
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-cost-${index}`}>{rowUnitType === 'weight' ? 'Costo por kg' : 'Costo'}<RequiredMark /></label>
+                      <label htmlFor={`new-product-cost-${index}`}>
+                        {rowUnitType === 'weight' ? 'Costo por kg' : 'Costo'}
+                        <RequiredMark />
+                      </label>
                       <input
                         id={`new-product-cost-${index}`}
                         type="number"
@@ -816,7 +898,9 @@ const Orders = () => {
                         placeholder="Ej: 900"
                         {...register(`items.${index}.newProduct.cost`)}
                       />
-                      {errors.items?.[index]?.newProduct?.cost && <span className="error">{errors.items?.[index]?.newProduct?.cost.message}</span>}
+                      {errors.items?.[index]?.newProduct?.cost && (
+                        <span className="error">{errors.items?.[index]?.newProduct?.cost.message}</span>
+                      )}
                     </div>
                     <div className="field">
                       <label htmlFor={`new-product-vat-${index}`}>IVA</label>
@@ -826,7 +910,9 @@ const Orders = () => {
                       />
                     </div>
                     <div className="field">
-                      <label htmlFor={`new-product-internal-${index}`}>Impuestos internos (%) <small>(opcional)</small></label>
+                      <label htmlFor={`new-product-internal-${index}`}>
+                        Impuestos internos (%) <small>(opcional)</small>
+                      </label>
                       <input
                         id={`new-product-internal-${index}`}
                         type="number"
@@ -846,8 +932,8 @@ const Orders = () => {
                     </div>
                     <div className="field field-full stock-warning">
                       <span>
-                        El precio del producto será el "Precio unitario" de esta fila. Se crea con stock 0 y,
-                        al generar el remito, se cargan al stock {formatQuantity(rowQuantity, rowUnitType)} de esta fila.
+                        El precio del producto será el "Precio unitario" de esta fila. Se crea con stock 0 y, al generar
+                        el remito, se cargan al stock {formatQuantity(rowQuantity, rowUnitType)} de esta fila.
                       </span>
                     </div>
                   </div>
@@ -864,8 +950,9 @@ const Orders = () => {
                 {comboShortfall > 0 && (
                   <div className="field field-full stock-warning">
                     <span>
-                      Stock insuficiente para el combo {rowProduct.name}: se pueden armar {formatQuantity(rowProduct.stock)},
-                      pedís {rowQuantity}. Revisá el stock de los productos que lo forman.
+                      Stock insuficiente para el combo {rowProduct.name}: se pueden armar{' '}
+                      {formatQuantity(rowProduct.stock)}, pedís {rowQuantity}. Revisá el stock de los productos que lo
+                      forman.
                     </span>
                   </div>
                 )}
@@ -873,12 +960,15 @@ const Orders = () => {
                 {shortfall > 0 && (
                   <div className="field field-full stock-warning">
                     <span>
-                      Stock insuficiente en {rowProduct?.name}: disponible {formatQuantity(rowProduct?.stock, rowProduct?.unitType)}, faltan {formatQuantity(shortfall, rowProduct?.unitType)}.
+                      Stock insuficiente en {rowProduct?.name}: disponible{' '}
+                      {formatQuantity(rowProduct?.stock, rowProduct?.unitType)}, faltan{' '}
+                      {formatQuantity(shortfall, rowProduct?.unitType)}.
                     </span>
                     {canManageData ? (
                       <label className="stock-warning-label">
                         <input type="checkbox" {...register(`items.${index}.addStock`)} />
-                        Cargar al stock {formatQuantity(shortfall, rowProduct?.unitType)} que faltan al generar el remito.
+                        Cargar al stock {formatQuantity(shortfall, rowProduct?.unitType)} que faltan al generar el
+                        remito.
                       </label>
                     ) : (
                       <span>Pedile a un editor o administrador que cargue stock.</span>
@@ -901,12 +991,8 @@ const Orders = () => {
         </button>
 
         <div className="purchase-total">
-          {(discriminatesVat || hasDiscount) && (
-            <div>Importe: ${grossTotal.toFixed(2)}</div>
-          )}
-          {hasDiscount && (
-            <div>Descuento: -${totalDiscount.toFixed(2)}</div>
-          )}
+          {(discriminatesVat || hasDiscount) && <div>Importe: ${grossTotal.toFixed(2)}</div>}
+          {hasDiscount && <div>Descuento: -${totalDiscount.toFixed(2)}</div>}
           {discriminatesVat ? (
             <>
               <div>Subtotal: ${subtotal.toFixed(2)}</div>
@@ -917,9 +1003,7 @@ const Orders = () => {
           ) : (
             <div>Total: ${total.toFixed(2)}</div>
           )}
-          {discountExceedsTotal && (
-            <div className="error">El descuento no puede ser mayor al total</div>
-          )}
+          {discountExceedsTotal && <div className="error">El descuento no puede ser mayor al total</div>}
 
           {selectedPlan && (
             <>

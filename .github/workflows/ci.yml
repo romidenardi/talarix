@@ -45,6 +45,10 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Revisión de código (ESLint)
+        run: npm run lint
+      - name: Formato (Prettier)
+        run: npm run format:check
       - name: Pruebas unitarias
         run: npm test
       - name: Pruebas de integración (API + MySQL)
@@ -66,6 +70,10 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Revisión de código (ESLint)
+        run: npm run lint
+      - name: Formato (Prettier)
+        run: npm run format:check
       - name: Pruebas
         run: npm test
       - name: Compilación

@@ -80,19 +80,22 @@ const ExportData = () => {
       {status?.status === 'closing' && status.deleteAt && (
         <div className="export-closing" role="status">
           <strong>Tu cuenta está en proceso de baja.</strong> Podés descargar tus datos hasta el{' '}
-          {formatDate(status.deleteAt)}. Ese día se eliminan definitivamente. Si fue un error,
-          escribinos y cancelamos la baja.
+          {formatDate(status.deleteAt)}. Ese día se eliminan definitivamente. Si fue un error, escribinos y cancelamos
+          la baja.
         </div>
       )}
 
       <p>
-        Descargá un archivo Excel con todos los datos de tu comercio: productos, combos, clientes,
-        proveedores, compras, remitos, formas de pago, movimientos de stock y usuarios. No incluye
-        contraseñas.
+        Descargá un archivo Excel con todos los datos de tu comercio: productos, combos, clientes, proveedores, compras,
+        remitos, formas de pago, movimientos de stock y usuarios. No incluye contraseñas.
       </p>
 
       {error && <p className="error">{error}</p>}
-      {downloaded && <p className="export-ok" role="status">Listo, el archivo se descargó.</p>}
+      {downloaded && (
+        <p className="export-ok" role="status">
+          Listo, el archivo se descargó.
+        </p>
+      )}
 
       <div className="export-actions">
         <button type="button" onClick={handleDownload} disabled={downloading}>
@@ -100,9 +103,7 @@ const ExportData = () => {
         </button>
       </div>
 
-      <p className="export-note">
-        Por seguridad se puede exportar un máximo de 5 veces por hora.
-      </p>
+      <p className="export-note">Por seguridad se puede exportar un máximo de 5 veces por hora.</p>
     </div>
   );
 };

@@ -29,7 +29,7 @@ import { sequelize } from './models/index.js';
 
 const app = express();
 
-app.set('trust proxy', 1); 
+app.set('trust proxy', 1);
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
@@ -54,7 +54,10 @@ app.use(express.json({ limit: '1mb' }));
 // ---- Límites de intentos ----
 const FIFTEEN_MINUTES = 15 * 60 * 1000;
 const TOO_MANY = { message: 'Demasiados intentos. Probá de nuevo en unos minutos.' };
-const emailKey = (prefix) => (req) => `${prefix}:${String(req.body?.email || '').trim().toLowerCase()}`;
+const emailKey = (prefix) => (req) =>
+  `${prefix}:${String(req.body?.email || '')
+    .trim()
+    .toLowerCase()}`;
 
 // Ingreso: solo cuentan los intentos fallidos (skipSuccessfulRequests). Por red (IP) el límite es
 // amplio, para que un local con varios empleados detrás de la misma conexión no se bloquee; por
@@ -67,17 +70,18 @@ const loginByIp = rateLimit({
   legacyHeaders: false,
   message: TOO_MANY,
 });
-const loginByAccount = (prefix) => rateLimit({
-  windowMs: FIFTEEN_MINUTES,
-  limit: 5,
-  skipSuccessfulRequests: true,
-  keyGenerator: emailKey(prefix),
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    message: 'Demasiados intentos fallidos con esta cuenta. Probá de nuevo en 15 minutos o recuperá la contraseña.',
-  },
-});
+const loginByAccount = (prefix) =>
+  rateLimit({
+    windowMs: FIFTEEN_MINUTES,
+    limit: 5,
+    skipSuccessfulRequests: true,
+    keyGenerator: emailKey(prefix),
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      message: 'Demasiados intentos fallidos con esta cuenta. Probá de nuevo en 15 minutos o recuperá la contraseña.',
+    },
+  });
 app.use('/api/auth/login', loginByIp, loginByAccount('login'));
 // Superadmin. Paso 1 (contraseña): mismos límites que el ingreso de usuarios. app.post y no app.use,
 // para que no alcance también a /login/mfa*, que tiene su propio límite.

@@ -11,7 +11,18 @@ const IMPORT_TYPES = [
     label: 'Productos',
     fn: importProducts,
     template: [
-      ['Código Interno', 'Nombre', 'Marca', 'Categoría', 'Precio', 'Costo', 'IVA', 'Unidad', 'PLU Balanza', 'Código de Barras'],
+      [
+        'Código Interno',
+        'Nombre',
+        'Marca',
+        'Categoría',
+        'Precio',
+        'Costo',
+        'IVA',
+        'Unidad',
+        'PLU Balanza',
+        'Código de Barras',
+      ],
       ['YER1', 'Yerba 1 kg', 'Playadito', 'Almacén', '4500', '3100,50', '21', 'unidad', '', '7790387000017'],
       ['QUE1', 'Queso cremoso', '', 'Fiambrería', '12.500', '8.200', '10,5', 'kg', '417', ''],
     ],
@@ -30,8 +41,30 @@ const IMPORT_TYPES = [
     label: 'Clientes',
     fn: importCustomers,
     template: [
-      ['Razón Social', 'Nombre', 'Apellido', 'Condición Fiscal', 'CUIT', 'Dirección', 'Localidad', 'Provincia', 'Teléfono', 'Email'],
-      ['Distribuidora Norte SRL', '', '', 'Responsable Inscripto', '30-71234567-1', 'San Martín 123', 'Rafaela', 'Santa Fe', '3492 123456', 'compras@norte.com.ar'],
+      [
+        'Razón Social',
+        'Nombre',
+        'Apellido',
+        'Condición Fiscal',
+        'CUIT',
+        'Dirección',
+        'Localidad',
+        'Provincia',
+        'Teléfono',
+        'Email',
+      ],
+      [
+        'Distribuidora Norte SRL',
+        '',
+        '',
+        'Responsable Inscripto',
+        '30-71234567-1',
+        'San Martín 123',
+        'Rafaela',
+        'Santa Fe',
+        '3492 123456',
+        'compras@norte.com.ar',
+      ],
       ['', 'Ana', 'Pérez', 'Consumidor Final', '', '', 'Rafaela', 'Santa Fe', '', ''],
     ],
     help: [
@@ -46,7 +79,16 @@ const IMPORT_TYPES = [
     fn: importSuppliers,
     template: [
       ['Nombre', 'CUIT', 'Contacto', 'Teléfono', 'Email', 'Dirección', 'Localidad', 'Provincia'],
-      ['Lácteos del Centro SA', '30-70987654-2', 'Marcela', '3492 654321', 'ventas@lacteos.com.ar', 'Ruta 34 km 230', 'Rafaela', 'Santa Fe'],
+      [
+        'Lácteos del Centro SA',
+        '30-70987654-2',
+        'Marcela',
+        '3492 654321',
+        'ventas@lacteos.com.ar',
+        'Ruta 34 km 230',
+        'Rafaela',
+        'Santa Fe',
+      ],
     ],
     help: [
       'Obligatoria: Nombre.',
@@ -59,7 +101,7 @@ const IMPORT_TYPES = [
 const downloadTemplate = (type) => {
   const cell = (value) => (/[;"\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
   const csv = type.template.map((row) => row.map(cell).join(';')).join('\r\n');
-  const blob = new Blob([`﻿${csv}\r\n`], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob([`\uFEFF${csv}\r\n`], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -115,12 +157,15 @@ const Imports = () => {
       setResult(data);
       if (data.imported) {
         const parts = [plural(data.created, 'fila importada', 'filas importadas')];
-        if (data.skipped.length) parts.push(plural(data.skipped.length, 'salteada (ya existía)', 'salteadas (ya existían)'));
+        if (data.skipped.length)
+          parts.push(plural(data.skipped.length, 'salteada (ya existía)', 'salteadas (ya existían)'));
         msg.success(parts.join(', '));
         setFile(null);
         setInputKey((k) => k + 1);
       } else {
-        msg.error(`No se importó nada: ${plural(data.errors.length, 'fila tiene', 'filas tienen')} errores. Corregilas y volvé a subir el archivo completo.`);
+        msg.error(
+          `No se importó nada: ${plural(data.errors.length, 'fila tiene', 'filas tienen')} errores. Corregilas y volvé a subir el archivo completo.`,
+        );
       }
     } catch (err) {
       msg.error(serverMessage(err, 'Error al importar el archivo'));
@@ -134,9 +179,18 @@ const Imports = () => {
       <h1>Importar desde Excel / CSV</h1>
 
       <form onSubmit={onSubmit} className="import-form">
-        <select value={selectedType} onChange={(e) => { setSelectedType(e.target.value); setResult(null); msg.clear(); }}>
+        <select
+          value={selectedType}
+          onChange={(e) => {
+            setSelectedType(e.target.value);
+            setResult(null);
+            msg.clear();
+          }}
+        >
           {IMPORT_TYPES.map((t) => (
-            <option key={t.key} value={t.key}>{t.label}</option>
+            <option key={t.key} value={t.key}>
+              {t.label}
+            </option>
           ))}
         </select>
 
@@ -144,7 +198,10 @@ const Imports = () => {
           key={inputKey}
           type="file"
           accept=".csv,.xlsx,.xls"
-          onChange={(e) => { setFile(e.target.files[0]); msg.clear(); }}
+          onChange={(e) => {
+            setFile(e.target.files[0]);
+            msg.clear();
+          }}
         />
 
         <button type="submit" disabled={uploading}>
@@ -162,20 +219,29 @@ const Imports = () => {
           (se abre con Excel; completala y guardala como .xlsx o .csv).
         </p>
         <ul>
-          {current.help.map((line) => <li key={line}>{line}</li>)}
+          {current.help.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
         </ul>
         <p>
           Archivos .xlsx, .xls o .csv de hasta 5 MB y 5.000 filas. Se lee solo la primera hoja.
-          <strong> Si una fila tiene un error, no se importa ninguna:</strong> corregí las filas marcadas y volvé a subir el archivo.
+          <strong> Si una fila tiene un error, no se importa ninguna:</strong> corregí las filas marcadas y volvé a
+          subir el archivo.
         </p>
       </div>
 
       {result && (
         <div className="import-result">
           {result.imported && (
-            <p className="import-success">{plural(result.created, 'fila importada', 'filas importadas')} correctamente.</p>
+            <p className="import-success">
+              {plural(result.created, 'fila importada', 'filas importadas')} correctamente.
+            </p>
           )}
-          {result.notes?.map((note) => <p key={note} className="import-note">{note}</p>)}
+          {result.notes?.map((note) => (
+            <p key={note} className="import-note">
+              {note}
+            </p>
+          ))}
 
           {result.errors.length > 0 && (
             <>

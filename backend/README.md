@@ -39,6 +39,8 @@ Una base local vieja falla al arrancar si le faltan los cambios manuales del his
 | `npm start` | Arranca para producción (`node server.js`) |
 | `npm test` | Pruebas unitarias (no necesitan base de datos) |
 | `npm run test:integration` | Pruebas de la API contra una base MySQL de pruebas (ver "Tests") |
+| `npm run lint` | Revisión de código con ESLint (reglas recomendadas): variables sin declarar o sin usar, código que no se ejecuta… |
+| `npm run format` | Ordena el formato de todo el código con Prettier (`npm run format:check` solo revisa) |
 
 Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, se conecta a MySQL, ejecuta `sequelize.sync()` (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
 
@@ -73,17 +75,22 @@ test/integration/  pruebas de la API contra MySQL
 src/
   app.js           Express: middlewares globales y montaje de rutas
   config/          conexión a la base (database.js)
-  controllers/     lógica de cada recurso
+  controllers/     arman la respuesta de cada ruta; la lógica pesada está en
+                   services/ (por ejemplo, order.service.js crea los remitos)
   routes/          definición de rutas
   models/          modelos Sequelize
   middlewares/     auth, roles, demo, errores
-  services/        servicios: movimientos de stock (stock.service.js), cálculo
+  reports/         un archivo por reporte (resumen, por producto, por cliente,
+                   por forma de pago, IVA, inicio) y common.js con lo compartido
+  services/        servicios: creación de remitos (order.service.js),
+                   movimientos de stock (stock.service.js), cálculo
                    del remito (orderPricing.js), número de remito
                    (orderNumber.service.js), autorización de descuentos,
                    importación, datos de la cuenta demo, exportación a Excel,
                    borrado de un comercio y programador de bajas
   jobs/            tareas programadas (reinicio nocturno de la demo)
-  utils/           ayudas: asyncHandler, httpError, números y cantidades
+  utils/           ayudas: fechas en hora argentina (dates.js), asyncHandler,
+                   httpError, números y cantidades
                    (numbers.js), getter de columnas decimales
                    (decimalColumn.js), formato de etiquetas de balanza
                    (scaleConfig.js), tokens de invitación, versión de
@@ -175,6 +182,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 - Todo recurso se filtra por `req.user.businessId`. El middleware de autenticación revalida en cada request que el usuario esté activo y con contraseña, y que el comercio esté activo.
 - Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios) y `operador` (solo compras y remitos; descuentos y precios fuera de lista con autorización de un admin o editor).
 - El **superadmin** usa un login y un token aparte (`/api/platform/*`). Ve metadatos de cuentas, nunca contenido de los comercios ni contraseñas.
+- **Siempre queda un administrador:** para quitar el rol, desactivar o borrar a un `admin`, el servidor bloquea los usuarios del comercio durante el cambio (`lockUsersOf`), revisa que quien lo pide siga siendo administrador y que quede otro activo (`assertAnotherAdmin`). Si dos administradores se quitan el rol al mismo tiempo, el segundo es rechazado.
 - Los usuarios se crean de dos maneras: el administrador del comercio les asigna una contraseña, o les manda una **invitación** por mail para que elijan la suya.
 - Los links de invitación (vencen a los 7 días) y de restablecer contraseña (vencen a la hora) son de un solo uso. En la base solo se guarda el hash del token.
 - La activación exige aceptar los términos y registra versión, fecha e IP de la aceptación.
@@ -452,7 +460,7 @@ El último solo hace falta si `sync` no crea el índice (está declarado en `pro
 
 El repositorio es único (`romidenardi/talarix`, público) y contiene `backend/` y `frontend/`. **Hacer `git add` y `commit` desde la raíz del repo**: si se hace desde una sola de las carpetas, los cambios de la otra no se incluyen.
 
-1. Trabajar en la rama `staging` y hacer push: Railway y Vercel despliegan solos en staging.
+1. Trabajar en la rama `staging`. Antes del commit, en `backend` y en `frontend`: `npm run format` (ordena el formato) y `npm run lint` (tiene que dar sin errores). GitHub Actions revisa las dos cosas en cada push. Push: Railway y Vercel despliegan solos en staging.
 2. Probar en la URL de staging.
 3. Si hubo cambios de base, correrlos en producción **antes** del merge (ver arriba).
 4. Si todo anda bien, pasar a producción:
@@ -508,4 +516,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 26/10/2026 (clientes: condición fiscal y CUIT validados, anonimización completa, contraseñas fáciles y emails registrados).
+Última actualización: 26/10/2026 (ESLint y Prettier, remitos en services/order.service.js, reportes en src/reports y utils/dates.js).

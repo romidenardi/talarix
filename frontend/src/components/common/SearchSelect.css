@@ -87,7 +87,7 @@
   line-height: 1.2;
 }
 
-.search-select-modal input[type="search"] {
+.search-select-modal input[type='search'] {
   width: 100%;
 }
 
@@ -113,7 +113,7 @@
   border-bottom: none;
 }
 
-.search-select-option[data-active="true"] {
+.search-select-option[data-active='true'] {
   background: var(--color-bg);
 }
 

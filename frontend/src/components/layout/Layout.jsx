@@ -96,7 +96,9 @@ const Layout = () => {
             <NavLink to="/exportar">Exportar mis datos</NavLink>
           ) : (
             <>
-              <NavLink to="/" end>Inicio</NavLink>
+              <NavLink to="/" end>
+                Inicio
+              </NavLink>
               {canManageData && <NavLink to="/reports">Reportes</NavLink>}
               {canManageData && <NavLink to="/products">Productos</NavLink>}
               {canManageData && <NavLink to="/categories">Categorías</NavLink>}
@@ -111,13 +113,15 @@ const Layout = () => {
             </>
           )}
         </nav>
-        <button className="sidebar-logout" onClick={handleLogout}>Cerrar sesión</button>
+        <button className="sidebar-logout" onClick={handleLogout}>
+          Cerrar sesión
+        </button>
       </aside>
       <main className="app-main">
         {isDemo && (
           <div className="demo-banner" role="status">
-            <strong>Cuenta de demostración.</strong> No cargues datos reales: los pueden ver otros
-            visitantes y todo se reinicia cada noche.
+            <strong>Cuenta de demostración.</strong> No cargues datos reales: los pueden ver otros visitantes y todo se
+            reinicia cada noche.
           </div>
         )}
         <Outlet />

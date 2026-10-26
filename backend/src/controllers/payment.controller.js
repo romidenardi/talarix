@@ -4,9 +4,7 @@ import { httpError } from '../utils/httpError.js';
 import { pick } from '../utils/pick.js';
 import { isPositiveInt, toNumber, toNumberOrZero } from '../utils/numbers.js';
 
-const planInclude = [
-  { model: InstallmentPlan, as: 'installmentPlans', where: { active: true }, required: false },
-];
+const planInclude = [{ model: InstallmentPlan, as: 'installmentPlans', where: { active: true }, required: false }];
 
 const planKey = (installments, rate) => `${installments}|${Number(rate).toFixed(2)}`;
 

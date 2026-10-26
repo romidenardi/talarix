@@ -11,7 +11,9 @@ import { checkPassword, compareWithDummy, BCRYPT_ROUNDS } from '../utils/passwor
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const login = asyncHandler(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase();
   const password = String(req.body.password || '');
 
   if (!email || !password) throw httpError('Email y contraseña son obligatorios');
@@ -24,9 +26,7 @@ export const login = asyncHandler(async (req, res) => {
   // Si el email no existe (o no tiene contraseña) se compara igual contra un hash falso: la respuesta
   // tarda lo mismo y no se puede averiguar por el tiempo qué emails están registrados
   const hasPassword = Boolean(user && user.passwordHash);
-  const matches = hasPassword
-    ? await bcrypt.compare(password, user.passwordHash)
-    : await compareWithDummy(password);
+  const matches = hasPassword ? await bcrypt.compare(password, user.passwordHash) : await compareWithDummy(password);
   const valid = hasPassword && user.active && matches;
   if (!valid) throw httpError('Credenciales inválidas', 401);
 
@@ -46,7 +46,7 @@ export const login = asyncHandler(async (req, res) => {
     // tv: versión de la sesión. Si la contraseña cambia, el middleware rechaza los tokens viejos
     { id: user.id, businessId: user.businessId, role: user.role, tv: user.tokenVersion },
     process.env.JWT_SECRET,
-    { expiresIn: '8h' }
+    { expiresIn: '8h' },
   );
 
   res.json({
@@ -95,7 +95,9 @@ export const activateAccount = asyncHandler(async (req, res) => {
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase();
   const generic = {
     message: 'Si el email corresponde a una cuenta activa, te enviamos un link para continuar.',
   };

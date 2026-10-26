@@ -7,24 +7,78 @@ export const TERMS = {
   intro:
     '**Talarix** es operado por **Romina Denardi**, CUIT **27-28375243-2**, con domicilio en **Sargento Cabral 335, Rafaela, Santa Fe**, contacto: **hola@talarix.com.ar** (en adelante, "el Prestador"). Quien usa el sistema es, según el caso, "el Comercio" (la persona o empresa invitada) o "el Usuario" (cada persona con acceso dentro del Comercio).',
   sections: [
-    ['1. Qué es y qué no es esta beta', 'El sistema es una herramienta de gestión para pequeños comercios: stock, clientes, proveedores, compras, remitos, formas de pago, cuotas, descuentos e IVA. Está en etapa de prueba (beta), puede tener errores y cambiar sin aviso. No emite facturas electrónicas ni se conecta con ARCA; los comprobantes que genera son internos y no reemplazan a un comprobante fiscal válido.'],
-    ['2. Acceso por invitación', 'Solo se accede con una invitación del Prestador. La invitación y el enlace de activación son personales, vencen a los 7 días y no deben compartirse. El Prestador puede rechazar o retirar invitaciones sin expresión de causa.'],
-    ['3. Gratuidad', 'Durante la beta el uso es gratuito. El Prestador puede finalizar la beta o empezar a cobrar, avisando con al menos **[30]** días de anticipación; nadie queda obligado a continuar y el Comercio podrá exportar o solicitar sus datos antes de cualquier cambio.'],
-    ['4. Cuentas y roles', 'Cada Comercio tiene un administrador, que decide quién accede y con qué rol (administrador, editor u operador). El Comercio responde por las personas que habilita. Las contraseñas son personales; si se sospecha un uso indebido, hay que avisar de inmediato al Prestador.'],
-    ['5. Uso permitido', 'El sistema se usa solo para gestionar la actividad lícita del propio Comercio. Está prohibido: intentar acceder a datos de otros comercios, probar o vulnerar la seguridad, hacer ingeniería inversa, sobrecargar el servicio, revenderlo o ceder el acceso, cargar contenido ilícito o datos que el Comercio no tenga derecho a tratar.'],
-    ['6. Datos del Comercio', 'Los datos que el Comercio carga (productos, clientes, proveedores, ventas, etc.) siguen siendo suyos. El Comercio es el responsable de esos datos y de contar con el derecho a cargarlos, incluidos los datos personales de sus clientes y proveedores. El Prestador los trata únicamente para brindar el servicio y según las instrucciones del Comercio (ver Aviso de privacidad).'],
-    ['7. Qué puede ver el Prestador', 'El Prestador administra la plataforma con una cuenta separada que permite ver datos de la cuenta (nombre del comercio, estado, usuarios, correos, fechas de alta y último ingreso) y suspender o reinvitar. Esa cuenta no muestra el contenido de la gestión del Comercio ni las contraseñas, que se guardan cifradas de modo irreversible. Podría accederse al contenido solo si fuera imprescindible para resolver un problema técnico que el Comercio pidió resolver, o si lo exige una orden de autoridad competente.'],
-    ['8. Cuenta de demostración', 'La cuenta de demo contiene datos ficticios, se reinicia automáticamente cada noche y no permite gestionar usuarios ni importar datos. No debe cargarse información real. Todo lo que se cargue en la demo se pierde en el siguiente reinicio.'],
-    ['9. Copias de seguridad', 'El Prestador realiza copias de seguridad automáticas de la base de datos del sistema, con frecuencia diaria, semanal y mensual, y las conserva por un período limitado (de hasta aproximadamente **[90]** días). No se garantiza que toda la información pueda recuperarse: ante una falla podrían perderse los datos cargados desde la última copia (hasta 24 horas). Las copias se restauran sobre el sistema completo, por lo que el Prestador no se compromete a recuperar información borrada por error por el Comercio o sus usuarios. El Comercio debe conservar por su cuenta la información que necesite.'],
-    ['10. Disponibilidad', 'El servicio se brinda "tal como está", sin garantía de disponibilidad continua. Puede haber interrupciones por mantenimiento, fallas propias o de los proveedores de infraestructura.'],
-    ['11. Responsabilidad sobre la información y los cálculos', 'Los cálculos de precios, IVA, descuentos, cuotas y stock se ofrecen como ayuda de gestión. El Comercio debe verificarlos antes de usarlos en operaciones, facturación o declaraciones impositivas. El sistema no es asesoramiento contable, impositivo ni legal.'],
-    ['12. Limitación de responsabilidad', 'En la medida que la ley lo permita, el Prestador no responde por lucro cesante, pérdida de datos, pérdida de oportunidades ni daños indirectos derivados del uso o la imposibilidad de uso de la beta, y su responsabilidad total no excederá **lo abonado en los últimos 12 meses (que durante la beta gratuita es cero)**. Nada de esto limita responsabilidades que la ley no permita limitar.'],
-    ['13. Seguridad', 'El Prestador aplica medidas razonables: conexión cifrada, contraseñas cifradas, separación de datos entre comercios, límites de intentos de ingreso y control de permisos por rol. Ningún sistema es infalible. Si el Prestador detecta un incidente que afecte datos del Comercio, se lo informará **sin demora injustificada** para que pueda tomar sus propias medidas.'],
-    ['14. Propiedad intelectual', 'El software, su diseño y su documentación pertenecen al Prestador. Se otorga al Comercio una licencia limitada, no exclusiva, intransferible y revocable para usarlo durante la beta.'],
-    ['15. Comentarios y sugerencias', 'Si el Comercio envía opiniones o ideas de mejora, el Prestador puede usarlas libremente, sin obligación de compensación.'],
-    ['16. Confidencialidad de la beta', 'Las funciones en prueba y las condiciones de la beta son información confidencial del Prestador mientras no sean públicas.'],
-    ['17. Suspensión y baja', 'El Prestador puede suspender o dar de baja una cuenta si se incumplen estos términos, si hay riesgo para la seguridad o por finalización de la beta. El Comercio puede pedir su baja en cualquier momento. Al darse de baja, sus datos se eliminan en un máximo de **30** días, salvo lo que deba conservarse por obligación legal. Se ofrece una exportación previa si el Comercio la pide dentro de **[15]** días del aviso de baja.'],
-    ['18. Cambios, ley aplicable y jurisdicción', 'El Prestador puede modificar estos términos avisando por el sistema o por correo con **[15]** días de anticipación; seguir usando el servicio implica aceptarlos y, si no se está de acuerdo, se puede dar de baja la cuenta. Se aplica la ley argentina. Para cualquier controversia, las partes se someten a los tribunales ordinarios de **Rafaela, Santa Fe**, sin perjuicio de los derechos que la ley de defensa del consumidor reconozca a quien corresponda.'],
+    [
+      '1. Qué es y qué no es esta beta',
+      'El sistema es una herramienta de gestión para pequeños comercios: stock, clientes, proveedores, compras, remitos, formas de pago, cuotas, descuentos e IVA. Está en etapa de prueba (beta), puede tener errores y cambiar sin aviso. No emite facturas electrónicas ni se conecta con ARCA; los comprobantes que genera son internos y no reemplazan a un comprobante fiscal válido.',
+    ],
+    [
+      '2. Acceso por invitación',
+      'Solo se accede con una invitación del Prestador. La invitación y el enlace de activación son personales, vencen a los 7 días y no deben compartirse. El Prestador puede rechazar o retirar invitaciones sin expresión de causa.',
+    ],
+    [
+      '3. Gratuidad',
+      'Durante la beta el uso es gratuito. El Prestador puede finalizar la beta o empezar a cobrar, avisando con al menos **[30]** días de anticipación; nadie queda obligado a continuar y el Comercio podrá exportar o solicitar sus datos antes de cualquier cambio.',
+    ],
+    [
+      '4. Cuentas y roles',
+      'Cada Comercio tiene un administrador, que decide quién accede y con qué rol (administrador, editor u operador). El Comercio responde por las personas que habilita. Las contraseñas son personales; si se sospecha un uso indebido, hay que avisar de inmediato al Prestador.',
+    ],
+    [
+      '5. Uso permitido',
+      'El sistema se usa solo para gestionar la actividad lícita del propio Comercio. Está prohibido: intentar acceder a datos de otros comercios, probar o vulnerar la seguridad, hacer ingeniería inversa, sobrecargar el servicio, revenderlo o ceder el acceso, cargar contenido ilícito o datos que el Comercio no tenga derecho a tratar.',
+    ],
+    [
+      '6. Datos del Comercio',
+      'Los datos que el Comercio carga (productos, clientes, proveedores, ventas, etc.) siguen siendo suyos. El Comercio es el responsable de esos datos y de contar con el derecho a cargarlos, incluidos los datos personales de sus clientes y proveedores. El Prestador los trata únicamente para brindar el servicio y según las instrucciones del Comercio (ver Aviso de privacidad).',
+    ],
+    [
+      '7. Qué puede ver el Prestador',
+      'El Prestador administra la plataforma con una cuenta separada que permite ver datos de la cuenta (nombre del comercio, estado, usuarios, correos, fechas de alta y último ingreso) y suspender o reinvitar. Esa cuenta no muestra el contenido de la gestión del Comercio ni las contraseñas, que se guardan cifradas de modo irreversible. Podría accederse al contenido solo si fuera imprescindible para resolver un problema técnico que el Comercio pidió resolver, o si lo exige una orden de autoridad competente.',
+    ],
+    [
+      '8. Cuenta de demostración',
+      'La cuenta de demo contiene datos ficticios, se reinicia automáticamente cada noche y no permite gestionar usuarios ni importar datos. No debe cargarse información real. Todo lo que se cargue en la demo se pierde en el siguiente reinicio.',
+    ],
+    [
+      '9. Copias de seguridad',
+      'El Prestador realiza copias de seguridad automáticas de la base de datos del sistema, con frecuencia diaria, semanal y mensual, y las conserva por un período limitado (de hasta aproximadamente **[90]** días). No se garantiza que toda la información pueda recuperarse: ante una falla podrían perderse los datos cargados desde la última copia (hasta 24 horas). Las copias se restauran sobre el sistema completo, por lo que el Prestador no se compromete a recuperar información borrada por error por el Comercio o sus usuarios. El Comercio debe conservar por su cuenta la información que necesite.',
+    ],
+    [
+      '10. Disponibilidad',
+      'El servicio se brinda "tal como está", sin garantía de disponibilidad continua. Puede haber interrupciones por mantenimiento, fallas propias o de los proveedores de infraestructura.',
+    ],
+    [
+      '11. Responsabilidad sobre la información y los cálculos',
+      'Los cálculos de precios, IVA, descuentos, cuotas y stock se ofrecen como ayuda de gestión. El Comercio debe verificarlos antes de usarlos en operaciones, facturación o declaraciones impositivas. El sistema no es asesoramiento contable, impositivo ni legal.',
+    ],
+    [
+      '12. Limitación de responsabilidad',
+      'En la medida que la ley lo permita, el Prestador no responde por lucro cesante, pérdida de datos, pérdida de oportunidades ni daños indirectos derivados del uso o la imposibilidad de uso de la beta, y su responsabilidad total no excederá **lo abonado en los últimos 12 meses (que durante la beta gratuita es cero)**. Nada de esto limita responsabilidades que la ley no permita limitar.',
+    ],
+    [
+      '13. Seguridad',
+      'El Prestador aplica medidas razonables: conexión cifrada, contraseñas cifradas, separación de datos entre comercios, límites de intentos de ingreso y control de permisos por rol. Ningún sistema es infalible. Si el Prestador detecta un incidente que afecte datos del Comercio, se lo informará **sin demora injustificada** para que pueda tomar sus propias medidas.',
+    ],
+    [
+      '14. Propiedad intelectual',
+      'El software, su diseño y su documentación pertenecen al Prestador. Se otorga al Comercio una licencia limitada, no exclusiva, intransferible y revocable para usarlo durante la beta.',
+    ],
+    [
+      '15. Comentarios y sugerencias',
+      'Si el Comercio envía opiniones o ideas de mejora, el Prestador puede usarlas libremente, sin obligación de compensación.',
+    ],
+    [
+      '16. Confidencialidad de la beta',
+      'Las funciones en prueba y las condiciones de la beta son información confidencial del Prestador mientras no sean públicas.',
+    ],
+    [
+      '17. Suspensión y baja',
+      'El Prestador puede suspender o dar de baja una cuenta si se incumplen estos términos, si hay riesgo para la seguridad o por finalización de la beta. El Comercio puede pedir su baja en cualquier momento. Al darse de baja, sus datos se eliminan en un máximo de **30** días, salvo lo que deba conservarse por obligación legal. Se ofrece una exportación previa si el Comercio la pide dentro de **[15]** días del aviso de baja.',
+    ],
+    [
+      '18. Cambios, ley aplicable y jurisdicción',
+      'El Prestador puede modificar estos términos avisando por el sistema o por correo con **[15]** días de anticipación; seguir usando el servicio implica aceptarlos y, si no se está de acuerdo, se puede dar de baja la cuenta. Se aplica la ley argentina. Para cualquier controversia, las partes se someten a los tribunales ordinarios de **Rafaela, Santa Fe**, sin perjuicio de los derechos que la ley de defensa del consumidor reconozca a quien corresponda.',
+    ],
   ],
 };
 
@@ -33,17 +87,50 @@ export const PRIVACY = {
   intro:
     'Marco: Ley 25.326 de Protección de los Datos Personales y normativa de la Agencia de Acceso a la Información Pública (AAIP), autoridad de control.',
   sections: [
-    ['1. Quién es responsable de qué', '**Datos de las cuentas de usuario** (nombre, correo, rol, fechas de ingreso, registros técnicos de acceso) y **solicitudes de demo** (nombre, correo, teléfono, comercio): el Prestador es el **responsable** del tratamiento. Contacto: **hola@talarix.com.ar**.\n\n**Datos que el Comercio carga sobre sus propios clientes, proveedores y operaciones:** el **responsable** es cada Comercio. El Prestador actúa como **encargado de tratamiento**: los guarda y procesa solo para prestar el servicio y no los usa para otros fines.'],
-    ['2. Qué datos se tratan y para qué', 'Cuentas de usuario: para crear el acceso, autenticar, asignar permisos, dar soporte y cuidar la seguridad.\n\nSolicitudes de demo: para contactar a quien las pide y evaluar la invitación a la beta.\n\nDatos del Comercio: para que el sistema funcione (stock, ventas, compras, remitos, cuotas).\n\nNo se piden ni se deben cargar datos sensibles (salud, origen racial, opiniones políticas, religión, vida sexual, afiliación sindical). Tampoco números completos de tarjetas ni claves bancarias.'],
-    ['3. Base del tratamiento', 'Consentimiento de la persona usuaria (aceptación de estos textos) y necesidad para ejecutar el servicio solicitado. Para los datos de clientes y proveedores del Comercio, la base la debe tener cada Comercio frente a sus propios clientes.'],
-    ['4. Con quién se comparten y dónde se almacenan', 'El Prestador no vende datos. Para operar el sistema usa proveedores de infraestructura en la nube: **[Railway (base de datos y servidor), Vercel (sitio web), proveedor de correo si se usa, y WordPress.com si se usa para formularios]**. Estos proveedores pueden almacenar o procesar datos fuera de Argentina, incluido Estados Unidos. También se pueden compartir datos si una autoridad competente lo exige legalmente.'],
-    ['5. Transferencias internacionales', 'La Ley 25.326 (art. 12) prohíbe transferir datos personales a países u organismos que no brinden niveles de protección adecuados, salvo excepciones como el consentimiento expreso e informado de la persona titular o garantías contractuales. Al aceptar este aviso, la persona usuaria declara conocer que sus datos pueden almacenarse en servidores ubicados fuera de Argentina. **[A definir con el profesional: cláusulas modelo de la AAIP con los proveedores y elección de regiones de servidor.]**'],
-    ['6. Seguridad', 'Contraseñas almacenadas cifradas de forma irreversible, conexión cifrada, separación lógica de datos entre comercios, control de permisos por rol, límites de intentos de ingreso y caducidad de sesiones. La cuenta de administración de la plataforma no muestra el contenido de la gestión de cada Comercio ni contraseñas.'],
-    ['7. Conservación', 'Los datos se conservan mientras la cuenta esté activa. Tras la baja se eliminan en **30** días, salvo obligación legal de conservarlos. Las copias de seguridad pueden conservar datos ya eliminados por un plazo adicional de hasta **[90]** días. Las solicitudes de demo no aceptadas se eliminan a los **[6]** meses. La cuenta de demostración se reinicia todas las noches.'],
-    ['8. Derechos de las personas titulares', 'Quien figure en los datos puede ejercer los derechos de acceso, rectificación, actualización y supresión escribiendo a **hola@talarix.com.ar**. El acceso es gratuito a intervalos no inferiores a seis meses, salvo interés legítimo acreditado. El Prestador responde dentro de los plazos legales. Si la solicitud llega por datos que cargó un Comercio, el Prestador la deriva al Comercio responsable.'],
-    ['9. Derecho a reclamar ante la AAIP', '"El titular de los datos personales tiene la facultad de ejercer el derecho de acceso a los mismos en forma gratuita a intervalos no inferiores a seis meses, salvo que se acredite un interés legítimo al efecto conforme lo establecido en el artículo 14, inciso 3 de la Ley N° 25.326. La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales."'],
-    ['10. Cookies y registros técnicos', 'El sistema usa almacenamiento del navegador para mantener la sesión. Los servidores pueden registrar direcciones IP y errores técnicos para seguridad y diagnóstico. Al activar la cuenta se guarda la versión de estos textos aceptada, junto con la fecha, hora y dirección IP.'],
+    [
+      '1. Quién es responsable de qué',
+      '**Datos de las cuentas de usuario** (nombre, correo, rol, fechas de ingreso, registros técnicos de acceso) y **solicitudes de demo** (nombre, correo, teléfono, comercio): el Prestador es el **responsable** del tratamiento. Contacto: **hola@talarix.com.ar**.\n\n**Datos que el Comercio carga sobre sus propios clientes, proveedores y operaciones:** el **responsable** es cada Comercio. El Prestador actúa como **encargado de tratamiento**: los guarda y procesa solo para prestar el servicio y no los usa para otros fines.',
+    ],
+    [
+      '2. Qué datos se tratan y para qué',
+      'Cuentas de usuario: para crear el acceso, autenticar, asignar permisos, dar soporte y cuidar la seguridad.\n\nSolicitudes de demo: para contactar a quien las pide y evaluar la invitación a la beta.\n\nDatos del Comercio: para que el sistema funcione (stock, ventas, compras, remitos, cuotas).\n\nNo se piden ni se deben cargar datos sensibles (salud, origen racial, opiniones políticas, religión, vida sexual, afiliación sindical). Tampoco números completos de tarjetas ni claves bancarias.',
+    ],
+    [
+      '3. Base del tratamiento',
+      'Consentimiento de la persona usuaria (aceptación de estos textos) y necesidad para ejecutar el servicio solicitado. Para los datos de clientes y proveedores del Comercio, la base la debe tener cada Comercio frente a sus propios clientes.',
+    ],
+    [
+      '4. Con quién se comparten y dónde se almacenan',
+      'El Prestador no vende datos. Para operar el sistema usa proveedores de infraestructura en la nube: **[Railway (base de datos y servidor), Vercel (sitio web), proveedor de correo si se usa, y WordPress.com si se usa para formularios]**. Estos proveedores pueden almacenar o procesar datos fuera de Argentina, incluido Estados Unidos. También se pueden compartir datos si una autoridad competente lo exige legalmente.',
+    ],
+    [
+      '5. Transferencias internacionales',
+      'La Ley 25.326 (art. 12) prohíbe transferir datos personales a países u organismos que no brinden niveles de protección adecuados, salvo excepciones como el consentimiento expreso e informado de la persona titular o garantías contractuales. Al aceptar este aviso, la persona usuaria declara conocer que sus datos pueden almacenarse en servidores ubicados fuera de Argentina. **[A definir con el profesional: cláusulas modelo de la AAIP con los proveedores y elección de regiones de servidor.]**',
+    ],
+    [
+      '6. Seguridad',
+      'Contraseñas almacenadas cifradas de forma irreversible, conexión cifrada, separación lógica de datos entre comercios, control de permisos por rol, límites de intentos de ingreso y caducidad de sesiones. La cuenta de administración de la plataforma no muestra el contenido de la gestión de cada Comercio ni contraseñas.',
+    ],
+    [
+      '7. Conservación',
+      'Los datos se conservan mientras la cuenta esté activa. Tras la baja se eliminan en **30** días, salvo obligación legal de conservarlos. Las copias de seguridad pueden conservar datos ya eliminados por un plazo adicional de hasta **[90]** días. Las solicitudes de demo no aceptadas se eliminan a los **[6]** meses. La cuenta de demostración se reinicia todas las noches.',
+    ],
+    [
+      '8. Derechos de las personas titulares',
+      'Quien figure en los datos puede ejercer los derechos de acceso, rectificación, actualización y supresión escribiendo a **hola@talarix.com.ar**. El acceso es gratuito a intervalos no inferiores a seis meses, salvo interés legítimo acreditado. El Prestador responde dentro de los plazos legales. Si la solicitud llega por datos que cargó un Comercio, el Prestador la deriva al Comercio responsable.',
+    ],
+    [
+      '9. Derecho a reclamar ante la AAIP',
+      '"El titular de los datos personales tiene la facultad de ejercer el derecho de acceso a los mismos en forma gratuita a intervalos no inferiores a seis meses, salvo que se acredite un interés legítimo al efecto conforme lo establecido en el artículo 14, inciso 3 de la Ley N° 25.326. La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25.326, tiene la atribución de atender las denuncias y reclamos que interpongan quienes resulten afectados en sus derechos por incumplimiento de las normas vigentes en materia de protección de datos personales."',
+    ],
+    [
+      '10. Cookies y registros técnicos',
+      'El sistema usa almacenamiento del navegador para mantener la sesión. Los servidores pueden registrar direcciones IP y errores técnicos para seguridad y diagnóstico. Al activar la cuenta se guarda la versión de estos textos aceptada, junto con la fecha, hora y dirección IP.',
+    ],
     ['11. Menores', 'El sistema es para uso profesional de personas mayores de edad.'],
-    ['12. Cambios', 'Los cambios a este aviso se comunican por el sistema o por correo antes de su entrada en vigencia.'],
+    [
+      '12. Cambios',
+      'Los cambios a este aviso se comunican por el sistema o por correo antes de su entrada en vigencia.',
+    ],
   ],
 };

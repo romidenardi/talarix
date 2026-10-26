@@ -29,11 +29,12 @@ const SearchSelect = ({
   const listRef = useRef(null);
 
   const prepared = useMemo(
-    () => options.map((option) => ({
-      ...option,
-      haystack: normalize([option.label, option.detail, ...(option.keywords || [])].filter(Boolean).join(' ')),
-    })),
-    [options]
+    () =>
+      options.map((option) => ({
+        ...option,
+        haystack: normalize([option.label, option.detail, ...(option.keywords || [])].filter(Boolean).join(' ')),
+      })),
+    [options],
   );
 
   const words = normalize(query).split(/\s+/).filter(Boolean);
@@ -49,7 +50,9 @@ const SearchSelect = ({
     if (!open) return undefined;
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = previous; };
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [open]);
 
   // Mantiene visible la opción marcada al moverse con las flechas
@@ -105,70 +108,86 @@ const SearchSelect = ({
         <span className={selected ? 'search-select-value' : 'search-select-placeholder'}>
           {selected ? selected.label : placeholder}
         </span>
-        <span className="search-select-icon" aria-hidden="true">Buscar</span>
+        <span className="search-select-icon" aria-hidden="true">
+          Buscar
+        </span>
       </button>
 
-      {open && createPortal(
-        <div
-          className="search-select-overlay"
-          onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}
-        >
-          <div className="search-select-modal" role="dialog" aria-modal="true" aria-label={title} onKeyDown={handleKeyDown}>
-            <div className="search-select-head">
-              <h3>{title}</h3>
-              <button type="button" className="search-select-close" aria-label="Cerrar" onClick={close}>×</button>
-            </div>
+      {open &&
+        createPortal(
+          <div
+            className="search-select-overlay"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) close();
+            }}
+          >
+            <div
+              className="search-select-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-label={title}
+              onKeyDown={handleKeyDown}
+            >
+              <div className="search-select-head">
+                <h3>{title}</h3>
+                <button type="button" className="search-select-close" aria-label="Cerrar" onClick={close}>
+                  ×
+                </button>
+              </div>
 
-            <input
-              type="search"
-              autoFocus
-              autoComplete="off"
-              placeholder={searchPlaceholder}
-              value={query}
-              onChange={(event) => { setQuery(event.target.value); setActive(0); }}
-            />
+              <input
+                type="search"
+                autoFocus
+                autoComplete="off"
+                placeholder={searchPlaceholder}
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActive(0);
+                }}
+              />
 
-            <ul className="search-select-list" role="listbox" ref={listRef}>
-              {shown.map((option, index) => (
-                <li
-                  key={option.value}
-                  role="option"
-                  aria-selected={option.value === value}
-                  data-active={index === active}
-                  className={`search-select-option${option.value === value ? ' is-selected' : ''}`}
-                  onMouseEnter={() => setActive(index)}
-                  onClick={() => choose(option.value)}
-                >
-                  <span className="search-select-option-label">{option.label}</span>
-                  {option.detail && <span className="search-select-option-detail">{option.detail}</span>}
-                </li>
-              ))}
-              {shown.length === 0 && <li className="search-select-empty">{emptyText}</li>}
-              {matches.length > MAX_RESULTS && (
-                <li className="search-select-more">
-                  Mostrando los primeros {MAX_RESULTS} de {matches.length}. Escribí más para afinar la búsqueda.
-                </li>
-              )}
-            </ul>
-
-            {extraOptions.length > 0 && (
-              <div className="search-select-extras">
-                {extraOptions.map((option) => (
-                  <button
+              <ul className="search-select-list" role="listbox" ref={listRef}>
+                {shown.map((option, index) => (
+                  <li
                     key={option.value}
-                    type="button"
-                    className="search-select-extra"
+                    role="option"
+                    aria-selected={option.value === value}
+                    data-active={index === active}
+                    className={`search-select-option${option.value === value ? ' is-selected' : ''}`}
+                    onMouseEnter={() => setActive(index)}
                     onClick={() => choose(option.value)}
                   >
-                    {option.label}
-                  </button>
+                    <span className="search-select-option-label">{option.label}</span>
+                    {option.detail && <span className="search-select-option-detail">{option.detail}</span>}
+                  </li>
                 ))}
-              </div>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
+                {shown.length === 0 && <li className="search-select-empty">{emptyText}</li>}
+                {matches.length > MAX_RESULTS && (
+                  <li className="search-select-more">
+                    Mostrando los primeros {MAX_RESULTS} de {matches.length}. Escribí más para afinar la búsqueda.
+                  </li>
+                )}
+              </ul>
+
+              {extraOptions.length > 0 && (
+                <div className="search-select-extras">
+                  {extraOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className="search-select-extra"
+                      onClick={() => choose(option.value)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </>
   );
 };

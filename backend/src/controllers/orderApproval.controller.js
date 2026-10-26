@@ -13,7 +13,9 @@ import { APPROVER_ROLES, approvalSummary, signApproval } from '../services/order
 // Body: { email, password, requestId, discountPercent, discountAmount, items: [{ productId, unitPrice }] }
 export const approveOrder = asyncHandler(async (req, res) => {
   const { businessId, id: requesterId } = req.user;
-  const email = String(req.body.email || '').trim().toLowerCase();
+  const email = String(req.body.email || '')
+    .trim()
+    .toLowerCase();
   const password = String(req.body.password || '');
   const requestId = cleanRequestId(req.body.requestId);
 
@@ -37,14 +39,18 @@ export const approveOrder = asyncHandler(async (req, res) => {
   if (!summary.needed) throw httpError('Este remito no tiene nada que autorizar');
 
   const approver = await User.findOne({ where: { email, businessId } });
-  const valid = approver
-    && approver.active
-    && approver.passwordHash
-    && APPROVER_ROLES.includes(approver.role)
-    && (await bcrypt.compare(password, approver.passwordHash));
+  const valid =
+    approver &&
+    approver.active &&
+    approver.passwordHash &&
+    APPROVER_ROLES.includes(approver.role) &&
+    (await bcrypt.compare(password, approver.passwordHash));
   if (!valid) {
     await audit(req, { action: 'order.approval_failed' });
-    throw httpError('El email o la contraseña no son correctos, o esa persona no puede autorizar (tiene que ser administrador o editor).', 403);
+    throw httpError(
+      'El email o la contraseña no son correctos, o esa persona no puede autorizar (tiene que ser administrador o editor).',
+      403,
+    );
   }
 
   const approvalToken = signApproval({ approver, requesterId, businessId, requestId, summary });

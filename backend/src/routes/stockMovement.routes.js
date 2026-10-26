@@ -1,8 +1,5 @@
 import { Router } from 'express';
-import {
-  getMovementsByProduct,
-  createStockMovement,
-} from '../controllers/stockMovement.controller.js';
+import { getMovementsByProduct, createStockMovement } from '../controllers/stockMovement.controller.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 
 const router = Router();

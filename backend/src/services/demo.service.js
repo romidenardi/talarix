@@ -1,7 +1,18 @@
 import pkg from 'sequelize';
 import {
-  Business, Category, Product, StockMovement, Payment, InstallmentPlan, Customer,
-  Supplier, Purchase, PurchaseItem, Order, OrderItem, sequelize,
+  Business,
+  Category,
+  Product,
+  StockMovement,
+  Payment,
+  InstallmentPlan,
+  Customer,
+  Supplier,
+  Purchase,
+  PurchaseItem,
+  Order,
+  OrderItem,
+  sequelize,
 } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
 import { round2 } from '../utils/numbers.js';
@@ -15,21 +26,24 @@ const daysAgoDate = (days) => new Date(Date.now() - days * DAY_MS);
 
 const wipeBusinessData = async (businessId, t) => {
   const idsOf = async (Model) =>
-    (await Model.findAll({ where: { businessId }, attributes: ['id'], raw: true, transaction: t }))
-      .map((row) => row.id);
+    (await Model.findAll({ where: { businessId }, attributes: ['id'], raw: true, transaction: t })).map(
+      (row) => row.id,
+    );
 
   const orderIds = await idsOf(Order);
   if (orderIds.length) await OrderItem.destroy({ where: { orderId: { [Op.in]: orderIds } }, transaction: t });
   await Order.destroy({ where: { businessId }, transaction: t });
 
   const purchaseIds = await idsOf(Purchase);
-  if (purchaseIds.length) await PurchaseItem.destroy({ where: { purchaseId: { [Op.in]: purchaseIds } }, transaction: t });
+  if (purchaseIds.length)
+    await PurchaseItem.destroy({ where: { purchaseId: { [Op.in]: purchaseIds } }, transaction: t });
   await Purchase.destroy({ where: { businessId }, transaction: t });
 
   await StockMovement.destroy({ where: { businessId }, transaction: t });
 
   const paymentIds = await idsOf(Payment);
-  if (paymentIds.length) await InstallmentPlan.destroy({ where: { paymentId: { [Op.in]: paymentIds } }, transaction: t });
+  if (paymentIds.length)
+    await InstallmentPlan.destroy({ where: { paymentId: { [Op.in]: paymentIds } }, transaction: t });
   await Payment.destroy({ where: { businessId }, transaction: t });
 
   await Product.destroy({ where: { businessId }, transaction: t });
@@ -61,8 +75,16 @@ const PRODUCTS = [
 const DEMO_ACTOR = { id: null, name: 'Datos de ejemplo' };
 
 const seedOrder = async ({
-  t, businessId, customer, payment, plan = null, lines, daysAgo, products,
-  discountPercent = 0, discountAmount = 0,
+  t,
+  businessId,
+  customer,
+  payment,
+  plan = null,
+  lines,
+  daysAgo,
+  products,
+  discountPercent = 0,
+  discountAmount = 0,
 }) => {
   const discriminatesVat = discriminatesVatFor(customer.fiscalCondition);
   const resolved = lines.map(([code, quantity]) => ({
@@ -75,46 +97,55 @@ const seedOrder = async ({
 
   const totals = priceOrder({ lines: resolved, discountPercent, discountAmount, discriminatesVat, plan });
   const date = daysAgoDate(daysAgo);
-  const order = await Order.create({
-    businessId,
-    number: await nextOrderNumber(businessId, t),
-    customerId: customer.id,
-    paymentId: payment.id,
-    installmentPlanId: plan ? plan.id : null,
-    date,
-    grossTotal: totals.grossTotal,
-    discountPercent,
-    discountAmount,
-    total: totals.total,
-    subtotal: totals.subtotal,
-    vatAmount: totals.vatAmount,
-    internalTaxAmount: totals.internalTaxAmount,
-    discriminatesVat,
-    installmentsCount: totals.installmentsCount,
-    interestRate: totals.interestRate,
-    installmentAmount: totals.installmentAmount,
-    totalFinanced: totals.totalFinanced,
-    ...actorFields(DEMO_ACTOR),
-  }, { transaction: t });
+  const order = await Order.create(
+    {
+      businessId,
+      number: await nextOrderNumber(businessId, t),
+      customerId: customer.id,
+      paymentId: payment.id,
+      installmentPlanId: plan ? plan.id : null,
+      date,
+      grossTotal: totals.grossTotal,
+      discountPercent,
+      discountAmount,
+      total: totals.total,
+      subtotal: totals.subtotal,
+      vatAmount: totals.vatAmount,
+      internalTaxAmount: totals.internalTaxAmount,
+      discriminatesVat,
+      installmentsCount: totals.installmentsCount,
+      interestRate: totals.interestRate,
+      installmentAmount: totals.installmentAmount,
+      totalFinanced: totals.totalFinanced,
+      ...actorFields(DEMO_ACTOR),
+    },
+    { transaction: t },
+  );
 
   const customerName = customer.businessName || [customer.firstName, customer.lastName].filter(Boolean).join(' ');
   for (const line of resolved) {
-    await OrderItem.create({
-      orderId: order.id,
-      productId: line.product.id,
-      quantity: line.quantity,
-      unitPrice: line.unitPrice,
-      vatRate: line.vatRate,
-      otherTaxes: line.otherTaxes,
-    }, { transaction: t });
-    await moveStock({
-      product: line.product,
-      type: 'out',
-      delta: -line.quantity,
-      reason: `Venta, remito ${formatOrderNumber(order)} a ${customerName}`,
-      actor: DEMO_ACTOR,
-      date,
-    }, t);
+    await OrderItem.create(
+      {
+        orderId: order.id,
+        productId: line.product.id,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        vatRate: line.vatRate,
+        otherTaxes: line.otherTaxes,
+      },
+      { transaction: t },
+    );
+    await moveStock(
+      {
+        product: line.product,
+        type: 'out',
+        delta: -line.quantity,
+        reason: `Venta, remito ${formatOrderNumber(order)} a ${customerName}`,
+        actor: DEMO_ACTOR,
+        date,
+      },
+      t,
+    );
   }
 };
 
@@ -125,23 +156,26 @@ const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, l
 
   const purchase = await Purchase.create(
     { businessId, supplierId: supplier.id, invoiceNumber, date, total, ...actorFields(DEMO_ACTOR) },
-    { transaction: t }
+    { transaction: t },
   );
 
   for (const { product, quantity, unitCost } of resolved) {
     await PurchaseItem.create(
       { purchaseId: purchase.id, productId: product.id, quantity, unitCost },
-      { transaction: t }
+      { transaction: t },
     );
     product.cost = unitCost;
-    await moveStock({
-      product,
-      type: 'in',
-      delta: quantity,
-      reason: `Compra a ${supplier.name}, factura ${invoiceNumber}`,
-      actor: DEMO_ACTOR,
-      date,
-    }, t);
+    await moveStock(
+      {
+        product,
+        type: 'in',
+        delta: quantity,
+        reason: `Compra a ${supplier.name}, factura ${invoiceNumber}`,
+        actor: DEMO_ACTOR,
+        date,
+      },
+      t,
+    );
   }
 };
 
@@ -153,52 +187,116 @@ const seedDemoData = async (businessId, t) => {
   }
   categories.Gaseosas = await Category.create(
     { businessId, name: 'Gaseosas', parentId: categories.Bebidas.id },
-    { transaction: t }
+    { transaction: t },
   );
 
   // Productos con su stock inicial
   const products = {};
   for (const [code, barcode, name, brand, category, price, cost, vatRate, stock] of PRODUCTS) {
-    products[code] = await Product.create({
-      businessId, internalCode: code, barcode, name, brand, price, cost, vatRate,
-      unitType: 'unit', stock: 0, categoryId: categories[category].id,
-    }, { transaction: t });
-    await moveStock({
-      product: products[code], type: 'adjustment', delta: stock, reason: 'Stock inicial',
-      actor: DEMO_ACTOR, date: daysAgoDate(20),
-    }, t);
+    products[code] = await Product.create(
+      {
+        businessId,
+        internalCode: code,
+        barcode,
+        name,
+        brand,
+        price,
+        cost,
+        vatRate,
+        unitType: 'unit',
+        stock: 0,
+        categoryId: categories[category].id,
+      },
+      { transaction: t },
+    );
+    await moveStock(
+      {
+        product: products[code],
+        type: 'adjustment',
+        delta: stock,
+        reason: 'Stock inicial',
+        actor: DEMO_ACTOR,
+        date: daysAgoDate(20),
+      },
+      t,
+    );
   }
 
   // Clientes
   const customers = {
-    mostrador: await Customer.create({
-      businessId, firstName: 'Cliente', lastName: 'Mostrador', fiscalCondition: 'Consumidor Final',
-    }, { transaction: t }),
-    distribuidora: await Customer.create({
-      businessId, businessName: 'Distribuidora Ejemplo S.A.', fiscalCondition: 'Responsable Inscripto',
-      cuit: '30000000001', address: 'Av. Ejemplo 123', city: 'Rafaela', province: 'Santa Fe',
-      email: 'compras@example.com',
-    }, { transaction: t }),
-    lucia: await Customer.create({
-      businessId, firstName: 'Lucía', lastName: 'Fernández', fiscalCondition: 'Monotributista',
-      cuit: '27000000002', city: 'Rafaela', province: 'Santa Fe', email: 'lucia@example.com',
-    }, { transaction: t }),
-    kiosco: await Customer.create({
-      businessId, businessName: 'Kiosco La Esquina', fiscalCondition: 'Monotributista',
-      cuit: '30000000003', city: 'Sunchales', province: 'Santa Fe',
-    }, { transaction: t }),
+    mostrador: await Customer.create(
+      {
+        businessId,
+        firstName: 'Cliente',
+        lastName: 'Mostrador',
+        fiscalCondition: 'Consumidor Final',
+      },
+      { transaction: t },
+    ),
+    distribuidora: await Customer.create(
+      {
+        businessId,
+        businessName: 'Distribuidora Ejemplo S.A.',
+        fiscalCondition: 'Responsable Inscripto',
+        cuit: '30000000001',
+        address: 'Av. Ejemplo 123',
+        city: 'Rafaela',
+        province: 'Santa Fe',
+        email: 'compras@example.com',
+      },
+      { transaction: t },
+    ),
+    lucia: await Customer.create(
+      {
+        businessId,
+        firstName: 'Lucía',
+        lastName: 'Fernández',
+        fiscalCondition: 'Monotributista',
+        cuit: '27000000002',
+        city: 'Rafaela',
+        province: 'Santa Fe',
+        email: 'lucia@example.com',
+      },
+      { transaction: t },
+    ),
+    kiosco: await Customer.create(
+      {
+        businessId,
+        businessName: 'Kiosco La Esquina',
+        fiscalCondition: 'Monotributista',
+        cuit: '30000000003',
+        city: 'Sunchales',
+        province: 'Santa Fe',
+      },
+      { transaction: t },
+    ),
   };
 
   // Proveedores
   const suppliers = {
-    mayorista: await Supplier.create({
-      businessId, name: 'Mayorista Demo S.R.L.', cuit: '30000000004', city: 'Rafaela',
-      province: 'Santa Fe', contactPerson: 'Marcos Gómez', email: 'ventas@example.com',
-    }, { transaction: t }),
-    bebidas: await Supplier.create({
-      businessId, name: 'Bebidas del Centro S.A.', cuit: '30000000005', city: 'Santa Fe',
-      province: 'Santa Fe', contactPerson: 'Ana Ruiz',
-    }, { transaction: t }),
+    mayorista: await Supplier.create(
+      {
+        businessId,
+        name: 'Mayorista Demo S.R.L.',
+        cuit: '30000000004',
+        city: 'Rafaela',
+        province: 'Santa Fe',
+        contactPerson: 'Marcos Gómez',
+        email: 'ventas@example.com',
+      },
+      { transaction: t },
+    ),
+    bebidas: await Supplier.create(
+      {
+        businessId,
+        name: 'Bebidas del Centro S.A.',
+        cuit: '30000000005',
+        city: 'Santa Fe',
+        province: 'Santa Fe',
+        contactPerson: 'Ana Ruiz',
+      },
+      { transaction: t },
+    ),
   };
 
   // Formas de pago y planes de cuotas
@@ -206,49 +304,128 @@ const seedDemoData = async (businessId, t) => {
   const transferencia = await Payment.create({ businessId, name: 'Transferencia' }, { transaction: t });
   const tarjeta = await Payment.create({ businessId, name: 'Tarjeta de crédito' }, { transaction: t });
   const plans = {};
-  for (const [installments, interestRate] of [[3, 12], [6, 25], [12, 45]]) {
+  for (const [installments, interestRate] of [
+    [3, 12],
+    [6, 25],
+    [12, 45],
+  ]) {
     plans[installments] = await InstallmentPlan.create(
       { paymentId: tarjeta.id, installments, interestRate },
-      { transaction: t }
+      { transaction: t },
     );
   }
 
   // Historial de compras
   await seedPurchase({
-    t, businessId, products, supplier: suppliers.mayorista, invoiceNumber: 'A-0001-00001234', daysAgo: 12,
-    lines: [['ALM-002', 30, 980], ['ALM-003', 12, 2200], ['ALM-004', 20, 900]],
+    t,
+    businessId,
+    products,
+    supplier: suppliers.mayorista,
+    invoiceNumber: 'A-0001-00001234',
+    daysAgo: 12,
+    lines: [
+      ['ALM-002', 30, 980],
+      ['ALM-003', 12, 2200],
+      ['ALM-004', 20, 900],
+    ],
   });
   await seedPurchase({
-    t, businessId, products, supplier: suppliers.bebidas, invoiceNumber: 'A-0003-00000567', daysAgo: 5,
-    lines: [['BEB-001', 24, 2300], ['BEB-002', 36, 850], ['BEB-003', 24, 1300]],
+    t,
+    businessId,
+    products,
+    supplier: suppliers.bebidas,
+    invoiceNumber: 'A-0003-00000567',
+    daysAgo: 5,
+    lines: [
+      ['BEB-001', 24, 2300],
+      ['BEB-002', 36, 850],
+      ['BEB-003', 24, 1300],
+    ],
   });
 
   // Historial de remitos
   await seedOrder({
-    t, businessId, products, customer: customers.mostrador, payment: efectivo, daysAgo: 9,
-    lines: [['ALM-001', 2], ['BEB-001', 3], ['GOL-001', 6]],
+    t,
+    businessId,
+    products,
+    customer: customers.mostrador,
+    payment: efectivo,
+    daysAgo: 9,
+    lines: [
+      ['ALM-001', 2],
+      ['BEB-001', 3],
+      ['GOL-001', 6],
+    ],
   });
   await seedOrder({
-    t, businessId, products, customer: customers.distribuidora, payment: transferencia, daysAgo: 8,
-    lines: [['ALM-002', 10], ['ALM-003', 6], ['ALM-004', 10], ['LIM-002', 4]],
+    t,
+    businessId,
+    products,
+    customer: customers.distribuidora,
+    payment: transferencia,
+    daysAgo: 8,
+    lines: [
+      ['ALM-002', 10],
+      ['ALM-003', 6],
+      ['ALM-004', 10],
+      ['LIM-002', 4],
+    ],
   });
   await seedOrder({
-    t, businessId, products, customer: customers.lucia, payment: tarjeta, plan: plans[3], daysAgo: 6,
-    lines: [['ALM-005', 2], ['GOL-002', 4], ['BEB-003', 6]],
+    t,
+    businessId,
+    products,
+    customer: customers.lucia,
+    payment: tarjeta,
+    plan: plans[3],
+    daysAgo: 6,
+    lines: [
+      ['ALM-005', 2],
+      ['GOL-002', 4],
+      ['BEB-003', 6],
+    ],
   });
   await seedOrder({
-    t, businessId, products, customer: customers.mostrador, payment: efectivo, daysAgo: 4,
+    t,
+    businessId,
+    products,
+    customer: customers.mostrador,
+    payment: efectivo,
+    daysAgo: 4,
     discountPercent: 10,
-    lines: [['BEB-002', 12], ['GOL-001', 10], ['LIM-001', 4]],
+    lines: [
+      ['BEB-002', 12],
+      ['GOL-001', 10],
+      ['LIM-001', 4],
+    ],
   });
   await seedOrder({
-    t, businessId, products, customer: customers.kiosco, payment: transferencia, daysAgo: 3,
+    t,
+    businessId,
+    products,
+    customer: customers.kiosco,
+    payment: transferencia,
+    daysAgo: 3,
     discountAmount: 2000,
-    lines: [['BEB-001', 12], ['BEB-003', 12], ['GOL-002', 10]],
+    lines: [
+      ['BEB-001', 12],
+      ['BEB-003', 12],
+      ['GOL-002', 10],
+    ],
   });
   await seedOrder({
-    t, businessId, products, customer: customers.distribuidora, payment: tarjeta, plan: plans[6], daysAgo: 1,
-    lines: [['ALM-001', 3], ['LIM-002', 6], ['LIM-001', 8]],
+    t,
+    businessId,
+    products,
+    customer: customers.distribuidora,
+    payment: tarjeta,
+    plan: plans[6],
+    daysAgo: 1,
+    lines: [
+      ['ALM-001', 3],
+      ['LIM-002', 6],
+      ['LIM-001', 8],
+    ],
   });
 };
 

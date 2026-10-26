@@ -2,24 +2,19 @@ import nodemailer from 'nodemailer';
 
 let transporter = null;
 
-export const isMailConfigured = () =>
-  Boolean(process.env.MAIL_HOST && process.env.MAIL_FROM);
+export const isMailConfigured = () => Boolean(process.env.MAIL_HOST && process.env.MAIL_FROM);
 
 const getTransporter = () => {
   if (transporter) return transporter;
 
   const port = Number(process.env.MAIL_PORT) || 587;
-  const secure = process.env.MAIL_SECURE
-    ? process.env.MAIL_SECURE === 'true'
-    : port === 465;
+  const secure = process.env.MAIL_SECURE ? process.env.MAIL_SECURE === 'true' : port === 465;
 
   transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port,
     secure,
-    auth: process.env.MAIL_USER
-      ? { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS }
-      : undefined,
+    auth: process.env.MAIL_USER ? { user: process.env.MAIL_USER, pass: process.env.MAIL_PASS } : undefined,
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
@@ -48,5 +43,4 @@ export const sendMail = async ({ to, subject, html, text }) => {
   }
 };
 
-export const appUrl = (path = '') =>
-  `${String(process.env.APP_URL || '').replace(/\/$/, '')}${path}`;
+export const appUrl = (path = '') => `${String(process.env.APP_URL || '').replace(/\/$/, '')}${path}`;

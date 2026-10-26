@@ -29,10 +29,23 @@ const blockEnter = (e) => {
 };
 
 const ComboForm = ({
-  idPrefix, defaultValues, products, categories, submitLabel, showActive = false, onSubmit, onCancel, className,
+  idPrefix,
+  defaultValues,
+  products,
+  categories,
+  submitLabel,
+  showActive = false,
+  onSubmit,
+  onCancel,
+  className,
 }) => {
   const {
-    register, control, handleSubmit, reset, watch, formState: { errors },
+    register,
+    control,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
   } = useForm({ defaultValues });
   const { fields, append, remove } = useFieldArray({ control, name: 'components' });
   const formMsg = useMessage();
@@ -44,19 +57,23 @@ const ComboForm = ({
     value: p.id,
     label: p.name,
     detail: [p.internalCode && `Cód. ${p.internalCode}`, money(p.price), `Stock: ${p.stock}`]
-      .filter(Boolean).join(' · '),
+      .filter(Boolean)
+      .join(' · '),
     keywords: [p.internalCode, p.barcode, p.brand, p.model],
   }));
 
-  const totals = (watchedComponents || []).reduce((acc, row) => {
-    const product = productMap.get(row.productId);
-    const quantity = Number(row.quantity) || 0;
-    if (!product) return acc;
-    return {
-      listPrice: acc.listPrice + Number(product.price) * quantity,
-      cost: acc.cost + Number(product.cost) * quantity,
-    };
-  }, { listPrice: 0, cost: 0 });
+  const totals = (watchedComponents || []).reduce(
+    (acc, row) => {
+      const product = productMap.get(row.productId);
+      const quantity = Number(row.quantity) || 0;
+      if (!product) return acc;
+      return {
+        listPrice: acc.listPrice + Number(product.price) * quantity,
+        cost: acc.cost + Number(product.cost) * quantity,
+      };
+    },
+    { listPrice: 0, cost: 0 },
+  );
 
   const hasSpecial = watchedSpecial !== '' && watchedSpecial !== undefined && watchedSpecial !== null;
   const specialPrice = hasSpecial ? Number(watchedSpecial) || 0 : null;
@@ -86,7 +103,10 @@ const ComboForm = ({
   return (
     <form onSubmit={handleSubmit(submit)} className={className}>
       <div className="field">
-        <label htmlFor={`${idPrefix}-internalCode`}>Código interno<RequiredMark /></label>
+        <label htmlFor={`${idPrefix}-internalCode`}>
+          Código interno
+          <RequiredMark />
+        </label>
         <input
           id={`${idPrefix}-internalCode`}
           placeholder="Ej: C001"
@@ -97,16 +117,14 @@ const ComboForm = ({
 
       <div className="field">
         <label htmlFor={`${idPrefix}-barcode`}>Código de barras</label>
-        <input
-          id={`${idPrefix}-barcode`}
-          placeholder="Opcional"
-          {...register('barcode')}
-          onKeyDown={blockEnter}
-        />
+        <input id={`${idPrefix}-barcode`} placeholder="Opcional" {...register('barcode')} onKeyDown={blockEnter} />
       </div>
 
       <div className="field">
-        <label htmlFor={`${idPrefix}-name`}>Combo<RequiredMark /></label>
+        <label htmlFor={`${idPrefix}-name`}>
+          Combo
+          <RequiredMark />
+        </label>
         <input
           id={`${idPrefix}-name`}
           placeholder="Ej: Pack cerveza + maní"
@@ -120,13 +138,17 @@ const ComboForm = ({
         <select id={`${idPrefix}-categoryId`} {...register('categoryId')}>
           <option value="">Sin categoría</option>
           {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
           ))}
         </select>
       </div>
 
       <div className="field">
-        <label htmlFor={`${idPrefix}-specialPrice`}>Precio especial <small>(opcional)</small></label>
+        <label htmlFor={`${idPrefix}-specialPrice`}>
+          Precio especial <small>(opcional)</small>
+        </label>
         <input
           id={`${idPrefix}-specialPrice`}
           type="number"
@@ -158,7 +180,10 @@ const ComboForm = ({
           {fields.map((field, index) => (
             <div key={field.id} className="purchase-item-row">
               <div className="field">
-                <label htmlFor={`${idPrefix}-component-${index}`}>Producto<RequiredMark /></label>
+                <label htmlFor={`${idPrefix}-component-${index}`}>
+                  Producto
+                  <RequiredMark />
+                </label>
                 <Controller
                   name={`components.${index}.productId`}
                   control={control}
@@ -179,7 +204,10 @@ const ComboForm = ({
                 />
               </div>
               <div className="field">
-                <label htmlFor={`${idPrefix}-quantity-${index}`}>Cantidad<RequiredMark /></label>
+                <label htmlFor={`${idPrefix}-quantity-${index}`}>
+                  Cantidad
+                  <RequiredMark />
+                </label>
                 <input
                   id={`${idPrefix}-quantity-${index}`}
                   type="number"
@@ -202,7 +230,9 @@ const ComboForm = ({
             </div>
           ))}
         </div>
-        <button type="button" onClick={() => append(emptyComponent())}>+ Agregar producto</button>
+        <button type="button" onClick={() => append(emptyComponent())}>
+          + Agregar producto
+        </button>
       </div>
 
       <div className="purchase-total field-full">
@@ -220,7 +250,11 @@ const ComboForm = ({
 
       <div className={onCancel ? 'inline-edit-actions' : undefined}>
         <button type="submit">{submitLabel}</button>
-        {onCancel && <button type="button" onClick={onCancel}>Cancelar</button>}
+        {onCancel && (
+          <button type="button" onClick={onCancel}>
+            Cancelar
+          </button>
+        )}
       </div>
       <FormMessage message={formMsg.message} onClose={formMsg.clear} />
       <RequiredLegend />
@@ -264,7 +298,14 @@ const Combos = ({ products, categories, onChanged }) => {
   };
 
   const onDelete = async (combo) => {
-    if (!(await dialog.confirm({ message: `¿Eliminar el combo "${combo.name}"? Los productos que lo forman no se tocan.`, confirmLabel: 'Eliminar', danger: true }))) return;
+    if (
+      !(await dialog.confirm({
+        message: `¿Eliminar el combo "${combo.name}"? Los productos que lo forman no se tocan.`,
+        confirmLabel: 'Eliminar',
+        danger: true,
+      }))
+    )
+      return;
     const result = await run(() => deleteCombo(combo.id), 'No se pudo eliminar el combo');
     if (result.success) msg.success('Combo eliminado', 'list');
     else msg.error(result.message, combo.id);
@@ -282,15 +323,23 @@ const Combos = ({ products, categories, onChanged }) => {
   });
 
   // La fila que se está editando sigue visible aunque el filtro no la incluya
-  const visibleCombos = combos.filter((c) => c.id === editingId || matchesSearch(search, [
-    c.name, c.internalCode, c.barcode, categoryName(c.categoryId), ...(c.components || []).map((x) => x.name),
-  ]));
+  const visibleCombos = combos.filter(
+    (c) =>
+      c.id === editingId ||
+      matchesSearch(search, [
+        c.name,
+        c.internalCode,
+        c.barcode,
+        categoryName(c.categoryId),
+        ...(c.components || []).map((x) => x.name),
+      ]),
+  );
 
   return (
     <>
       <p className="report-note">
-        El precio y el costo del combo se calculan con los valores actuales de sus productos. Si cargás un
-        precio especial, ese precio queda fijo. El stock se calcula con el de los productos que lo forman.
+        El precio y el costo del combo se calculan con los valores actuales de sus productos. Si cargás un precio
+        especial, ese precio queda fijo. El stock se calcula con el de los productos que lo forman.
       </p>
 
       <ComboForm
@@ -367,8 +416,12 @@ const Combos = ({ products, categories, onChanged }) => {
                     <td data-label="Stock">{combo.stock}</td>
                     <td data-label="Estado">{combo.active ? 'Activo' : 'Inactivo'}</td>
                     <td data-label="Acciones">
-                      <button type="button" onClick={() => setEditingId(combo.id)}>Editar</button>
-                      <button type="button" onClick={() => onDelete(combo)}>Eliminar</button>
+                      <button type="button" onClick={() => setEditingId(combo.id)}>
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => onDelete(combo)}>
+                        Eliminar
+                      </button>
                       <FormMessage message={msg.at(combo.id)} onClose={msg.clear} />
                     </td>
                   </>

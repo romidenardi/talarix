@@ -2,9 +2,7 @@ import { StockMovement, Product, sequelize } from '../models/index.js';
 import { lockProducts, moveStock } from '../services/stock.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
-import {
-  isPositiveQuantity, isNonNegativeQuantity, toNumber, round3, quantityAllowedFor,
-} from '../utils/numbers.js';
+import { isPositiveQuantity, isNonNegativeQuantity, toNumber, round3, quantityAllowedFor } from '../utils/numbers.js';
 
 export const getMovementsByProduct = asyncHandler(async (req, res) => {
   const { productId } = req.params;
@@ -37,9 +35,8 @@ export const createStockMovement = asyncHandler(async (req, res) => {
 
   const t = await sequelize.transaction();
   try {
-    const product = typeof productId === 'string'
-      ? (await lockProducts([productId], businessId, t)).get(productId)
-      : null;
+    const product =
+      typeof productId === 'string' ? (await lockProducts([productId], businessId, t)).get(productId) : null;
     if (!product) throw httpError('Producto no encontrado', 404);
     if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos');
 

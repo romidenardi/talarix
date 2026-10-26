@@ -40,7 +40,7 @@ export const startClosureScheduler = () => {
     () => {
       runClosurePurge().catch(onFailure('Error en la tarea diaria'));
     },
-    { timezone: TIMEZONE }
+    { timezone: TIMEZONE },
   );
 
   const firstRun = setTimeout(() => {

@@ -1,12 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import {
-  getUsers,
-  createUser,
-  updateUser,
-  deleteUser,
-  sendAccessLink,
-} from '../controllers/user.controller.js';
+import { getUsers, createUser, updateUser, deleteUser, sendAccessLink } from '../controllers/user.controller.js';
 
 const router = Router();
 

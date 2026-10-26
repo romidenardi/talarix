@@ -41,16 +41,15 @@ export const exportCustomerData = asyncHandler(async (req, res) => {
     raw: true,
   });
   const orderIds = orders.map((order) => order.id);
-  const items = orderIds.length
-    ? await OrderItem.findAll({ where: { orderId: orderIds }, raw: true })
-    : [];
+  const items = orderIds.length ? await OrderItem.findAll({ where: { orderId: orderIds }, raw: true }) : [];
 
   const plain = customer.get({ plain: true });
   const dataRows = columnsOf(Customer).map((column) => ({
     Campo: CUSTOMER_LABELS[column] || column,
-    Valor: plain[column] instanceof Date
-      ? plain[column].toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
-      : plain[column] ?? '',
+    Valor:
+      plain[column] instanceof Date
+        ? plain[column].toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })
+        : (plain[column] ?? ''),
   }));
 
   const buffer = buildWorkbookBuffer([
@@ -76,22 +75,25 @@ export const anonymizeCustomer = asyncHandler(async (req, res) => {
   // que pueden tener su nombre o su teléfono. Los importes y productos se conservan.
   const t = await sequelize.transaction();
   try {
-    await customer.update({
-      businessName: null,
-      firstName: null,
-      lastName: 'Cliente anonimizado',
-      cuit: null,
-      address: null,
-      zipCode: null,
-      city: null,
-      province: null,
-      phone: null,
-      email: null,
-      anonymizedAt: new Date(),
-    }, { transaction: t });
+    await customer.update(
+      {
+        businessName: null,
+        firstName: null,
+        lastName: 'Cliente anonimizado',
+        cuit: null,
+        address: null,
+        zipCode: null,
+        city: null,
+        province: null,
+        phone: null,
+        email: null,
+        anonymizedAt: new Date(),
+      },
+      { transaction: t },
+    );
     await Order.update(
       { notes: null, cancelReason: null },
-      { where: { customerId: customer.id, businessId: req.user.businessId }, transaction: t }
+      { where: { customerId: customer.id, businessId: req.user.businessId }, transaction: t },
     );
     await t.commit();
   } catch (error) {
@@ -99,7 +101,9 @@ export const anonymizeCustomer = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  console.log(`[derechos] supresión · comercio ${req.user.businessId} · cliente ${customer.id} · usuario ${req.user.id}`);
+  console.log(
+    `[derechos] supresión · comercio ${req.user.businessId} · cliente ${customer.id} · usuario ${req.user.id}`,
+  );
   await audit(req, { action: 'customer.anonymized', targetType: 'customer', targetId: customer.id });
 
   res.json({ message: 'Los datos personales del cliente fueron anonimizados. Sus remitos se conservan.' });

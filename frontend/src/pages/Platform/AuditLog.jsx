@@ -35,11 +35,14 @@ const word = (map, value) => map[value] || value;
 const describe = (row) => {
   const d = row.detail || {};
   switch (row.action) {
-    case 'business.created': return d.type === 'demo' ? 'Demo' : 'Cliente';
-    case 'business.status_changed': return `${word(STATUS, d.from)} → ${word(STATUS, d.to)}`;
+    case 'business.created':
+      return d.type === 'demo' ? 'Demo' : 'Cliente';
+    case 'business.status_changed':
+      return `${word(STATUS, d.from)} → ${word(STATUS, d.to)}`;
     case 'business.closure_started':
       return d.deleteAt ? `Se borra el ${new Date(d.deleteAt).toLocaleDateString('es-AR')}` : '';
-    case 'platform.recovery_code_used': return `Quedan ${d.left}`;
+    case 'platform.recovery_code_used':
+      return `Quedan ${d.left}`;
     case 'order.approved': {
       const parts = [`Autorizó ${d.approver}`];
       if (d.discountPercent > 0) parts.push(`descuento ${d.discountPercent}%`);
@@ -47,10 +50,13 @@ const describe = (row) => {
       if (d.prices > 0) parts.push(d.prices === 1 ? '1 precio cambiado' : `${d.prices} precios cambiados`);
       return parts.join(', ');
     }
-    case 'user.created': return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}`;
+    case 'user.created':
+      return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}`;
     case 'user.deleted':
-    case 'user.reinvited': return d.role ? `Rol ${word(ROLES, d.role)}` : '';
-    case 'user.access_link_sent': return d.type === 'reset' ? 'Cambio de contraseña' : 'Invitación';
+    case 'user.reinvited':
+      return d.role ? `Rol ${word(ROLES, d.role)}` : '';
+    case 'user.access_link_sent':
+      return d.type === 'reset' ? 'Cambio de contraseña' : 'Invitación';
     case 'user.updated': {
       const parts = [];
       if (d.role) parts.push(`rol ${word(ROLES, d.role.from)} → ${word(ROLES, d.role.to)}`);
@@ -59,12 +65,19 @@ const describe = (row) => {
       if (d.email) parts.push('email');
       return parts.join(', ');
     }
-    default: return '';
+    default:
+      return '';
   }
 };
 
-const isWarning = (action) => ['platform.login_failed', 'platform.mfa_failed', 'platform.recovery_code_used',
-  'business.purged', 'order.approval_failed'].includes(action);
+const isWarning = (action) =>
+  [
+    'platform.login_failed',
+    'platform.mfa_failed',
+    'platform.recovery_code_used',
+    'business.purged',
+    'order.approval_failed',
+  ].includes(action);
 
 export default function AuditLog() {
   const [rows, setRows] = useState([]);
@@ -84,13 +97,17 @@ export default function AuditLog() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <section>
       <div className="platform-header">
         <h2>Actividad (últimos 200 registros)</h2>
-        <button type="button" onClick={load} disabled={loading}>{loading ? 'Cargando…' : 'Actualizar'}</button>
+        <button type="button" onClick={load} disabled={loading}>
+          {loading ? 'Cargando…' : 'Actualizar'}
+        </button>
       </div>
       {error && <p className="auth-error">{error}</p>}
       {!loading && !error && rows.length === 0 && <p>Todavía no hay actividad registrada.</p>}

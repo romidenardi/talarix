@@ -1,6 +1,4 @@
-import {
-  Order, OrderItem, Product, Customer, Payment, sequelize,
-} from '../models/index.js';
+import { Order, OrderItem, Product, Customer, Payment, sequelize } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { round3 } from '../utils/numbers.js';
@@ -8,8 +6,7 @@ import { audit } from '../utils/audit.js';
 import { lockProducts, moveStock } from '../services/stock.service.js';
 import { formatOrderNumber } from '../services/orderNumber.service.js';
 
-const arDate = (date) =>
-  new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
+const arDate = (date) => new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
 
 const orderIncludes = [
   { model: Customer },
@@ -23,7 +20,10 @@ const orderIncludes = [
 
 export const cancelOrder = asyncHandler(async (req, res) => {
   const { businessId, id: userId } = req.user;
-  const reason = String(req.body?.reason || '').trim().slice(0, 255) || null;
+  const reason =
+    String(req.body?.reason || '')
+      .trim()
+      .slice(0, 255) || null;
 
   const t = await sequelize.transaction();
   try {
@@ -64,13 +64,16 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       const product = locked.get(productId);
       if (!product) throw httpError('Un producto del remito ya no existe: no se puede anular', 409);
 
-      await moveStock({
-        product,
-        type: 'in',
-        delta: quantity,
-        reason: `Anulación del remito ${formatOrderNumber(order)} del ${arDate(order.date)} a ${customerName}`,
-        actor: req.user,
-      }, t);
+      await moveStock(
+        {
+          product,
+          type: 'in',
+          delta: quantity,
+          reason: `Anulación del remito ${formatOrderNumber(order)} del ${arDate(order.date)} a ${customerName}`,
+          actor: req.user,
+        },
+        t,
+      );
     }
 
     order.status = 'cancelled';

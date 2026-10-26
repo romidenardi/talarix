@@ -27,7 +27,15 @@ const api = {
 };
 
 const Products = () => {
-  const { items: products, loading, loadError, create, update, remove, reload } = useResource(api);
+  const {
+    items: products,
+    loading,
+    loadError,
+    create,
+    update,
+    remove,
+    reload,
+  } = useResource(api, { reloadAfterChange: true });
   const msg = useMessage();
   const dialog = useDialog();
 
@@ -53,7 +61,14 @@ const Products = () => {
   const createForm = useForm({
     defaultValues: { unitType: 'unit', vatRate: '21', priceBase: '1000' },
   });
-  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = createForm;
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = createForm;
   const editForm = useForm();
   const { errors: editErrors } = editForm.formState;
   const createUnitType = watch('unitType');
@@ -63,7 +78,8 @@ const Products = () => {
   const editPriceBase = editForm.watch('priceBase');
   const editPrice = editForm.watch('price');
 
-  const money = (value) => `$${(Number(value) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const money = (value) =>
+    `$${(Number(value) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   const perKgHint = (unitType, base, price) => {
     if (unitType !== 'weight' || !price) return null;
     const perKgPrice = toPricePerKg(price, base);
@@ -159,29 +175,50 @@ const Products = () => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar este producto?', confirmLabel: 'Eliminar', danger: true }))) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar este producto?', confirmLabel: 'Eliminar', danger: true })))
+      return;
     const result = await remove(id);
     if (result.success) msg.success('Producto eliminado', 'list');
     else msg.error(result.message, id);
   };
 
-  const categoryName = (categoryId) =>
-    flatCategories.find((c) => c.id === categoryId)?.name || '—';
+  const categoryName = (categoryId) => flatCategories.find((c) => c.id === categoryId)?.name || '—';
 
   // La fila que se está editando sigue visible aunque el filtro no la incluya
-  const visibleProducts = products.filter((p) => !p.isCombo && (p.id === editingId || matchesSearch(search, [
-    p.name, p.internalCode, p.barcode, p.brand, p.model, categoryName(p.categoryId),
-  ])));
+  const visibleProducts = products.filter(
+    (p) =>
+      !p.isCombo &&
+      (p.id === editingId ||
+        matchesSearch(search, [p.name, p.internalCode, p.barcode, p.brand, p.model, categoryName(p.categoryId)])),
+  );
 
   const tabs = (
     <div className="report-tabs" role="tablist">
-      <button type="button" role="tab" aria-selected={tab === 'products'} className={tab === 'products' ? 'active' : ''} onClick={() => setTab('products')}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'products'}
+        className={tab === 'products' ? 'active' : ''}
+        onClick={() => setTab('products')}
+      >
         Productos
       </button>
-      <button type="button" role="tab" aria-selected={tab === 'combos'} className={tab === 'combos' ? 'active' : ''} onClick={() => setTab('combos')}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'combos'}
+        className={tab === 'combos' ? 'active' : ''}
+        onClick={() => setTab('combos')}
+      >
         Combos
       </button>
-      <button type="button" role="tab" aria-selected={tab === 'scale'} className={tab === 'scale' ? 'active' : ''} onClick={() => setTab('scale')}>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === 'scale'}
+        className={tab === 'scale' ? 'active' : ''}
+        onClick={() => setTab('scale')}
+      >
         Balanza
       </button>
     </div>
@@ -217,7 +254,10 @@ const Products = () => {
 
       <form onSubmit={handleSubmit(onCreate)} className="product-form">
         <div className="field">
-          <label htmlFor="internalCode">Código interno<RequiredMark /></label>
+          <label htmlFor="internalCode">
+            Código interno
+            <RequiredMark />
+          </label>
           <input id="internalCode" placeholder="Ej: P001" {...register('internalCode', { required: 'Obligatorio' })} />
           {errors.internalCode && <span className="error">{errors.internalCode.message}</span>}
         </div>
@@ -244,7 +284,10 @@ const Products = () => {
         </div>
 
         <div className="field">
-          <label htmlFor="name">Producto<RequiredMark /></label>
+          <label htmlFor="name">
+            Producto
+            <RequiredMark />
+          </label>
           <input id="name" placeholder="Ej: Cerveza IPA 500ml" {...register('name', { required: 'Obligatorio' })} />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -264,7 +307,9 @@ const Products = () => {
           <select id="categoryId" {...register('categoryId')}>
             <option value="">Sin categoría</option>
             {flatCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
@@ -279,7 +324,9 @@ const Products = () => {
 
         {createUnitType === 'weight' && (
           <div className="field">
-            <label htmlFor="scalePlu">PLU de balanza <small>(opcional)</small></label>
+            <label htmlFor="scalePlu">
+              PLU de balanza <small>(opcional)</small>
+            </label>
             <input
               id="scalePlu"
               type="number"
@@ -297,14 +344,30 @@ const Products = () => {
           <div className="field">
             <label htmlFor="priceBase">Cargo precio y costo por</label>
             <select id="priceBase" {...register('priceBase')}>
-              {PRICE_BASES.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+              {PRICE_BASES.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
             </select>
           </div>
         )}
 
         <div className="field">
-          <label htmlFor="price">Precio{createUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}<RequiredMark /></label>
-          <input id="price" type="number" step="0.01" placeholder="Ej: 1500" {...register('price', { required: 'El precio es obligatorio', min: { value: 0, message: 'El precio no puede ser negativo' } })} />
+          <label htmlFor="price">
+            Precio{createUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}
+            <RequiredMark />
+          </label>
+          <input
+            id="price"
+            type="number"
+            step="0.01"
+            placeholder="Ej: 1500"
+            {...register('price', {
+              required: 'El precio es obligatorio',
+              min: { value: 0, message: 'El precio no puede ser negativo' },
+            })}
+          />
           {errors.price && <span className="error">{errors.price.message}</span>}
         </div>
 
@@ -316,13 +379,31 @@ const Products = () => {
 
         <div className="field">
           <label htmlFor="promoPrice">Precio promocional</label>
-          <input id="promoPrice" type="number" step="0.01" placeholder="Ej: 1350" {...register('promoPrice', { min: { value: 0, message: 'El precio no puede ser negativo' } })} />
+          <input
+            id="promoPrice"
+            type="number"
+            step="0.01"
+            placeholder="Ej: 1350"
+            {...register('promoPrice', { min: { value: 0, message: 'El precio no puede ser negativo' } })}
+          />
           {errors.promoPrice && <span className="error">{errors.promoPrice.message}</span>}
         </div>
 
         <div className="field">
-          <label htmlFor="cost">Costo<RequiredMark /></label>
-          <input id="cost" type="number" step="0.01" placeholder="Ej: 900" {...register('cost', { required: 'El costo es obligatorio', min: { value: 0, message: 'El costo no puede ser negativo' } })} />
+          <label htmlFor="cost">
+            Costo
+            <RequiredMark />
+          </label>
+          <input
+            id="cost"
+            type="number"
+            step="0.01"
+            placeholder="Ej: 900"
+            {...register('cost', {
+              required: 'El costo es obligatorio',
+              min: { value: 0, message: 'El costo no puede ser negativo' },
+            })}
+          />
           {errors.cost && <span className="error">{errors.cost.message}</span>}
         </div>
 
@@ -332,7 +413,9 @@ const Products = () => {
         </div>
 
         <div className="field">
-          <label htmlFor="otherTaxes">Impuestos internos (%) <small>(opcional)</small></label>
+          <label htmlFor="otherTaxes">
+            Impuestos internos (%) <small>(opcional)</small>
+          </label>
           <input
             id="otherTaxes"
             type="number"
@@ -346,7 +429,11 @@ const Products = () => {
 
         <div className="field field-full">
           <label htmlFor="description">Descripción</label>
-          <textarea id="description" placeholder="Ej: Cerveza artesanal estilo IPA, botella 500ml" {...register('description')} />
+          <textarea
+            id="description"
+            placeholder="Ej: Cerveza artesanal estilo IPA, botella 500ml"
+            {...register('description')}
+          />
         </div>
 
         <button type="submit">Agregar producto</button>
@@ -392,8 +479,14 @@ const Products = () => {
                     <td colSpan={8} className="edit-cell">
                       <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                         <div className="field">
-                          <label htmlFor={`edit-internalCode-${product.id}`}>Código interno<RequiredMark /></label>
-                          <input id={`edit-internalCode-${product.id}`} {...editForm.register('internalCode', { required: 'El código interno es obligatorio' })} />
+                          <label htmlFor={`edit-internalCode-${product.id}`}>
+                            Código interno
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-internalCode-${product.id}`}
+                            {...editForm.register('internalCode', { required: 'El código interno es obligatorio' })}
+                          />
                           {editErrors.internalCode && <span className="error">{editErrors.internalCode.message}</span>}
                         </div>
                         <div className="field">
@@ -417,8 +510,14 @@ const Products = () => {
                           {editErrors.barcode && <span className="error">{editErrors.barcode.message}</span>}
                         </div>
                         <div className="field">
-                          <label htmlFor={`edit-name-${product.id}`}>Producto<RequiredMark /></label>
-                          <input id={`edit-name-${product.id}`} {...editForm.register('name', { required: 'El nombre es obligatorio' })} />
+                          <label htmlFor={`edit-name-${product.id}`}>
+                            Producto
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-name-${product.id}`}
+                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                          />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
                         <div className="field">
@@ -434,7 +533,9 @@ const Products = () => {
                           <select id={`edit-categoryId-${product.id}`} {...editForm.register('categoryId')}>
                             <option value="">Sin categoría</option>
                             {flatCategories.map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
                             ))}
                           </select>
                         </div>
@@ -464,13 +565,28 @@ const Products = () => {
                           <div className="field">
                             <label htmlFor={`edit-priceBase-${product.id}`}>Cargo precio y costo por</label>
                             <select id={`edit-priceBase-${product.id}`} {...editForm.register('priceBase')}>
-                              {PRICE_BASES.map((b) => <option key={b.value} value={b.value}>{b.label}</option>)}
+                              {PRICE_BASES.map((b) => (
+                                <option key={b.value} value={b.value}>
+                                  {b.label}
+                                </option>
+                              ))}
                             </select>
                           </div>
                         )}
                         <div className="field">
-                          <label htmlFor={`edit-price-${product.id}`}>Precio{editUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}<RequiredMark /></label>
-                          <input id={`edit-price-${product.id}`} type="number" step="0.01" {...editForm.register('price', { required: 'El precio es obligatorio', min: { value: 0, message: 'El precio no puede ser negativo' } })} />
+                          <label htmlFor={`edit-price-${product.id}`}>
+                            Precio{editUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-price-${product.id}`}
+                            type="number"
+                            step="0.01"
+                            {...editForm.register('price', {
+                              required: 'El precio es obligatorio',
+                              min: { value: 0, message: 'El precio no puede ser negativo' },
+                            })}
+                          />
                           {editErrors.price && <span className="error">{editErrors.price.message}</span>}
                         </div>
                         {perKgHint(editUnitType, editPriceBase, editPrice) && (
@@ -480,11 +596,27 @@ const Products = () => {
                         )}
                         <div className="field">
                           <label htmlFor={`edit-promoPrice-${product.id}`}>Precio promo</label>
-                          <input id={`edit-promoPrice-${product.id}`} type="number" step="0.01" {...editForm.register('promoPrice')} />
+                          <input
+                            id={`edit-promoPrice-${product.id}`}
+                            type="number"
+                            step="0.01"
+                            {...editForm.register('promoPrice')}
+                          />
                         </div>
                         <div className="field">
-                          <label htmlFor={`edit-cost-${product.id}`}>Costo<RequiredMark /></label>
-                          <input id={`edit-cost-${product.id}`} type="number" step="0.01" {...editForm.register('cost', { required: 'El costo es obligatorio', min: { value: 0, message: 'El costo no puede ser negativo' } })} />
+                          <label htmlFor={`edit-cost-${product.id}`}>
+                            Costo
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-cost-${product.id}`}
+                            type="number"
+                            step="0.01"
+                            {...editForm.register('cost', {
+                              required: 'El costo es obligatorio',
+                              min: { value: 0, message: 'El costo no puede ser negativo' },
+                            })}
+                          />
                           {editErrors.cost && <span className="error">{editErrors.cost.message}</span>}
                         </div>
                         <div className="field">
@@ -496,7 +628,9 @@ const Products = () => {
                           />
                         </div>
                         <div className="field">
-                          <label htmlFor={`edit-otherTaxes-${product.id}`}>Impuestos internos (%) <small>(opcional)</small></label>
+                          <label htmlFor={`edit-otherTaxes-${product.id}`}>
+                            Impuestos internos (%) <small>(opcional)</small>
+                          </label>
                           <input
                             id={`edit-otherTaxes-${product.id}`}
                             type="number"
@@ -520,7 +654,9 @@ const Products = () => {
                         </div>
                         <div className="inline-edit-actions">
                           <button type="submit">Guardar</button>
-                          <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                          <button type="button" onClick={() => setEditingId(null)}>
+                            Cancelar
+                          </button>
                         </div>
                         <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                         <RequiredLegend />
@@ -534,9 +670,19 @@ const Products = () => {
                         {product.scalePlu ? <small> · PLU {product.scalePlu}</small> : null}
                       </td>
                       <td data-label="Categoría">{categoryName(product.categoryId)}</td>
-                      <td data-label="Precio">${Number(product.price).toFixed(2)}{perKg(product.unitType)}</td>
-                      <td data-label="Precio promo">{product.promoPrice ? `$${Number(product.promoPrice).toFixed(2)}${perKg(product.unitType)}` : '—'}</td>
-                      <td data-label="Costo">${Number(product.cost).toFixed(2)}{perKg(product.unitType)}</td>
+                      <td data-label="Precio">
+                        ${Number(product.price).toFixed(2)}
+                        {perKg(product.unitType)}
+                      </td>
+                      <td data-label="Precio promo">
+                        {product.promoPrice
+                          ? `$${Number(product.promoPrice).toFixed(2)}${perKg(product.unitType)}`
+                          : '—'}
+                      </td>
+                      <td data-label="Costo">
+                        ${Number(product.cost).toFixed(2)}
+                        {perKg(product.unitType)}
+                      </td>
                       <td data-label="Stock">{formatQuantity(product.stock, product.unitType)}</td>
                       <td data-label="Acciones">
                         <button onClick={() => startEdit(product)}>Editar</button>
@@ -562,9 +708,7 @@ const Products = () => {
         </table>
       </div>
 
-      {scanTarget && (
-        <BarcodeScanner onDetected={handleScanned} onClose={() => setScanTarget(null)} />
-      )}
+      {scanTarget && <BarcodeScanner onDetected={handleScanned} onClose={() => setScanTarget(null)} />}
     </div>
   );
 };

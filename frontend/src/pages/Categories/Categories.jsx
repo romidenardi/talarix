@@ -17,12 +17,25 @@ const api = {
 };
 
 const Categories = () => {
-  const { items: categories, loading, loadError, create, update, remove } = useResource(api);
+  const {
+    items: categories,
+    loading,
+    loadError,
+    create,
+    update,
+    remove,
+  } = useResource(api, { reloadAfterChange: true });
   const msg = useMessage();
   const dialog = useDialog();
   const [editingId, setEditingId] = useState(null);
 
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setError,
+    formState: { errors },
+  } = useForm();
   const editForm = useForm();
   const { errors: editErrors } = editForm.formState;
 
@@ -62,7 +75,8 @@ const Categories = () => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar esta categoría?', confirmLabel: 'Eliminar', danger: true }))) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar esta categoría?', confirmLabel: 'Eliminar', danger: true })))
+      return;
     const result = await remove(id);
     if (result.success) msg.success('Categoría eliminada', 'list');
     else msg.error(result.message, id);
@@ -77,12 +91,11 @@ const Categories = () => {
 
       <form onSubmit={handleSubmit(onCreate)} className="category-form">
         <div className="field">
-          <label htmlFor="name">Nombre<RequiredMark /></label>
-          <input
-            id="name"
-            placeholder="Ej: Bebidas"
-            {...register('name', { required: 'El nombre es obligatorio' })}
-          />
+          <label htmlFor="name">
+            Nombre
+            <RequiredMark />
+          </label>
+          <input id="name" placeholder="Ej: Bebidas" {...register('name', { required: 'El nombre es obligatorio' })} />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
 
@@ -91,7 +104,9 @@ const Categories = () => {
           <select id="parentId" {...register('parentId')}>
             <option value="">Sin categoría padre</option>
             {topLevelCategories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
@@ -118,22 +133,34 @@ const Categories = () => {
                     <td className="edit-cell">
                       <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                         <div className="field">
-                          <label htmlFor={`edit-name-${category.id}`}>Nombre<RequiredMark /></label>
-                          <input id={`edit-name-${category.id}`} {...editForm.register('name', { required: 'El nombre es obligatorio' })} />
+                          <label htmlFor={`edit-name-${category.id}`}>
+                            Nombre
+                            <RequiredMark />
+                          </label>
+                          <input
+                            id={`edit-name-${category.id}`}
+                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                          />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
                         <div className="field">
                           <label htmlFor={`edit-parent-${category.id}`}>Categoría padre</label>
                           <select id={`edit-parent-${category.id}`} {...editForm.register('parentId')}>
                             <option value="">Sin categoría padre</option>
-                            {topLevelCategories.filter((c) => c.id !== category.id).map((c) => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
+                            {topLevelCategories
+                              .filter((c) => c.id !== category.id)
+                              .map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
                           </select>
                         </div>
                         <div className="inline-edit-actions">
                           <button type="submit">Guardar</button>
-                          <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                          <button type="button" onClick={() => setEditingId(null)}>
+                            Cancelar
+                          </button>
                         </div>
                         <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                         <RequiredLegend />
@@ -158,8 +185,14 @@ const Categories = () => {
                       <td className="edit-cell">
                         <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                           <div className="field">
-                            <label htmlFor={`edit-name-${sub.id}`}>Nombre<RequiredMark /></label>
-                            <input id={`edit-name-${sub.id}`} {...editForm.register('name', { required: 'El nombre es obligatorio' })} />
+                            <label htmlFor={`edit-name-${sub.id}`}>
+                              Nombre
+                              <RequiredMark />
+                            </label>
+                            <input
+                              id={`edit-name-${sub.id}`}
+                              {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                            />
                             {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                           </div>
                           <div className="field">
@@ -167,13 +200,17 @@ const Categories = () => {
                             <select id={`edit-parent-${sub.id}`} {...editForm.register('parentId')}>
                               <option value="">Sin categoría padre</option>
                               {topLevelCategories.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
                               ))}
                             </select>
                           </div>
                           <div className="inline-edit-actions">
                             <button type="submit">Guardar</button>
-                            <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                            <button type="button" onClick={() => setEditingId(null)}>
+                              Cancelar
+                            </button>
                           </div>
                           <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                           <RequiredLegend />

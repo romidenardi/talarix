@@ -77,9 +77,7 @@ const ScaleSettings = ({ products }) => {
   const matched = parsed ? products.find((p) => !p.isCombo && p.scalePlu === parsed.plu) : null;
   const line = parsed && matched ? lineFromLabel(parsed, matched) : null;
 
-  const productsWithPlu = products
-    .filter((p) => !p.isCombo && p.scalePlu)
-    .sort((a, b) => a.scalePlu - b.scalePlu);
+  const productsWithPlu = products.filter((p) => !p.isCombo && p.scalePlu).sort((a, b) => a.scalePlu - b.scalePlu);
 
   if (loading) return <Spinner label="Cargando configuración..." />;
 
@@ -91,9 +89,10 @@ const ScaleSettings = ({ products }) => {
         PLU que tiene en la balanza (pestaña Productos, campo "PLU de balanza").
       </p>
       <p className="report-note">
-        En la balanza Systel el tipo de dato se elige en <strong>MENÚ → Configuración (tres veces) → Clave → EAN13</strong>:{' '}
-        <strong>CANTID</strong> imprime el peso y <strong>TOTAL</strong> imprime el importe. Vale para todos los artículos
-        y no está disponible en todos los modelos.
+        En la balanza Systel el tipo de dato se elige en{' '}
+        <strong>MENÚ → Configuración (tres veces) → Clave → EAN13</strong>: <strong>CANTID</strong> imprime el peso y{' '}
+        <strong>TOTAL</strong> imprime el importe. Vale para todos los artículos y no está disponible en todos los
+        modelos.
       </p>
 
       <form onSubmit={save} className="product-form">
@@ -120,32 +119,72 @@ const ScaleSettings = ({ products }) => {
 
           <div className="field">
             <label htmlFor="scale-prefix">Prefijo</label>
-            <input id="scale-prefix" value={form.prefix} onChange={(e) => set('prefix', e.target.value.replace(/\D/g, ''))} maxLength={4} />
+            <input
+              id="scale-prefix"
+              value={form.prefix}
+              onChange={(e) => set('prefix', e.target.value.replace(/\D/g, ''))}
+              maxLength={4}
+            />
           </div>
 
           <div className="field">
             <label htmlFor="scale-pluStart">PLU: desde el dígito</label>
-            <input id="scale-pluStart" type="number" min="1" max="13" value={form.pluStart} onChange={(e) => set('pluStart', e.target.value)} />
+            <input
+              id="scale-pluStart"
+              type="number"
+              min="1"
+              max="13"
+              value={form.pluStart}
+              onChange={(e) => set('pluStart', e.target.value)}
+            />
           </div>
 
           <div className="field">
             <label htmlFor="scale-pluLength">PLU: cantidad de dígitos</label>
-            <input id="scale-pluLength" type="number" min="1" max="6" value={form.pluLength} onChange={(e) => set('pluLength', e.target.value)} />
+            <input
+              id="scale-pluLength"
+              type="number"
+              min="1"
+              max="6"
+              value={form.pluLength}
+              onChange={(e) => set('pluLength', e.target.value)}
+            />
           </div>
 
           <div className="field">
             <label htmlFor="scale-valueStart">Valor: desde el dígito</label>
-            <input id="scale-valueStart" type="number" min="1" max="13" value={form.valueStart} onChange={(e) => set('valueStart', e.target.value)} />
+            <input
+              id="scale-valueStart"
+              type="number"
+              min="1"
+              max="13"
+              value={form.valueStart}
+              onChange={(e) => set('valueStart', e.target.value)}
+            />
           </div>
 
           <div className="field">
             <label htmlFor="scale-valueLength">Valor: cantidad de dígitos</label>
-            <input id="scale-valueLength" type="number" min="1" max="8" value={form.valueLength} onChange={(e) => set('valueLength', e.target.value)} />
+            <input
+              id="scale-valueLength"
+              type="number"
+              min="1"
+              max="8"
+              value={form.valueLength}
+              onChange={(e) => set('valueLength', e.target.value)}
+            />
           </div>
 
           <div className="field">
             <label htmlFor="scale-decimals">Decimales del valor</label>
-            <input id="scale-decimals" type="number" min="0" max="4" value={form.decimals} onChange={(e) => set('decimals', e.target.value)} />
+            <input
+              id="scale-decimals"
+              type="number"
+              min="0"
+              max="4"
+              value={form.decimals}
+              onChange={(e) => set('decimals', e.target.value)}
+            />
           </div>
 
           <div className="field">
@@ -163,8 +202,12 @@ const ScaleSettings = ({ products }) => {
 
         {canEdit && (
           <div className="inline-edit-actions">
-            <button type="submit" disabled={saving}>{saving ? 'Guardando…' : 'Guardar'}</button>
-            <button type="button" onClick={useSystelDefaults}>Usar valores de Systel</button>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Guardando…' : 'Guardar'}
+            </button>
+            <button type="button" onClick={useSystelDefaults}>
+              Usar valores de Systel
+            </button>
           </div>
         )}
         <FormMessage message={msg.message} onClose={msg.clear} />
@@ -199,10 +242,20 @@ const ScaleSettings = ({ products }) => {
           </div>
           {matched ? (
             <>
-              <div>Producto: {matched.name} ({money(matched.price)} por kg)</div>
-              {line && <div>En el remito: {formatQuantity(line.quantity, 'weight')} — {money(line.quantity * Number(matched.price))}</div>}
+              <div>
+                Producto: {matched.name} ({money(matched.price)} por kg)
+              </div>
+              {line && (
+                <div>
+                  En el remito: {formatQuantity(line.quantity, 'weight')} —{' '}
+                  {money(line.quantity * Number(matched.price))}
+                </div>
+              )}
               {line?.priceMismatch && (
-                <div className="error">El importe no coincide con el precio cargado en el sistema: revisá que el precio de la balanza y el del producto sean el mismo.</div>
+                <div className="error">
+                  El importe no coincide con el precio cargado en el sistema: revisá que el precio de la balanza y el
+                  del producto sean el mismo.
+                </div>
               )}
             </>
           ) : (

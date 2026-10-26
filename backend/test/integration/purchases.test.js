@@ -21,10 +21,11 @@ after(async () => {
   await stop?.();
 });
 
-const buy = (items, extra = {}, token = A.users.admin.token) => api('POST', '/api/purchases', {
-  token,
-  body: { supplierId: supplier.id, requestId: newRequestId(), items, ...extra },
-});
+const buy = (items, extra = {}, token = A.users.admin.token) =>
+  api('POST', '/api/purchases', {
+    token,
+    body: { supplierId: supplier.id, requestId: newRequestId(), items, ...extra },
+  });
 const costOf = async (product) => Number((await models.Product.findByPk(product.id)).cost);
 
 describe('Factura repetida', () => {
@@ -49,7 +50,9 @@ describe('Factura repetida', () => {
     const res = await api('POST', '/api/purchases', {
       token: A.users.admin.token,
       body: {
-        supplierId: other.id, requestId: newRequestId(), invoiceNumber: 'A 0001-00001234',
+        supplierId: other.id,
+        requestId: newRequestId(),
+        invoiceNumber: 'A 0001-00001234',
         items: [{ productId: A.products.yerba.id, quantity: 1, unitCost: 600 }],
       },
     });
@@ -94,18 +97,24 @@ describe('Fechas', () => {
 describe('Anular una compra', () => {
   it('resta del stock lo que había sumado, queda marcada y no se puede anular dos veces', async () => {
     const before = await stockOf(models, A.products.yerba);
-    const purchase = await buy([{ productId: A.products.yerba.id, quantity: 7, unitCost: 600 }], { invoiceNumber: 'B-77' });
+    const purchase = await buy([{ productId: A.products.yerba.id, quantity: 7, unitCost: 600 }], {
+      invoiceNumber: 'B-77',
+    });
     assert.equal(await stockOf(models, A.products.yerba), before + 7);
 
     const cancelled = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, {
-      token: A.users.editor.token, body: { reason: 'Cargada dos veces' },
+      token: A.users.editor.token,
+      body: { reason: 'Cargada dos veces' },
     });
     assert.equal(cancelled.status, 200, JSON.stringify(cancelled.body));
     assert.equal(cancelled.body.status, 'cancelled');
     assert.equal(cancelled.body.cancelledByName, A.users.editor.name);
     assert.equal(await stockOf(models, A.products.yerba), before);
 
-    const again = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, { token: A.users.admin.token, body: {} });
+    const again = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, {
+      token: A.users.admin.token,
+      body: {},
+    });
     assert.equal(again.status, 409);
 
     const log = await models.AuditLog.findOne({ where: { action: 'purchase.cancelled', targetId: purchase.body.id } });
@@ -119,19 +128,29 @@ describe('Anular una compra', () => {
 
   it('si ya se vendió lo comprado, no se puede anular', async () => {
     const product = await models.Product.create({
-      businessId: A.business.id, internalCode: 'VEN', name: 'Vendido', price: 100, cost: 50, stock: 0,
+      businessId: A.business.id,
+      internalCode: 'VEN',
+      name: 'Vendido',
+      price: 100,
+      cost: 50,
+      stock: 0,
     });
     const purchase = await buy([{ productId: product.id, quantity: 5, unitCost: 50 }]);
     const sale = await api('POST', '/api/orders', {
       token: A.users.admin.token,
       body: {
-        customerId: A.customer.id, paymentId: A.payment.id, requestId: newRequestId(),
+        customerId: A.customer.id,
+        paymentId: A.payment.id,
+        requestId: newRequestId(),
         items: [{ productId: product.id, quantity: 3, unitPrice: 100 }],
       },
     });
     assert.equal(sale.status, 201, JSON.stringify(sale.body));
 
-    const res = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, { token: A.users.admin.token, body: {} });
+    const res = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, {
+      token: A.users.admin.token,
+      body: {},
+    });
     assert.equal(res.status, 409);
     assert.match(res.body.message, /ajuste/);
     assert.equal(await stockOf(models, product), 2);
@@ -139,7 +158,10 @@ describe('Anular una compra', () => {
 
   it('el operador no puede anular compras', async () => {
     const purchase = await buy([{ productId: A.products.yerba.id, quantity: 1, unitCost: 600 }]);
-    const res = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, { token: A.users.operador.token, body: {} });
+    const res = await api('POST', `/api/purchases/${purchase.body.id}/cancel`, {
+      token: A.users.operador.token,
+      body: {},
+    });
     assert.equal(res.status, 403);
   });
 });

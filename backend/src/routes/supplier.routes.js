@@ -1,19 +1,12 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import {
-  getSuppliers,
-  createSupplier,
-  updateSupplier,
-  deleteSupplier,
-} from '../controllers/supplier.controller.js';
+import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../controllers/supplier.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 
 const router = Router();
 
-const createRules = [
-  body('name').notEmpty().withMessage('El nombre es obligatorio'),
-];
+const createRules = [body('name').notEmpty().withMessage('El nombre es obligatorio')];
 
 const updateRules = [
   body('name').optional().trim().notEmpty().withMessage('El nombre no puede quedar vacío'),

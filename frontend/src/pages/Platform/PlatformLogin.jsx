@@ -71,14 +71,14 @@ export default function PlatformLogin() {
       setPlatformToken(data.token);
       if (data.usedRecoveryCode) {
         setNotice(
-          `Ingresaste con un código de recuperación. Te quedan ${data.recoveryCodesLeft}. `
-          + 'Si perdiste el celular, desactivá y volvé a configurar el segundo factor (ver README del backend).'
+          `Ingresaste con un código de recuperación. Te quedan ${data.recoveryCodesLeft}. ` +
+            'Si perdiste el celular, desactivá y volvé a configurar el segundo factor (ver README del backend).',
         );
         setStep('notice');
       } else if (data.recoveryCodesLeft <= 3) {
         setNotice(
-          `Te quedan ${data.recoveryCodesLeft} códigos de recuperación. Conviene generar códigos nuevos: `
-          + 'desactivá y volvé a configurar el segundo factor (ver README del backend).'
+          `Te quedan ${data.recoveryCodesLeft} códigos de recuperación. Conviene generar códigos nuevos: ` +
+            'desactivá y volvé a configurar el segundo factor (ver README del backend).',
         );
         setStep('notice');
       } else {
@@ -112,16 +112,28 @@ export default function PlatformLogin() {
           <h1>Administración de la plataforma</h1>
           <div className="field">
             <label htmlFor="platform-email">Email</label>
-            <input id="platform-email" type="email" autoComplete="username"
-              value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              id="platform-email"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <div className="field">
             <label htmlFor="platform-password">Contraseña</label>
-            <input id="platform-password" type="password" autoComplete="current-password"
-              value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input
+              id="platform-password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
           {error && <p className="auth-error">{error}</p>}
-          <button type="submit" disabled={loading}>{loading ? 'Ingresando…' : 'Ingresar'}</button>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Ingresando…' : 'Ingresar'}
+          </button>
         </form>
       )}
 
@@ -131,14 +143,23 @@ export default function PlatformLogin() {
           <p>Abrí Google Authenticator y escribí el código de 6 dígitos de Talarix.</p>
           <div className="field">
             <label htmlFor="platform-code">Código</label>
-            <input id="platform-code" inputMode="numeric" autoComplete="one-time-code" autoFocus
-              placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+            <input
+              id="platform-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
           </div>
           <p className="report-note">
             ¿No tenés el celular? Escribí uno de tus códigos de recuperación (por ejemplo ABCD-2345).
           </p>
           {error && <p className="auth-error">{error}</p>}
-          <button type="submit" disabled={loading || !code.trim()}>{loading ? 'Verificando…' : 'Verificar'}</button>
+          <button type="submit" disabled={loading || !code.trim()}>
+            {loading ? 'Verificando…' : 'Verificar'}
+          </button>
         </form>
       )}
 
@@ -146,11 +167,13 @@ export default function PlatformLogin() {
         <form className="auth-card" onSubmit={handleEnable}>
           <h1>Activá el segundo factor</h1>
           <p>
-            Para entrar a la plataforma, además de la contraseña vas a usar un código de tu celular.
-            Se configura una sola vez:
+            Para entrar a la plataforma, además de la contraseña vas a usar un código de tu celular. Se configura una
+            sola vez:
           </p>
           <ol>
-            <li>En Google Authenticator tocá <strong>+</strong> → <strong>Escanear un código QR</strong>.</li>
+            <li>
+              En Google Authenticator tocá <strong>+</strong> → <strong>Escanear un código QR</strong>.
+            </li>
             <li>Escaneá este código:</li>
           </ol>
           <img className="mfa-qr" src={setup.qrDataUrl} alt="Código QR para Google Authenticator" />
@@ -160,11 +183,19 @@ export default function PlatformLogin() {
           </p>
           <div className="field">
             <label htmlFor="platform-setup-code">3. Escribí el código de 6 dígitos que muestra la app</label>
-            <input id="platform-setup-code" inputMode="numeric" autoComplete="one-time-code"
-              placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} />
+            <input
+              id="platform-setup-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
           </div>
           {error && <p className="auth-error">{error}</p>}
-          <button type="submit" disabled={loading || !code.trim()}>{loading ? 'Activando…' : 'Activar'}</button>
+          <button type="submit" disabled={loading || !code.trim()}>
+            {loading ? 'Activando…' : 'Activar'}
+          </button>
         </form>
       )}
 
@@ -172,18 +203,26 @@ export default function PlatformLogin() {
         <div className="auth-card">
           <h1>Guardá tus códigos de recuperación</h1>
           <p>
-            Si perdés el celular, cada uno de estos códigos te deja entrar <strong>una vez</strong> en lugar del
-            código de la app. <strong>Se muestran solo ahora:</strong> guardalos en tu documento de claves.
+            Si perdés el celular, cada uno de estos códigos te deja entrar <strong>una vez</strong> en lugar del código
+            de la app. <strong>Se muestran solo ahora:</strong> guardalos en tu documento de claves.
           </p>
           <ul className="recovery-codes">
-            {recoveryCodes.map((c) => <li key={c}><code>{c}</code></li>)}
+            {recoveryCodes.map((c) => (
+              <li key={c}>
+                <code>{c}</code>
+              </li>
+            ))}
           </ul>
-          <button type="button" onClick={copyCodes}>Copiar los códigos</button>
+          <button type="button" onClick={copyCodes}>
+            Copiar los códigos
+          </button>
           <label className="recovery-confirm">
             <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
             Ya los guardé en un lugar seguro
           </label>
-          <button type="button" disabled={!saved} onClick={() => navigate('/plataforma')}>Continuar</button>
+          <button type="button" disabled={!saved} onClick={() => navigate('/plataforma')}>
+            Continuar
+          </button>
         </div>
       )}
 
@@ -191,7 +230,9 @@ export default function PlatformLogin() {
         <div className="auth-card">
           <h1>Ingresaste</h1>
           <p>{notice}</p>
-          <button type="button" onClick={() => navigate('/plataforma')}>Continuar</button>
+          <button type="button" onClick={() => navigate('/plataforma')}>
+            Continuar
+          </button>
         </div>
       )}
     </div>

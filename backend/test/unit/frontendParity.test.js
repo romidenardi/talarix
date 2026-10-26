@@ -8,7 +8,12 @@ import { DEFAULT_SCALE_CONFIG as frontScale } from '../../../frontend/src/utils/
 // El cálculo de IVA está copiado en el frontend (vista previa) y en el backend (lo que se guarda).
 // Si alguien cambia uno y no el otro, este test falla.
 const CASES = [
-  [1210, 21, 0], [1155, 10.5, 5], [999.99, 21, 8], [0, 21, 0], [500, 0, 0], [31, 10.5, null],
+  [1210, 21, 0],
+  [1155, 10.5, 5],
+  [999.99, 21, 8],
+  [0, 21, 0],
+  [500, 0, 0],
+  [31, 10.5, null],
 ];
 
 test('splitPrice da lo mismo en el frontend y en el backend', () => {

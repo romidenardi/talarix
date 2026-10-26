@@ -34,7 +34,15 @@ const Payments = () => {
   const createForm = useForm({
     defaultValues: { name: '', hasInstallments: false, installmentPlans: [emptyPlan] },
   });
-  const { register, handleSubmit, reset, watch, control, setError, formState: { errors } } = createForm;
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    control,
+    setError,
+    formState: { errors },
+  } = createForm;
   const { fields, append, remove: removePlanField } = useFieldArray({ control, name: 'installmentPlans' });
   const hasInstallments = watch('hasInstallments');
 
@@ -60,9 +68,10 @@ const Payments = () => {
   const startEdit = (payment) => {
     setEditingId(payment.id);
     msg.clear();
-    const plans = payment.installmentPlans && payment.installmentPlans.length > 0
-      ? payment.installmentPlans.map((p) => ({ installments: p.installments, interestRate: p.interestRate }))
-      : [emptyPlan];
+    const plans =
+      payment.installmentPlans && payment.installmentPlans.length > 0
+        ? payment.installmentPlans.map((p) => ({ installments: p.installments, interestRate: p.interestRate }))
+        : [emptyPlan];
     editForm.reset({
       name: payment.name,
       active: String(payment.active),
@@ -87,7 +96,8 @@ const Payments = () => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar esta forma de pago?', confirmLabel: 'Eliminar', danger: true }))) return;
+    if (!(await dialog.confirm({ message: '¿Eliminar esta forma de pago?', confirmLabel: 'Eliminar', danger: true })))
+      return;
     const result = await remove(id);
     if (result.success) msg.success('Forma de pago eliminada', 'list');
     else msg.error(result.message, id);
@@ -96,7 +106,10 @@ const Payments = () => {
   const planSummary = (payment) => {
     if (!payment.installmentPlans || payment.installmentPlans.length === 0) return 'Sin cuotas';
     return payment.installmentPlans
-      .map((p) => `${p.installments} cuotas (${Number(p.interestRate) > 0 ? `+${p.interestRate}% interés` : 'sin interés'})`)
+      .map(
+        (p) =>
+          `${p.installments} cuotas (${Number(p.interestRate) > 0 ? `+${p.interestRate}% interés` : 'sin interés'})`,
+      )
       .join(' · ');
   };
 
@@ -109,7 +122,10 @@ const Payments = () => {
 
       <form onSubmit={handleSubmit(onCreate)} className="payment-form">
         <div className="field">
-          <label htmlFor="name">Nombre<RequiredMark /></label>
+          <label htmlFor="name">
+            Nombre
+            <RequiredMark />
+          </label>
           <input
             id="name"
             placeholder="Ej: Tarjeta de crédito"
@@ -161,7 +177,9 @@ const Payments = () => {
                 </div>
               </div>
             ))}
-            <button type="button" onClick={() => append(emptyPlan)}>+ Agregar plan de cuotas</button>
+            <button type="button" onClick={() => append(emptyPlan)}>
+              + Agregar plan de cuotas
+            </button>
           </div>
         )}
 
@@ -188,7 +206,10 @@ const Payments = () => {
                   <td colSpan={4} className="edit-cell">
                     <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                       <div className="field">
-                        <label htmlFor={`edit-name-${payment.id}`}>Nombre<RequiredMark /></label>
+                        <label htmlFor={`edit-name-${payment.id}`}>
+                          Nombre
+                          <RequiredMark />
+                        </label>
                         <input
                           id={`edit-name-${payment.id}`}
                           placeholder="Ej: Tarjeta de crédito"
@@ -217,7 +238,9 @@ const Payments = () => {
                           {editPlans.fields.map((field, index) => (
                             <div key={field.id} className="purchase-item-row">
                               <div className="field">
-                                <label htmlFor={`edit-plan-installments-${payment.id}-${index}`}>Cantidad de cuotas</label>
+                                <label htmlFor={`edit-plan-installments-${payment.id}-${index}`}>
+                                  Cantidad de cuotas
+                                </label>
                                 <input
                                   id={`edit-plan-installments-${payment.id}-${index}`}
                                   type="number"
@@ -250,13 +273,17 @@ const Payments = () => {
                               </div>
                             </div>
                           ))}
-                          <button type="button" onClick={() => editPlans.append(emptyPlan)}>+ Agregar plan de cuotas</button>
+                          <button type="button" onClick={() => editPlans.append(emptyPlan)}>
+                            + Agregar plan de cuotas
+                          </button>
                         </div>
                       )}
 
                       <div className="inline-edit-actions">
                         <button type="submit">Guardar</button>
-                        <button type="button" onClick={() => setEditingId(null)}>Cancelar</button>
+                        <button type="button" onClick={() => setEditingId(null)}>
+                          Cancelar
+                        </button>
                       </div>
                       <FormMessage message={msg.at('edit')} onClose={msg.clear} />
                       <RequiredLegend />

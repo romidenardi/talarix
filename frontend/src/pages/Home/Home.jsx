@@ -16,11 +16,15 @@ function Dashboard() {
   useEffect(() => {
     let active = true;
     getDashboard()
-      .then((res) => { if (active) setData(res.data); })
+      .then((res) => {
+        if (active) setData(res.data);
+      })
       .catch((err) => {
         if (active) setError(err.response?.data?.message || 'No se pudo cargar el panel');
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (error) return <p className="report-error">{error}</p>;
@@ -48,7 +52,9 @@ function Dashboard() {
         <div className="stat-card">
           <span>Sin stock</span>
           <strong>{int(data.stock.outCount)}</strong>
-          <small>{int(data.stock.lowCount)} con {data.stock.threshold} unidades o menos</small>
+          <small>
+            {int(data.stock.lowCount)} con {data.stock.threshold} unidades o menos
+          </small>
         </div>
       </div>
 
@@ -62,7 +68,9 @@ function Dashboard() {
               {data.topProducts.map((p) => (
                 <li key={p.productId}>
                   <span>{p.name}</span>
-                  <span>{int(p.units)} u. · {money(p.amount)}</span>
+                  <span>
+                    {int(p.units)} u. · {money(p.amount)}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -85,7 +93,9 @@ function Dashboard() {
         </section>
       </div>
 
-      <p><Link to="/reports">Ver todos los reportes</Link></p>
+      <p>
+        <Link to="/reports">Ver todos los reportes</Link>
+      </p>
     </>
   );
 }
@@ -100,7 +110,9 @@ export default function Home() {
       {canSeeReports ? (
         <Dashboard />
       ) : (
-        <p>Desde acá podés cargar remitos. <Link to="/orders">Ir a Remitos</Link></p>
+        <p>
+          Desde acá podés cargar remitos. <Link to="/orders">Ir a Remitos</Link>
+        </p>
       )}
     </div>
   );

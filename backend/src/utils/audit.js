@@ -4,7 +4,10 @@ import { AuditLog } from '../models/index.js';
 // puede guardar, lo avisa en los logs y sigue.
 //   audit(req, { action: 'customer.anonymized', targetType: 'customer', targetId: customer.id })
 // El actor sale de req: el superadmin (req.platformAdmin), un usuario (req.user) o 'system'.
-export const audit = async (req, { action, targetType = null, targetId = null, detail = null, businessId, actorId, actorType }) => {
+export const audit = async (
+  req,
+  { action, targetType = null, targetId = null, detail = null, businessId, actorId, actorType },
+) => {
   try {
     const type = actorType || (req?.platformAdmin ? 'platform' : req?.user ? 'user' : 'system');
     await AuditLog.create({

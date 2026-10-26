@@ -5,9 +5,7 @@ import { pick } from '../utils/pick.js';
 import { normalizeTaxId, taxIdDigits } from '../utils/taxId.js';
 
 // Campos que se pueden cargar o editar desde la API (nunca businessId ni id)
-const SUPPLIER_FIELDS = [
-  'name', 'cuit', 'contactPerson', 'phone', 'email', 'address', 'city', 'province', 'active',
-];
+const SUPPLIER_FIELDS = ['name', 'cuit', 'contactPerson', 'phone', 'email', 'address', 'city', 'province', 'active'];
 
 const findOwnSupplier = async (id, businessId) => {
   const supplier = await Supplier.findOne({ where: { id, businessId } });
@@ -60,9 +58,9 @@ export const deleteSupplier = asyncHandler(async (req, res) => {
   const purchases = await Purchase.count({ where: { supplierId: supplier.id, businessId } });
   if (purchases > 0) {
     throw httpError(
-      `${supplier.name} tiene ${purchases} ${purchases === 1 ? 'compra registrada' : 'compras registradas'} y no se puede eliminar. `
-      + 'Si ya no le comprás, editalo y marcalo como inactivo.',
-      409
+      `${supplier.name} tiene ${purchases} ${purchases === 1 ? 'compra registrada' : 'compras registradas'} y no se puede eliminar. ` +
+        'Si ya no le comprás, editalo y marcalo como inactivo.',
+      409,
     );
   }
 

@@ -1,8 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  toNumber, toNumberOrZero, isNonNegative, round2, round3,
-  isPositiveQuantity, isNonNegativeQuantity, quantityAllowedFor,
+  toNumber,
+  toNumberOrZero,
+  isNonNegative,
+  round2,
+  round3,
+  isPositiveQuantity,
+  isNonNegativeQuantity,
+  quantityAllowedFor,
 } from '../../src/utils/numbers.js';
 
 test('toNumber acepta números y texto numérico, rechaza vacíos y objetos', () => {
