@@ -33,6 +33,33 @@ const Purchase = sequelize.define('Purchase', {
     allowNull: false,
     defaultValue: 0,
   },
+  // Anulación (controllers/purchase.controller.js → cancelPurchase)
+  status: {
+    type: DataTypes.STRING(20),
+    allowNull: false,
+    defaultValue: 'active',
+    validate: { isIn: [['active', 'cancelled']] },
+  },
+  cancelledAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    field: 'cancelled_at',
+  },
+  cancelReason: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'cancel_reason',
+  },
+  cancelledById: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    field: 'cancelled_by_id',
+  },
+  cancelledByName: {
+    type: DataTypes.STRING(100),
+    allowNull: true,
+    field: 'cancelled_by_name',
+  },
   // Quién lo hizo: el id y el nombre (por si después se borra el usuario)
   createdById: {
     type: DataTypes.UUID,

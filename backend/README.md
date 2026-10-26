@@ -109,6 +109,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/payments`, `/customers`, `/suppliers` | autenticados | Formas de pago (cuotas y descuentos), clientes, proveedores |
 | `/purchases`, `/orders` | autenticados | Compras y remitos |
 | `/orders/:id/cancel` | `admin`, `editor` | Anula un remito y devuelve el stock |
+| `/purchases/:id/cancel` | `admin`, `editor` | Anula una compra y resta del stock lo que había sumado |
 | `/orders/approval` | `operador` | Autorización de un admin o editor (su email y contraseña) para un remito con descuento o precio fuera de lista |
 | `/reports/*` | `admin`, `editor` | Panel de inicio y reportes (ventas, productos, clientes, formas de pago, IVA) |
 | `/imports` | `admin`, `editor` | Importación desde Excel (bloqueada en demo) |
@@ -123,6 +124,12 @@ Detalles que conviene saber:
 - **Número de remito** (`orders.number`): correlativo por comercio (1, 2, 3…), se muestra como `00000123`. Lo asigna `services/orderNumber.service.js` bloqueando la fila del comercio, y el índice único `uq_orders_business_number` impide repetidos. Los anulados conservan su número.
 - **Stock: un solo lugar** (`services/stock.service.js`). Remitos, anulaciones, compras, ajustes manuales y datos demo cambian el stock solo con `moveStock`, que deja el movimiento, guarda quién lo hizo y no deja el stock negativo. Los productos se bloquean con `lockProducts`, **siempre ordenados por id**: dos ventas simultáneas con los mismos productos en distinto orden se esperan en lugar de trabarse (deadlock).
 - **Quién hizo cada cosa:** remitos, compras y movimientos de stock guardan `created_by_id` y `created_by_name` (el nombre queda aunque después se borre el usuario). La anulación guarda además `cancelled_by_id`.
+- **Compras:**
+  - **Anular** (`POST /purchases/:id/cancel`, admin y editor): resta del stock lo que la compra había sumado y la deja marcada (`status = 'cancelled'`, con quién y por qué). Si ya no hay stock suficiente (se vendió parte), responde `409` y se corrige con un ajuste de stock. El costo de los productos no cambia. Para corregir una compra mal cargada: anularla y cargarla de nuevo.
+  - **Factura repetida:** si el mismo proveedor ya tiene una compra activa con ese número de factura (comparando sin espacios, guiones ni mayúsculas), responde `409` con `code: 'DUPLICATE_INVOICE'`. El frontend pregunta y, si el usuario confirma, reenvía con `confirmDuplicateInvoice: true`.
+  - **Costo del producto:** queda el promedio ponderado de los renglones de esa compra. Una compra a costo 0 (bonificada) no pisa el costo anterior.
+  - **Fecha:** opcional; no puede ser futura ni de hace más de un año.
+  - No se pueden comprar combos (no tienen stock propio).
 - **Cálculo del remito** (`services/orderPricing.js`, función pura con pruebas): el precio unitario se redondea a centavos antes de calcular, cada renglón se redondea y el total es la suma de los renglones, así el remito impreso siempre cierra (10,333 × 3 → 10,33 → 30,99). Lo usan los remitos reales y los datos demo.
 - **IVA del momento de la venta:** cada renglón guarda `vat_rate` y `other_taxes` (los combos, dentro de `components`). El reporte de IVA usa esos, así que cambiar después el IVA de un producto no mueve las ventas ya hechas. Los renglones anteriores a la columna se completaron con el IVA que tenía el producto al migrar.
 - **No se venden productos ni formas de pago inactivos:** el remito responde `400` (el frontend tampoco los ofrece).
@@ -275,6 +282,8 @@ No modifica columnas existentes: esos cambios se hacen con `ALTER TABLE` manual.
 
 Regla de oro: **todo cambio de base se corre en producción antes de hacer el merge a `main`**.
 
+En la pestaña **Data → Query** de Railway: **una sentencia por vez** (no acepta varias juntas) y sin `SET`. Railway le agrega un `LIMIT` a cada consulta, así que los `UPDATE` con `JOIN` fallan ("Incorrect usage of UPDATE and LIMIT"): hay que escribirlos con subconsultas y repetirlos hasta que digan 0 filas. En MySQL Workbench local, los `UPDATE` sin clave en el `WHERE` necesitan `SET SQL_SAFE_UPDATES = 0;` antes.
+
 1. Probar en la base de staging, una sentencia por vez (Railway → MySQL → Data → Query).
 2. Si el cambio incluye un índice único, limpiar primero los datos que lo violarían.
 3. Correrlo en la base de producción (con un backup manual hecho antes).
@@ -282,6 +291,15 @@ Regla de oro: **todo cambio de base se corre en producción antes de hacer el me
 
 ### Historial de cambios manuales
 Ya aplicados en staging y producción. Una base nueva creada desde cero no los necesita: `sync` crea las tablas con sus columnas actuales.
+
+**Anulación de compras** (`purchases`, bloque 3, octubre 2026). **Antes** de desplegar.
+```sql
+ALTER TABLE purchases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active';
+ALTER TABLE purchases ADD COLUMN cancelled_at DATETIME NULL;
+ALTER TABLE purchases ADD COLUMN cancel_reason VARCHAR(255) NULL;
+ALTER TABLE purchases ADD COLUMN cancelled_by_id CHAR(36) BINARY NULL;
+ALTER TABLE purchases ADD COLUMN cancelled_by_name VARCHAR(100) NULL;
+```
 
 **Stock y remitos: número, usuario e IVA guardado** (bloque 2, octubre 2026). **Antes** de desplegar, y las dos `UPDATE` también: numeran los remitos que ya existían (por comercio y por fecha) y completan el IVA de los renglones viejos con el actual del producto. El índice único del número lo crea `sync`.
 ```sql
@@ -295,17 +313,20 @@ ALTER TABLE stock_movements ADD COLUMN created_by_name VARCHAR(100) NULL;
 ALTER TABLE order_items ADD COLUMN vat_rate DECIMAL(5,2) NULL;
 ALTER TABLE order_items ADD COLUMN other_taxes DECIMAL(5,2) NULL;
 
-UPDATE orders o
-JOIN (
-  SELECT id, ROW_NUMBER() OVER (PARTITION BY business_id ORDER BY `date`, createdAt, id) AS n
-  FROM orders
-) x ON x.id = o.id
-SET o.`number` = x.n;
+UPDATE orders
+SET `number` = (
+  SELECT n FROM (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY business_id ORDER BY `date`, createdAt, id) AS n
+    FROM orders
+  ) numbered
+  WHERE numbered.id = orders.id
+)
+WHERE `number` IS NULL;
 
-UPDATE order_items oi
-JOIN products p ON p.id = oi.product_id
-SET oi.vat_rate = p.vat_rate, oi.other_taxes = p.other_taxes
-WHERE oi.vat_rate IS NULL AND oi.components IS NULL;
+UPDATE order_items
+SET vat_rate = (SELECT p.vat_rate FROM products p WHERE p.id = order_items.product_id),
+    other_taxes = (SELECT p.other_taxes FROM products p WHERE p.id = order_items.product_id)
+WHERE vat_rate IS NULL AND components IS NULL;
 ```
 Para verificar:
 ```sql
@@ -457,4 +478,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 25/10/2026 (stock y remitos: un solo lugar para el stock, número correlativo, usuario, IVA guardado y redondeo).
+Última actualización: 25/10/2026 (compras: anulación, factura repetida, costo promedio y fechas).

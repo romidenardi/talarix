@@ -23,6 +23,7 @@ const ACTION_LABELS = {
   'customer.data_exported': 'Exportó los datos de un cliente',
   'customer.anonymized': 'Anonimizó un cliente',
   'order.cancelled': 'Anuló un remito',
+  'purchase.cancelled': 'Anuló una compra',
   'order.approved': 'Remito con descuento o precio autorizado',
   'order.approval_failed': 'Autorización de descuento rechazada',
 };

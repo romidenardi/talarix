@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import { getPurchases, createPurchase } from '../../api/purchases.api.js';
+import { getPurchases, createPurchase, cancelPurchase } from '../../api/purchases.api.js';
 import { getSuppliers, createSupplier } from '../../api/suppliers.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
 import FormMessage from '../../components/common/FormMessage.jsx';
@@ -140,6 +140,13 @@ const Purchases = () => {
 
   const submitPurchase = async (formData) => {
     msg.clear();
+    let payload = null;
+    const finish = () => {
+      requestIdRef.current = newRequestId();
+      msg.success('Compra registrada, stock actualizado');
+      reset(emptyForm());
+      loadAll();
+    };
     try {
       // Datos del proveedor y de los productos nuevos: cada error va debajo de su campo
       let missing = false;
@@ -210,18 +217,29 @@ const Purchases = () => {
       }
 
       // 4) Compra
-      const payload = {
+      payload = {
         supplierId,
         invoiceNumber: formData.invoiceNumber || null,
         items: payloadItems,
         requestId: requestIdRef.current,
       };
       await createPurchase(payload);
-      requestIdRef.current = newRequestId();
-      msg.success('Compra registrada, stock actualizado');
-      reset(emptyForm());
-      loadAll();
+      finish();
     } catch (err) {
+      // La misma factura del mismo proveedor ya estaba cargada: se pregunta antes de sumar el stock otra vez
+      if (payload && err.response?.data?.code === 'DUPLICATE_INVOICE') {
+        if (!window.confirm(`${err.response.data.message}\n\n¿Cargarla igual?`)) {
+          msg.error('No se cargó la compra: la factura ya estaba registrada.');
+          return;
+        }
+        try {
+          await createPurchase({ ...payload, confirmDuplicateInvoice: true });
+          finish();
+        } catch (retryErr) {
+          msg.error(serverMessage(retryErr, 'Error al registrar la compra'));
+        }
+        return;
+      }
       // "Artículo 2: ..." se muestra en ese renglón; el resto, junto al botón
       const text = serverMessage(err, 'Error al registrar la compra');
       const row = /^Artículo (\d+):\s*/.exec(text);
@@ -231,6 +249,31 @@ const Purchases = () => {
   };
 
   const supplierName = (id) => suppliers.find((s) => s.id === id)?.name || '—';
+
+  // Anular una compra cargada por error: resta del stock lo que había sumado
+  const [cancellingId, setCancellingId] = useState(null);
+  const handleCancel = async (purchase) => {
+    const name = purchase.Supplier?.name || supplierName(purchase.supplierId);
+    const reason = window.prompt(
+      `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} `
+      + `por $${Number(purchase.total).toFixed(2)}.\n`
+      + 'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.\n\n'
+      + 'Motivo (opcional). Aceptá para anular o cancelá para volver:',
+      ''
+    );
+    if (reason === null) return;
+
+    setCancellingId(purchase.id);
+    try {
+      await cancelPurchase(purchase.id, reason);
+      await loadAll();
+      msg.success('Compra anulada, stock descontado', purchase.id);
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudo anular la compra'), purchase.id);
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   // Los proveedores inactivos no se ofrecen (salvo el que ya está elegido)
   const supplierOptions = suppliers.filter((s) => s.active !== false || s.id === selectedSupplierId).map((s) => ({
@@ -506,21 +549,45 @@ const Purchases = () => {
               <th>Factura</th>
               <th>Artículos</th>
               <th>Total</th>
+              {canManageData && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
-            {purchases.map((purchase) => (
-              <tr key={purchase.id}>
+            {purchases.map((purchase) => {
+              const cancelled = purchase.status === 'cancelled';
+              return (
+              <tr key={purchase.id} className={cancelled ? 'order-cancelled' : ''}>
                 <td data-label="Fecha">
                   {new Date(purchase.date).toLocaleDateString('es-AR')}
                   {purchase.createdByName && <small className="row-author">por {purchase.createdByName}</small>}
                 </td>
-                <td data-label="Proveedor">{purchase.Supplier?.name || supplierName(purchase.supplierId)}</td>
+                <td data-label="Proveedor">
+                  {purchase.Supplier?.name || supplierName(purchase.supplierId)}
+                  {cancelled && (
+                    <span className="badge-cancelled" title={purchase.cancelReason || undefined}>Anulada</span>
+                  )}
+                </td>
                 <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
                 <td data-label="Artículos">{purchase.items?.map((i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`).join(', ')}</td>
-                <td data-label="Total">${Number(purchase.total).toFixed(2)}</td>
+                <td data-label="Total"><span className="amount">${Number(purchase.total).toFixed(2)}</span></td>
+                {canManageData && (
+                  <td data-label="Acciones">
+                    {!cancelled && (
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        disabled={cancellingId === purchase.id}
+                        onClick={() => handleCancel(purchase)}
+                      >
+                        {cancellingId === purchase.id ? 'Anulando…' : 'Anular'}
+                      </button>
+                    )}
+                    <FormMessage message={msg.at(purchase.id)} onClose={msg.clear} />
+                  </td>
+                )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

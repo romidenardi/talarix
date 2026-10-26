@@ -92,6 +92,7 @@ src/
   - Durante la baja, el `admin` del comercio solo ve `/exportar` (el layout redirige) y el resto de los usuarios no puede ingresar.
 - **Autorización de descuentos** (Remitos, rol `operador`): si el remito tiene un descuento o un precio distinto al de lista o al promocional, al generar se abre `pages/Orders/ApprovalDialog.jsx` con el resumen de lo que hay que autorizar. Un administrador o editor escribe ahí su email y contraseña; con eso se genera el remito. Si el servidor responde `APPROVAL_REQUIRED` (venció o cambió algo), se vuelve a pedir. Los productos inactivos no aparecen en el buscador ni se agregan escaneando.
 - **Remitos y compras:** la lista muestra el **N°** de remito (correlativo por comercio, `utils/orderNumber.js`) y, debajo de la fecha, quién lo hizo. El historial de stock de cada producto muestra el usuario de cada movimiento. Los precios se redondean a centavos antes de calcular, igual que el servidor.
+- **Compras:** admin y editor tienen el botón **Anular** en cada compra (resta el stock que sumó; las anuladas quedan tachadas con la etiqueta "Anulada"). Si se carga una factura que ya estaba registrada para ese proveedor, se pregunta antes de cargarla otra vez.
 - **Importar** (`/imports`): cada tipo tiene un link "descargar planilla de ejemplo" (CSV con punto y coma y BOM, para que Excel en castellano lo abra en columnas) y la ayuda de qué acepta cada columna. Si alguna fila tiene errores no se importa nada y se muestra la tabla de filas a corregir; las filas que ya existían se muestran aparte como salteadas.
 - **Derechos sobre los datos de clientes** (`admin`, en Clientes): botón "Exportar datos" (pedido de acceso) y "Anonimizar" (pedido de supresión; conserva los remitos del cliente).
 
@@ -120,4 +121,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 25/10/2026 (número de remito, usuario en remitos, compras y movimientos).
+Última actualización: 25/10/2026 (compras: anular y aviso de factura repetida).
