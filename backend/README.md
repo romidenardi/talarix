@@ -511,7 +511,8 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 - El `.env` nunca va al repo. Lo excluye el `.gitignore` de la raíz; `node_modules` también. Guardar una copia del `.env` local fuera del repo.
 - Cada entorno tiene sus propias claves: nunca repetir las de producción en staging ni en local.
 - Generar claves con `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"` (solo letras y números) y **anotarlas en un archivo antes de usarlas**: una clave de MySQL perdida a mitad de un cambio no se recupera.
-- La app de producción se conecta con el usuario `talarix_app` (`ALL PRIVILEGES` sobre la base `railway`), no con `root`. `root` queda para el panel de Railway (pestaña Data).
+- La app se conecta con el usuario `talarix_app`, no con `root`, con los permisos justos sobre la base `railway`: `SELECT, INSERT, UPDATE, DELETE` para trabajar y `CREATE, ALTER, INDEX, REFERENCES` para las migraciones. No puede borrar tablas (`DROP`) ni dar permisos. `root` queda para el panel de Railway (pestaña Data). Se revisa con `SHOW GRANTS FOR 'talarix_app'@'%'`.
+- **Conexión cifrada con la base:** `DB_HOST` tiene que ser la dirección interna de Railway (`….railway.internal`): el tráfico entre servicios del proyecto va por túneles WireGuard, cifrado. Con la dirección pública (`….proxy.rlwy.net`) saldría a internet sin cifrar. Si en Railway el servidor arranca con una dirección que no es la interna, lo avisa en el log (`[base] DB_HOST … no es la red privada`) y en Sentry (`utils/dbHost.js`).
 - Cuentas de GitHub, Railway, Vercel y mail con segundo factor (2FA).
 
 **Historial (octubre 2026)**
@@ -525,7 +526,7 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
   1. Crear un usuario nuevo con clave nueva (en Data → Query):
      ```sql
      CREATE USER 'talarix_app2'@'%' IDENTIFIED BY '<clave>';
-     GRANT ALL PRIVILEGES ON railway.* TO 'talarix_app2'@'%';
+     GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES ON railway.* TO 'talarix_app2'@'%';
      ```
   2. Cambiar `DB_USER` y `DB_PASSWORD` del backend, desplegar y comprobar el ingreso. Con `SELECT user FROM information_schema.processlist;` se ve qué usuario usa la app.
   3. Borrar el usuario anterior (`DROP USER 'talarix_app'@'%';`).

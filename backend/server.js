@@ -8,6 +8,7 @@ import { startClosureScheduler } from './src/services/closureScheduler.service.j
 import { startDemoResetJob } from './src/jobs/demoReset.job.js';
 import { startTrialExpiryScheduler } from './src/services/trialExpiry.service.js';
 import { initMonitoring, captureError, flushMonitoring } from './src/utils/monitoring.js';
+import { dbHostWarning } from './src/utils/dbHost.js';
 
 const PORT = process.env.PORT || 3000;
 
@@ -79,6 +80,13 @@ const start = async () => {
     }
 
     await initMonitoring();
+
+    // La base tiene que ir por la red privada (cifrada). Si no, se avisa en el log y en Sentry.
+    const hostWarning = dbHostWarning();
+    if (hostWarning) {
+      console.warn(`[base] ${hostWarning}`);
+      captureError(new Error(hostWarning), { origen: 'arranque' });
+    }
 
     await sequelize.authenticate();
     console.log('Conexión a MySQL exitosa');
