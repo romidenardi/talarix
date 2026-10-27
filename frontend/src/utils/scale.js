@@ -87,8 +87,9 @@ export const scaleCodeProblem = (result, cfg) => {
 
 // Cantidad e importe de la línea a partir de la etiqueta y del producto con ese PLU.
 // - Etiqueta con peso: cantidad = peso.
-// - Etiqueta con importe: cantidad = importe / precio del sistema. Si el precio de la balanza
-//   es distinto al del sistema, "priceMismatch" avisa (más allá del redondeo a gramos).
+// - Etiqueta con importe: cantidad = importe / precio del sistema, redondeada al gramo.
+//   "priceMismatch" marca diferencias mayores a ese redondeo. Con etiquetas de importe casi nunca
+//   se activa: la etiqueta no dice el peso, así que un precio distinto en la balanza no se detecta.
 export const lineFromLabel = (label, product) => {
   const price = Number(product?.price) || 0;
   if (label.valueType === 'quantity') {

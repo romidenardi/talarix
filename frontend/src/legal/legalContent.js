@@ -1,6 +1,6 @@
-// Debe coincidir con LEGAL_VERSION de backend/utils/legal.js.
+// Debe coincidir con LEGAL_VERSION de backend/src/utils/legal.js.
 export const LEGAL_VERSION = '2026-10-borrador-1';
-export const LEGAL_IS_DRAFT = true; // pasar a false cuando el profesional valide
+export const LEGAL_IS_DRAFT = true; // pasar a false cuando el abogado valide los textos
 
 export const TERMS = {
   title: 'Términos y Condiciones de uso de la beta',

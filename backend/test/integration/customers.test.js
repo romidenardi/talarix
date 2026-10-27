@@ -1,4 +1,4 @@
-// Bloque 5: condición fiscal, CUIT, anonimización completa y contraseñas
+// Clientes: condición fiscal, CUIT, anonimización completa y contraseñas
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, createBusiness, newRequestId } from './helpers.js';

@@ -1,4 +1,4 @@
-// Bloque 7: listados por fechas y reportes sumados en la base
+// Listados por fechas y reportes sumados en la base
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, createBusiness, newRequestId } from './helpers.js';

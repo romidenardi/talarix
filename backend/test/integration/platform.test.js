@@ -1,4 +1,4 @@
-// Bloque 8: la prueba gratis vence sola, se renueva hasta una fecha o sin vencimiento
+// Prueba gratis: vence sola, se renueva hasta una fecha o sin vencimiento
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import jwt from 'jsonwebtoken';

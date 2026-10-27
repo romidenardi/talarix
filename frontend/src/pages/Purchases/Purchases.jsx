@@ -158,7 +158,7 @@ const Purchases = () => {
 
   // Evita el doble envío: el botón se deshabilita mientras se envía (isSubmitting) y, por si dos
   // clics llegan antes de que se redibuje, sendingRef corta el segundo. requestIdRef identifica el
-  // envío: si el servidor ya lo recibió, devuelve el mismo compra en lugar de crear otro.
+  // envío: si el servidor ya lo recibió, devuelve la misma compra en lugar de crear otra.
   const sendingRef = useRef(false);
   const requestIdRef = useRef(newRequestId());
   const onSubmit = async (formData) => {
@@ -254,7 +254,6 @@ const Purchases = () => {
         });
       }
 
-      // 4) Compra
       payload = {
         supplierId,
         invoiceNumber: formData.invoiceNumber || null,

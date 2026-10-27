@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-// Tipografías alojadas en el propio sitio (antes venían de Google Fonts)
+// Tipografías alojadas en el propio sitio: la CSP (vercel.json) no deja cargarlas de otro dominio
 import '@fontsource/dm-sans/400.css';
 import '@fontsource/dm-sans/500.css';
 import '@fontsource/dm-sans/600.css';

@@ -2,7 +2,7 @@ import { generateInviteToken, INVITE_TTL_MS } from './inviteToken.js';
 import { sendMail, appUrl } from './mailer.js';
 import { inviteEmail, resetEmail } from './mailTemplates.js';
 
-export const RESET_TTL_MS = 60 * 60 * 1000; // 1 hora
+export const RESET_TTL_MS = 60 * 60 * 1000;
 
 export const wasIssuedRecently = (user, seconds = 60) => {
   if (!user.inviteTokenHash || !user.inviteExpiresAt) return false;

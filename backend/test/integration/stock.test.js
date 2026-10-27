@@ -1,4 +1,4 @@
-// Bloque 2: numeración de remitos, quién hizo cada cosa, IVA guardado, redondeo y ventas simultáneas
+// Remitos: numeración de remitos, quién hizo cada cosa, IVA guardado, redondeo y ventas simultáneas
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, createBusiness, newRequestId, stockOf } from './helpers.js';

@@ -1,8 +1,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 
-// Reglas recomendadas de ESLint: variables sin declarar, código que nunca se ejecuta, variables sin
-// usar, etc. Por ejemplo, habría frenado el error de remitos del 24/10 (una variable usada fuera de su bloque).
+// Reglas recomendadas de ESLint: variables sin declarar o sin usar, código que nunca se ejecuta, etc.
 export default [
   { ignores: ['node_modules/**'] },
   js.configs.recommended,

@@ -1,4 +1,4 @@
-// Bloque 3: compras. Anulación, factura repetida, costo promedio, costo 0 y fechas
+// Compras: anulación, factura repetida, costo promedio, costo 0 y fechas
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, createBusiness, newRequestId, stockOf } from './helpers.js';

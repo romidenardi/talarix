@@ -46,22 +46,26 @@ En Vercel hay una variable por entorno: una para **Production** y otra para **Pr
 | `/reports`, `/categories`, `/payments`, `/customers`, `/products`, `/suppliers`, `/imports` | `admin` y `editor` |
 | `/users` | `admin` |
 
-Las rutas están en `src/routes/AppRoutes.jsx`. Al agregar una pantalla, **partir siempre del archivo actual del repo**: si se reconstruye desde una copia vieja se pierden rutas (pasó con `/olvide-contrasena` y `/restablecer`).
+Las rutas están en `src/routes/AppRoutes.jsx`. Al agregar una pantalla, **partir siempre del archivo actual del repo**: si se reconstruye desde una copia vieja se pierden rutas.
 
 ## Estructura
 ```
 src/
   api/          cliente HTTP (axios.js) y llamadas por recurso
-  context/      AuthContext (sesión, rol, modo demo, comercio en baja)
-  hooks/        hooks compartidos (p. ej. useResource)
+  context/      AuthContext (sesión, rol, modo demo, comercio en baja) y
+                DialogContext (recuadros de confirmación)
+  hooks/        useResource (listas), useMessage (avisos), useUrlToken
+                (token de los links de los mails)
   components/   layout (menú y barra lateral) y componentes compartidos
                 (Required.jsx: marca (*) y leyenda de campo obligatorio)
   pages/        una carpeta por pantalla (Export/ tiene la exportación de datos)
   legal/        textos de términos y privacidad (legalContent.js)
   routes/       definición de rutas y rutas privadas
   utils/        ayudas de formato y descarga de archivos (download.js),
-                cantidades y productos por peso (quantity.js) y lectura de
-                etiquetas de balanza (scale.js)
+                cantidades y productos por peso (quantity.js), lectura de
+                etiquetas de balanza (scale.js), CUIT (taxId.js),
+                contraseñas, IVA (taxes.js) y errores del servidor
+                (serverErrors.js)
   index.css     estilos globales y variables de color
 ```
 
@@ -82,7 +86,7 @@ src/
   - **Errores de un campo** (de la validación del formulario o del servidor) debajo del campo. Para los errores del servidor se usa `applyServerFieldErrors` y `fieldFromMessage` de `utils/serverErrors.js`.
   - **Otros errores** (por ejemplo "no se puede eliminar porque tiene remitos") en un recuadro rojo junto al botón del formulario, o en la fila de la tabla donde se apretó Eliminar o Anular. Quedan hasta que se cierran (×) o se hace otra acción.
   - **Lo que salió bien** ("Cliente agregado", "Remito generado") en un recuadro verde junto al botón, que se va solo a los 4 segundos. Al borrar, el aviso aparece arriba de la tabla.
-  - Se usan `components/common/FormMessage.jsx` y `hooks/useMessage.js`. `useResource` ya no muestra avisos: devuelve el resultado y cada pantalla lo muestra. Las preguntas de confirmación tampoco son las del navegador:
+  - Se usan `components/common/FormMessage.jsx` y `hooks/useMessage.js`. `useResource` no muestra avisos: devuelve el resultado y cada pantalla lo muestra. Las preguntas de confirmación tampoco son las del navegador:
   - `context/DialogContext.jsx` (envuelve toda la app en `App.jsx`) da `useDialog()` con `confirm`, `prompt` y `alert`, que devuelven una promesa: `if (!(await dialog.confirm({ message, confirmLabel: 'Eliminar', danger: true }))) return;`. Se ven igual en todos los navegadores y en el celular no se bloquean. **No usar** `window.confirm`, `prompt` ni `alert`.
   - Remitos y compras: si el remito falla después de crear un cliente o un producto nuevo (o la compra, un proveedor o producto nuevo), el aviso dice cuáles ya quedaron creados. Si el total que guarda el servidor no coincide con el que mostraba la pantalla, aparece un aviso en rojo: vale el del servidor.
 - **Campos obligatorios:** en los formularios, los campos obligatorios llevan `(*)` y al pie se muestra "(*) Campo obligatorio" en el color de alerta. Se usa `RequiredMark` y `RequiredLegend` de `components/common/Required.jsx`.
@@ -90,7 +94,7 @@ src/
 - **Prueba gratis** (`/plataforma`): arriba de la lista aparece un aviso con los comercios cuya prueba vence en los próximos 3 días y los que ya se suspendieron por vencimiento, cada uno con **Renovar**. En la fila de cada cliente está también **Renovar prueba** (o **Poner vencimiento** si no tiene). `pages/Platform/TrialDialog.jsx` permite elegir **hasta una fecha** (vence al terminar ese día) o **sin vencimiento**. Si la prueba ya venció, **Reactivar** abre ese mismo recuadro.
 - **Plataforma:** al crear un comercio o reinvitar, se envía el mail con el link y se muestra además para copiarlo y compartirlo por WhatsApp.
 - **Menú en el celular:** se muestra como menú hamburguesa (barra superior con botón, y panel lateral con fondo oscurecido).
-- **Exportar mis datos** (`/exportar`, solo `admin`): descarga un Excel con todos los datos del comercio. Está en el menú. Se promete en los términos como parte de la gratuidad y de la baja. Tiene un límite de 5 descargas por hora.
+- **Exportar mis datos** (`/exportar`, solo `admin`): descarga un Excel con todos los datos del comercio. Está en el menú. Se promete en los términos como parte de la gratuidad y de la baja. Tiene un límite de 5 descargas por hora, y de a una por comercio.
 - **Baja de comercios** (superadmin, en `/plataforma`):
   - "Dar de baja" pide escribir el nombre exacto del comercio; el comercio queda "En baja" con la fecha de eliminación (30 días).
   - "Cancelar baja" lo devuelve a activo.
@@ -133,4 +137,4 @@ Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 26/10/2026 (ESLint y Prettier; useResource actualiza la lista sin recargar todo).
+Última actualización: 27/10/2026 (listados por período, prueba gratis en /plataforma, avisos de la balanza, limpieza de comentarios).

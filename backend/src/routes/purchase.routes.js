@@ -13,7 +13,6 @@ const createRules = [
 
 router.get('/', getPurchases);
 router.post('/', requireRole('admin', 'editor', 'operador'), createRules, validate, createPurchase);
-// Solo administrador y editor anulan compras (igual que los remitos)
 router.post('/:id/cancel', requireRole('admin', 'editor'), cancelPurchase);
 
 export default router;

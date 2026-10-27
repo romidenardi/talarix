@@ -16,7 +16,7 @@ Dominios de producción: `app.talarix.com.ar` (frontend, Vercel) y `api.talarix.
 Los cambios se prueban primero en `staging` y después se pasan a `main` (ver "Flujo de trabajo").
 
 ## Requisitos
-- Node.js 20 o superior (Railway usa la versión 24).
+- Node.js 22 o superior (es la que usa GitHub Actions).
 - MySQL local, o acceso a una base de desarrollo.
 
 ## Puesta en marcha local
@@ -31,7 +31,7 @@ npm run dev            # nodemon server.js
 2. `npm run dev`: en una base vacía crea todas las tablas con sus columnas actuales (ver "Cambios en la base de datos").
 3. Crear el superadmin con `scripts/createPlatformAdmin.js` (ver "Superadmin") y un comercio desde `/plataforma`.
 
-Una base local vieja falla al arrancar si le faltan los cambios manuales del historial (por ejemplo, duplicados en el índice único de códigos de barras).
+Una base local anterior a las migraciones necesita los cambios del "Historial de cambios manuales"; si le faltan, la app falla al usar esas columnas. Lo más simple es crearla de cero.
 
 | Script | Qué hace |
 |---|---|
@@ -42,13 +42,13 @@ Una base local vieja falla al arrancar si le faltan los cambios manuales del his
 | `npm run lint` | Revisión de código con ESLint (reglas recomendadas): variables sin declarar o sin usar, código que no se ejecuta… |
 | `npm run format` | Ordena el formato de todo el código con Prettier (`npm run format:check` solo revisa) |
 
-Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, se conecta a MySQL, aplica las migraciones pendientes (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
+Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, avisa si `DB_HOST` no es la red privada de Railway, se conecta a MySQL, aplica las migraciones pendientes (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas, vencimiento de pruebas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
 
 ## Variables de entorno
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
-| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Sí | Conexión a MySQL. En producción la app usa el usuario `talarix_app`, no `root` (ver "Credenciales y rotación de claves") |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | Sí | Conexión a MySQL. `DB_HOST` es la dirección interna de Railway. La app usa el usuario `talarix_app`, no `root` (ver "Credenciales y rotación de claves") |
 | `JWT_SECRET` | Sí | Firma de los tokens de usuarios (8 h) |
 | `PLATFORM_JWT_SECRET` | Sí | Firma de los tokens del superadmin (2 h). Debe ser **distinta** de `JWT_SECRET` |
 | `APP_URL` | Sí | URL pública del frontend, sin barra final. Se usa en los links de los mails (activación, restablecer contraseña) |
@@ -89,15 +89,20 @@ src/
                    del remito (orderPricing.js), número de remito
                    (orderNumber.service.js), autorización de descuentos,
                    importación, datos de la cuenta demo, exportación a Excel,
-                   borrado de un comercio y programador de bajas
+                   borrado de un comercio, programador de bajas y vencimiento
+                   de pruebas (trialExpiry.service.js)
   jobs/            tareas programadas (reinicio nocturno de la demo)
   utils/           ayudas: fechas en hora argentina (dates.js), asyncHandler,
                    httpError, números y cantidades
                    (numbers.js), getter de columnas decimales
                    (decimalColumn.js), formato de etiquetas de balanza
-                   (scaleConfig.js), tokens de invitación, versión de
-                   términos, mails y links de acceso, mails de baja
-scripts/           scripts de operación (crear superadmin, migrate.js)
+                   (scaleConfig.js), CUIT (taxId.js), contraseñas, tokens
+                   de invitación, versión de términos, mails y links de
+                   acceso, registro de actividad (audit.js), Sentry
+                   (monitoring.js), límite de tareas pesadas (gate.js) y
+                   control de la dirección de la base (dbHost.js)
+scripts/           operación: crear superadmin, desactivar su segundo factor,
+                   migraciones (migrate.js)
 ```
 
 ## API
@@ -109,7 +114,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/auth/login`, `/auth/activate` | pública | Ingreso y activación de cuenta con aceptación de términos |
 | `/auth/forgot-password`, `/auth/reset-password` | pública | Recuperar contraseña por mail |
 | `/platform/login`, `/platform/login/mfa*` | pública | Ingreso del superadmin en dos pasos (contraseña y código de Google Authenticator) |
-| `/platform/*` | superadmin | Alta de comercios, estado, reinvitar, reiniciar demo |
+| `/platform/*` | superadmin | Alta de comercios, estado, prueba gratis, reinvitar, reiniciar demo |
 | `/platform/audit` | superadmin | Registro de actividad (`?limit=` hasta 500, `?businessId=`) |
 | `/platform/businesses/:id/trial` | superadmin | `PATCH { until: 'AAAA-MM-DD' }` renueva la prueba hasta ese día; `{ until: null }`, sin vencimiento. Reactiva al comercio si estaba suspendido por la prueba |
 | `/platform/businesses/:id/closure` | superadmin | `POST` inicia la baja (pide el nombre exacto del comercio en `confirmName`); `DELETE` la cancela |
@@ -171,7 +176,7 @@ Detalles que conviene saber:
 ## Tests
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
-- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, IVA e impuestos internos, combos, configuración de la balanza, y que el cálculo del frontend (`frontend/src/utils/taxes.js`) dé lo mismo que el del backend. No necesitan base.
+- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración y lectura de etiquetas de balanza, migraciones, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
 - **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) y el vencimiento y la renovación de la prueba gratis.
   - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
@@ -182,7 +187,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 
 ## Monitoreo
 - **`GET /health`**: responde `{"status":"ok"}` si el servidor anda y llega a la base, o `503` si no. No pide token ni devuelve datos. En Railway se configura en el servicio del backend → Settings → Deploy → **Healthcheck Path** = `/health`: así, en cada deploy, Railway no le pasa tráfico a la versión nueva hasta que responde bien.
-- **Sentry** (`utils/monitoring.js`): avisa por mail cuando hay errores del servidor (`500`), cuando falla la baja automática de un comercio o el reinicio de la demo, y cuando hay una promesa rechazada sin manejar. Se activa con `SENTRY_DSN`; sin ella no hace nada. No envía datos personales: descarta el cuerpo de los pedidos, cookies, tokens y datos del usuario (salvo su id). Los errores de datos (`4xx`) no se envían.
+- **Sentry** (`utils/monitoring.js`): avisa por mail cuando hay errores del servidor (`500`), cuando falla la baja automática de un comercio, el vencimiento de pruebas o el reinicio de la demo, cuando hay una promesa rechazada sin manejar y cuando el servidor arranca con una dirección de la base que no es la red privada. Se activa con `SENTRY_DSN`; sin ella no hace nada. No envía datos personales: descarta el cuerpo de los pedidos, cookies, tokens y datos del usuario (salvo su id). Los errores de datos (`4xx`) no se envían.
 - **Logs** (Railway → Deploy Logs): los errores aparecen como `[error] MÉTODO /ruta · …`, sin la consulta SQL ni datos personales.
 
 ## Seguridad y multi-comercio
@@ -198,10 +203,10 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
   - **Ingreso** (usuarios y superadmin): solo cuentan los intentos fallidos. 30 cada 15 minutos por IP (un local con varios empleados en la misma red no se bloquea) y 5 cada 15 minutos por cuenta (frena a quien prueba contraseñas desde muchas IP).
   - **Activar, recuperar y restablecer contraseña:** 10 pedidos cada 15 minutos por IP.
   - **Crear usuarios y enviar links** (mandan mails): 30 por día por comercio.
-  - Los contadores están en memoria: se reinician con cada deploy y no se comparten si algún día hay más de una instancia.
+  - Los contadores están en memoria: se reinician con cada deploy.
+- **Una sola instancia:** el backend corre en una sola instancia de Railway. Si algún día se escala a más, los límites de intentos dejarían de ser compartidos y las tareas programadas (bajas, vencimiento de pruebas, reinicio de la demo) correrían en cada una: habría que pasar los contadores a una base compartida (por ejemplo Redis) y dejar las tareas en una sola instancia.
 - **Sesiones:** el token dura 8 h y lleva la versión de sesión del usuario (`tv`, columna `users.token_version`). Al restablecer la contraseña, o cuando el administrador le pone una nueva, la versión sube y las sesiones abiertas con la contraseña anterior dejan de valer. Cambiar el rol o desactivar al usuario se aplica en el pedido siguiente, porque el middleware los lee de la base. Cerrar sesión solo borra el token en ese navegador. Los tokens se verifican solo con `HS256`.
 - **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se rechazan las fáciles de adivinar (`utils/passwordStrength.js`, el mismo archivo que en el frontend): las más usadas, un carácter repetido, secuencias (`12345678`, `abcdefgh`, `qwerty…`), las que contienen "talarix" y las que contienen el nombre o el email de la persona. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
-- La exportación tiene límite de 5 pedidos por hora por usuario.
 - **Emails registrados:** el ingreso tarda lo mismo exista o no el email (si no existe, se compara contra un hash falso: `compareWithDummy`), y responde siempre "Credenciales inválidas". Al crear un usuario con un email que ya existe, el mensaje no dice de qué comercio es. El email es único en todo el sistema (es el usuario para ingresar), así que ese aviso no se puede evitar del todo; lo limita el tope de 30 usuarios nuevos por día por comercio.
 - Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo, se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
 
@@ -293,15 +298,15 @@ Para correr los scripts contra Railway hay que habilitar temporalmente el TCP Pr
 Tabla `audit_logs` (sin claves foráneas: un registro sobrevive aunque se borre el usuario). Se ve en `/plataforma`, sección Actividad. `utils/audit.js` registra quién (superadmin, usuario o sistema), qué, sobre qué, desde qué IP y un detalle. Nunca corta la acción si falla el registro.
 
 Qué se registra:
-- **Superadmin:** ingresos, ingresos fallidos (contraseña o código), activación del segundo factor, uso de códigos de recuperación, alta de comercios, cambios de estado, inicio y cancelación de bajas, reinvitaciones y reinicio de la demo.
-- **Usuarios de los comercios:** exportación de todos los datos, exportación y anonimización de clientes, alta, cambios, baja y envío de links de usuarios, y anulación de remitos.
-- **Sistema:** eliminación definitiva de un comercio. Al eliminarlo se borran sus registros y queda solo ese último (sin datos personales).
+- **Superadmin:** ingresos, ingresos fallidos (contraseña o código), activación del segundo factor, uso de códigos de recuperación, alta de comercios, cambios de estado, renovación de pruebas, inicio y cancelación de bajas, reinvitaciones y reinicio de la demo.
+- **Usuarios de los comercios:** exportación de todos los datos, exportación y anonimización de clientes, alta, cambios, baja y envío de links de usuarios, anulación de remitos y compras, y autorizaciones de descuentos (aprobadas y rechazadas).
+- **Sistema:** vencimiento de la prueba de un comercio y eliminación definitiva de un comercio. Al eliminarlo se borran sus registros y queda solo ese último (sin datos personales).
 
 No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados. Todavía no hay borrado automático de registros viejos.
 
 ## Cambios en la base de datos
 
-**Migraciones** (desde el bloque 7, octubre 2026). Cada cambio de base es un archivo SQL numerado en `backend/migrations/` (`001-agregar-tal-columna.sql`, `002-…`). El servidor los aplica **solo, al arrancar y antes de atender pedidos**, en orden. La tabla `schema_migrations` anota los que ya se aplicaron, así cada uno corre una sola vez en cada base (local, staging, producción). Código en `src/db/migrations.js`.
+**Migraciones** (desde octubre 2026). Cada cambio de base es un archivo SQL numerado en `backend/migrations/` (`001-agregar-tal-columna.sql`, `002-…`). El servidor los aplica **solo, al arrancar y antes de atender pedidos**, en orden. La tabla `schema_migrations` anota los que ya se aplicaron, así cada uno corre una sola vez en cada base (local, staging, producción). Código en `src/db/migrations.js`.
 
 - **Base existente:** solo se aplican las migraciones pendientes. Ya **no se corre `sequelize.sync()`** (podía dejar el servidor reiniciándose en bucle si no podía crear un índice).
 - **Base nueva** (vacía, sin la tabla `businesses`): se crea completa desde los modelos con `sync()` y todas las migraciones se dan por aplicadas. Por eso **cada cambio va en los dos lados: la migración y el modelo**.
@@ -318,12 +323,12 @@ No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados
 
 No hace falta correr nada en la pestaña Data de Railway ni en Workbench. Para consultas a mano, lo de siempre: en Railway, **una sentencia por vez** y sin `SET` (y como le agrega `LIMIT`, los `UPDATE` con `JOIN` fallan: usar subconsultas); en Workbench, `SET SQL_SAFE_UPDATES = 0;` antes de un `UPDATE` sin clave en el `WHERE`.
 
-El usuario de la base tiene que poder hacer `CREATE`, `ALTER` e `INDEX` (`talarix_app` tiene `ALL PRIVILEGES` sobre la base). Se ve con `SHOW GRANTS FOR CURRENT_USER();`.
+El usuario de la base tiene que poder hacer `CREATE`, `ALTER`, `INDEX` y `REFERENCES` (ver los permisos de `talarix_app` en "Credenciales y rotación de claves"). Una migración que borre una tabla (`DROP TABLE`) no va a andar con ese usuario: correrla a mano como `root`.
 
 ### Historial de cambios manuales
-Anteriores a las migraciones (`000-punto-de-partida.sql` marca desde dónde se cuenta). Ya aplicados en staging y producción; quedan como referencia. Una base nueva no los necesita: se crea desde los modelos.
+Anteriores a las migraciones (`000-punto-de-partida.sql` marca desde dónde se cuenta). Ya aplicados en staging y producción; quedan como referencia. Una base nueva no los necesita: se crea desde los modelos. Las menciones a `sync` son de cuando corría en cada arranque.
 
-**Clientes: anonimización y condición fiscal** (bloque 5, octubre 2026). El `ALTER` va **antes** de desplegar; los `UPDATE`, antes o después.
+**Clientes: anonimización y condición fiscal** (octubre 2026). El `ALTER` va **antes** de desplegar; los `UPDATE`, antes o después.
 ```sql
 ALTER TABLE customers ADD COLUMN anonymized_at DATETIME NULL;
 ```
@@ -349,7 +354,7 @@ Verificar (solo tienen que aparecer los cuatro valores; si aparece otro, corregi
 SELECT fiscal_condition, COUNT(*) FROM customers GROUP BY fiscal_condition
 ```
 
-**Anulación de compras** (`purchases`, bloque 3, octubre 2026). **Antes** de desplegar.
+**Anulación de compras** (`purchases`, octubre 2026). **Antes** de desplegar.
 ```sql
 ALTER TABLE purchases ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'active';
 ALTER TABLE purchases ADD COLUMN cancelled_at DATETIME NULL;
@@ -358,7 +363,7 @@ ALTER TABLE purchases ADD COLUMN cancelled_by_id CHAR(36) CHARACTER SET utf8mb4 
 ALTER TABLE purchases ADD COLUMN cancelled_by_name VARCHAR(100) NULL;
 ```
 
-**Stock y remitos: número, usuario e IVA guardado** (bloque 2, octubre 2026). **Antes** de desplegar, y las dos `UPDATE` también: numeran los remitos que ya existían (por comercio y por fecha) y completan el IVA de los renglones viejos con el actual del producto. El índice único del número lo crea `sync`.
+**Stock y remitos: número, usuario e IVA guardado** (octubre 2026). **Antes** de desplegar, y las dos `UPDATE` también: numeran los remitos que ya existían (por comercio y por fecha) y completan el IVA de los renglones viejos con el actual del producto. El índice único del número lo crea `sync`.
 ```sql
 ALTER TABLE orders ADD COLUMN `number` INT NULL;
 ALTER TABLE orders ADD COLUMN created_by_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;
@@ -536,4 +541,4 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
 
 ---
-Última actualización: 26/10/2026 (ESLint y Prettier, remitos en services/order.service.js, reportes en src/reports y utils/dates.js).
+Última actualización: 27/10/2026 (migraciones, reportes en la base, vencimiento de pruebas, red privada y permisos mínimos de la base, limpieza de comentarios).
