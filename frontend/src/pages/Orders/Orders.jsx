@@ -21,7 +21,7 @@ import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
 import { splitPrice, splitLineParts, toPercentOrNull } from '../../utils/taxes.js';
-import { parseScaleCode, lineFromLabel, resolveScaleConfig } from '../../utils/scale.js';
+import { readScaleCode, scaleCodeProblem, lineFromLabel, resolveScaleConfig } from '../../utils/scale.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { formatQuantity, quantityStep, quantityMin, round3, toKg } from '../../utils/quantity.js';
 
@@ -311,7 +311,9 @@ const Orders = () => {
     const added = `${product.name}: ${formatQuantity(line.quantity, 'weight')} agregado.`;
     if (line.priceMismatch) {
       msg.error(
-        `${added} Ojo: el importe de la etiqueta ($${label.value.toFixed(2)}) no coincide con el precio de ${product.name} en el sistema. Revisá que sean iguales.`,
+        `${added} Ojo: la etiqueta dice $${label.value.toFixed(2)}, pero con el precio del sistema ` +
+          `($${Number(product.price).toFixed(2)} por kg) serían $${(line.quantity * Number(product.price)).toFixed(2)}. ` +
+          `Revisá que el precio de ${product.name} en la balanza sea el mismo que en el sistema.`,
         'scan',
       );
     } else {
@@ -328,9 +330,14 @@ const Orders = () => {
     const product = products.find((p) => p.barcode === code || p.internalCode === code);
 
     if (!product) {
-      const label = parseScaleCode(code, scaleConfig);
-      if (label) {
-        handleScaleLabel(label);
+      const reading = readScaleCode(code, scaleConfig);
+      if (reading.label) {
+        handleScaleLabel(reading.label);
+        return;
+      }
+      // Tiene forma de etiqueta de balanza pero no se puede leer: no se ofrece crear un producto
+      if (reading.error === 'checkDigit' || reading.error === 'positions') {
+        msg.error(`Etiqueta de balanza ${code}: ${scaleCodeProblem(reading, scaleConfig)}`, 'scan');
         return;
       }
     }

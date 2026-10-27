@@ -30,21 +30,59 @@ export const ean13CheckDigit = (first12) => {
 
 const slice = (code, start, length) => code.slice(start - 1, start - 1 + length);
 
-export const parseScaleCode = (rawCode, config) => {
+// Lee una etiqueta y, si no se puede, dice por qué:
+//   { label: { code, plu, value, valueType } }
+//   { error: 'disabled' | 'format' | 'prefix' | 'positions' }  → no es una etiqueta de balanza
+//   { error: 'checkDigit', expected, found }                    → es de balanza, pero se leyó mal
+export const readScaleCode = (rawCode, config) => {
   const cfg = resolveScaleConfig(config);
-  if (!cfg.enabled) return null;
+  if (!cfg.enabled) return { error: 'disabled' };
 
   const code = String(rawCode || '').trim();
-  if (!/^\d{13}$/.test(code)) return null;
-  if (cfg.prefix && !code.startsWith(cfg.prefix)) return null;
-  if (cfg.checkDigit && ean13CheckDigit(code.slice(0, 12)) !== Number(code[12])) return null;
+  if (!/^\d{13}$/.test(code)) return { error: 'format' };
+  if (cfg.prefix && !code.startsWith(cfg.prefix)) return { error: 'prefix' };
+  if (cfg.checkDigit) {
+    const expected = ean13CheckDigit(code.slice(0, 12));
+    const found = Number(code[12]);
+    if (expected !== found) return { error: 'checkDigit', expected, found };
+  }
 
+  // El PLU y el valor tienen que caer dentro del código (sin pisar el dígito de control, si se usa).
+  // Mismo criterio que el backend al guardar la configuración (utils/scaleConfig.js).
+  const last = cfg.checkDigit ? 12 : 13;
+  const fits = (start, length) => start >= 1 && length >= 1 && start + length - 1 <= last;
+  if (!fits(Number(cfg.pluStart), Number(cfg.pluLength)) || !fits(Number(cfg.valueStart), Number(cfg.valueLength))) {
+    return { error: 'positions' };
+  }
   const plu = Number(slice(code, Number(cfg.pluStart), Number(cfg.pluLength)));
   const rawValue = Number(slice(code, Number(cfg.valueStart), Number(cfg.valueLength)));
-  if (!Number.isFinite(plu) || !Number.isFinite(rawValue)) return null;
 
   const value = rawValue / 10 ** Number(cfg.decimals);
-  return { code, plu, value, valueType: cfg.valueType };
+  return { label: { code, plu, value, valueType: cfg.valueType } };
+};
+
+// La etiqueta leída, o null si no lo es (ver readScaleCode para saber por qué)
+export const parseScaleCode = (rawCode, config) => readScaleCode(rawCode, config).label || null;
+
+// Texto para mostrar cuando una etiqueta de balanza no se pudo leer
+export const scaleCodeProblem = (result, cfg) => {
+  switch (result?.error) {
+    case 'checkDigit':
+      return (
+        `El código se leyó mal: el último número (dígito de control) es ${result.found} y debería ser ` +
+        `${result.expected}. Volvé a escanear la etiqueta o escribí el número a mano.`
+      );
+    case 'format':
+      return 'Una etiqueta de balanza tiene 13 números.';
+    case 'prefix':
+      return `Las etiquetas de balanza empiezan con ${resolveScaleConfig(cfg).prefix}.`;
+    case 'positions':
+      return 'Las posiciones del PLU o del valor no entran en el código: revisá la configuración.';
+    case 'disabled':
+      return 'La lectura de etiquetas de balanza está desactivada.';
+    default:
+      return '';
+  }
 };
 
 // Cantidad e importe de la línea a partir de la etiqueta y del producto con ese PLU.

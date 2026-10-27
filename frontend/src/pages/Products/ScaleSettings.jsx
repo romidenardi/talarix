@@ -5,7 +5,13 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Spinner from '../../components/common/Spinner.jsx';
-import { DEFAULT_SCALE_CONFIG, resolveScaleConfig, parseScaleCode, lineFromLabel } from '../../utils/scale.js';
+import {
+  DEFAULT_SCALE_CONFIG,
+  resolveScaleConfig,
+  readScaleCode,
+  scaleCodeProblem,
+  lineFromLabel,
+} from '../../utils/scale.js';
 import { formatQuantity } from '../../utils/quantity.js';
 
 const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
@@ -73,7 +79,8 @@ const ScaleSettings = ({ products }) => {
     decimals: Number(form.decimals),
   };
   const trimmed = testCode.trim();
-  const parsed = trimmed ? parseScaleCode(trimmed, testConfig) : null;
+  const reading = trimmed ? readScaleCode(trimmed, testConfig) : null;
+  const parsed = reading?.label || null;
   const matched = parsed ? products.find((p) => !p.isCombo && p.scalePlu === parsed.plu) : null;
   const line = parsed && matched ? lineFromLabel(parsed, matched) : null;
 
@@ -228,8 +235,7 @@ const ScaleSettings = ({ products }) => {
       </div>
       {trimmed && !parsed && (
         <p className="error">
-          No se reconoce como etiqueta de balanza con esta configuración (revisá el prefijo, las posiciones y el dígito
-          de control).
+          No se reconoce como etiqueta de balanza con esta configuración. {scaleCodeProblem(reading, testConfig)}
         </p>
       )}
       {parsed && (
@@ -253,13 +259,17 @@ const ScaleSettings = ({ products }) => {
               )}
               {line?.priceMismatch && (
                 <div className="error">
-                  El importe no coincide con el precio cargado en el sistema: revisá que el precio de la balanza y el
-                  del producto sean el mismo.
+                  El importe no coincide con el precio del sistema: la etiqueta dice {money(parsed.value)}, y con{' '}
+                  {money(matched.price)} por kg serían {money(line.quantity * Number(matched.price))}. Revisá que el
+                  precio de {matched.name} en la balanza sea el mismo que en el sistema.
                 </div>
               )}
             </>
           ) : (
-            <div className="error">Ningún producto tiene asignado el PLU {parsed.plu}.</div>
+            <div className="error">
+              Ningún producto tiene asignado el PLU {parsed.plu}. Cargalo en el producto (campo &quot;PLU de
+              balanza&quot;).
+            </div>
           )}
         </div>
       )}
