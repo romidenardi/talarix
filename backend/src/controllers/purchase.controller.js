@@ -3,7 +3,11 @@ import { lockProducts, moveStock, actorFields } from '../services/stock.service.
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
+import pkg from 'sequelize';
 import { audit } from '../utils/audit.js';
+import { readRange } from '../utils/dates.js';
+
+const { Op } = pkg;
 import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,9 +31,11 @@ const invoiceKey = (value) =>
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '');
 
+// Solo las de un período (?from=AAAA-MM-DD&to=AAAA-MM-DD, hasta un año; sin fechas, los últimos 30 días)
 export const getPurchases = asyncHandler(async (req, res) => {
+  const { start, end } = readRange(req.query);
   const purchases = await Purchase.findAll({
-    where: { businessId: req.user.businessId },
+    where: { businessId: req.user.businessId, date: { [Op.gte]: start, [Op.lt]: end } },
     include: purchaseIncludes,
     order: [['date', 'DESC']],
   });

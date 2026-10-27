@@ -1,0 +1,7 @@
+-- Punto de partida de las migraciones (27/10/2026).
+-- Hasta acá, los cambios de base se hicieron a mano (ver "Historial de cambios manuales" en el
+-- README). Todas las bases (local, staging y producción) ya los tienen, así que este archivo no
+-- cambia nada: solo marca desde dónde se empieza a contar.
+--
+-- Para un cambio nuevo, crear 001-descripcion-corta.sql con las sentencias, cada una terminada
+-- en ";" al final de la línea, y modificar también el modelo (para que una base nueva lo tenga).

@@ -1,45 +1,42 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { round2 } from '../utils/numbers.js';
 import { readRange } from '../utils/dates.js';
-import { loadOrders } from './common.js';
+import { select, ORDERS_IN_RANGE, loadPaymentsMap } from './common.js';
 
 export const salesByPayment = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const { from, to, start, end } = readRange(req.query);
 
-  const orders = await loadOrders(businessId, start, end);
-
-  const byPayment = new Map();
-  let grandTotal = 0;
-  for (const order of orders) {
-    const row = byPayment.get(order.paymentId) || {
-      paymentId: order.paymentId,
-      name: order.Payment?.name || 'Sin forma de pago',
-      orders: 0,
-      total: 0,
-      installmentOrders: 0,
-      financed: 0,
-    };
-    const total = Number(order.total);
-    row.orders += 1;
-    row.total += total;
-    grandTotal += total;
-    if (order.installmentPlanId) {
-      row.installmentOrders += 1;
-      row.financed += Number(order.totalFinanced) || 0;
-    }
-    byPayment.set(order.paymentId, row);
-  }
+  const rows = await select(
+    `SELECT o.payment_id AS paymentId, COUNT(*) AS orders, SUM(o.total) AS total,
+       SUM(o.installment_plan_id IS NOT NULL) AS installmentOrders,
+       SUM(CASE WHEN o.installment_plan_id IS NOT NULL THEN COALESCE(o.total_financed, 0) ELSE 0 END) AS financed
+     FROM orders o
+     WHERE ${ORDERS_IN_RANGE}
+     GROUP BY o.payment_id`,
+    { businessId, start, end },
+  );
+  const payments = await loadPaymentsMap(
+    businessId,
+    rows.map((r) => r.paymentId),
+  );
+  const grandTotal = rows.reduce((sum, r) => sum + Number(r.total), 0);
 
   res.json({
     range: { from, to },
-    payments: [...byPayment.values()]
-      .map((p) => ({
-        ...p,
-        total: round2(p.total),
-        financed: round2(p.financed),
-        share: grandTotal > 0 ? round2((p.total / grandTotal) * 100) : 0,
-      }))
+    payments: rows
+      .map((r) => {
+        const total = Number(r.total);
+        return {
+          paymentId: r.paymentId,
+          name: payments.get(r.paymentId)?.name || 'Sin forma de pago',
+          orders: Number(r.orders),
+          total: round2(total),
+          installmentOrders: Number(r.installmentOrders),
+          financed: round2(Number(r.financed)),
+          share: grandTotal > 0 ? round2((total / grandTotal) * 100) : 0,
+        };
+      })
       .sort((a, b) => b.total - a.total),
   });
 });

@@ -2,39 +2,31 @@ import { Category } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { round2 } from '../utils/numbers.js';
 import { readRange } from '../utils/dates.js';
-import { loadOrders, orderScale, loadProductsMap } from './common.js';
+import { productTotals, loadProductsMap } from './common.js';
 
 export const salesByProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const { from, to, start, end } = readRange(req.query);
 
-  const orders = await loadOrders(businessId, start, end);
+  const totals = await productTotals({ businessId, start, end });
 
-  const byProduct = new Map();
-  for (const order of orders) {
-    const scale = orderScale(order);
-    for (const item of order.items) {
-      const row = byProduct.get(item.productId) || { units: 0, amount: 0 };
-      row.units += Number(item.quantity);
-      row.amount += Number(item.quantity) * Number(item.unitPrice) * scale;
-      byProduct.set(item.productId, row);
-    }
-  }
-
-  const products = await loadProductsMap(businessId, [...byProduct.keys()]);
+  const products = await loadProductsMap(
+    businessId,
+    totals.map((t) => t.productId),
+  );
   const categories = await Category.findAll({ where: { businessId }, attributes: ['id', 'name'] });
   const categoryName = new Map(categories.map((c) => [c.id, c.name]));
 
-  const rows = [...byProduct.entries()]
-    .map(([productId, row]) => {
+  const rows = totals
+    .map(({ productId, units, amount }) => {
       const product = products.get(productId);
       return {
         productId,
         code: product?.internalCode || '',
         name: product?.name || 'Producto eliminado',
         category: (product?.categoryId && categoryName.get(product.categoryId)) || 'Sin categoría',
-        units: row.units,
-        amount: round2(row.amount),
+        units,
+        amount: round2(amount),
       };
     })
     .sort((a, b) => b.amount - a.amount);

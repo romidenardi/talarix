@@ -10,7 +10,8 @@
     "start": "node server.js",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "migrate": "node scripts/migrate.js"
   },
   "keywords": [],
   "author": "",

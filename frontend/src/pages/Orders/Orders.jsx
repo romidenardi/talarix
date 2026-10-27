@@ -15,6 +15,8 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Spinner from '../../components/common/Spinner.jsx';
+import DateRangeFilter from '../../components/common/DateRangeFilter.jsx';
+import { presetRange } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
@@ -49,6 +51,9 @@ const emptyItem = () => ({
 
 const Orders = () => {
   const [orders, setOrders] = useState([]);
+  // Período de la lista: por defecto los últimos 30 días (no se cargan todos los de la historia)
+  const [range, setRange] = useState(() => presetRange('last30'));
+  const [ordersLoading, setOrdersLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [products, setProducts] = useState([]);
@@ -100,7 +105,7 @@ const Orders = () => {
     setLoading(true);
     try {
       const [ordersRes, customersRes, paymentsRes, productsRes, scaleRes] = await Promise.all([
-        getOrders(),
+        getOrders(range),
         getCustomers(),
         getPayments(),
         getProducts(),
@@ -121,6 +126,19 @@ const Orders = () => {
   useEffect(() => {
     loadAll();
   }, []);
+
+  const loadOrders = async (nextRange) => {
+    setOrdersLoading(true);
+    try {
+      const { data } = await getOrders(nextRange);
+      setOrders(data);
+      setRange(nextRange);
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudieron cargar los remitos'), 'page');
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
 
   useEffect(() => {
     setValue('installmentPlanId', '');
@@ -1029,6 +1047,13 @@ const Orders = () => {
           onCancel={() => setApproval(null)}
         />
       )}
+
+      <DateRangeFilter value={range} loading={ordersLoading} label="Remitos" onChange={loadOrders} />
+      <p className="list-range-note">
+        {orders.length} {orders.length === 1 ? 'remito' : 'remitos'} del{' '}
+        {new Date(`${range.from}T12:00:00`).toLocaleDateString('es-AR')} al{' '}
+        {new Date(`${range.to}T12:00:00`).toLocaleDateString('es-AR')}
+      </p>
 
       <div className="table-wrapper">
         <table>

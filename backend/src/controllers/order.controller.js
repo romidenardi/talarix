@@ -1,8 +1,12 @@
 import { Order, OrderItem, Product, Customer, Payment } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
+import pkg from 'sequelize';
 import { audit } from '../utils/audit.js';
+import { readRange } from '../utils/dates.js';
 import { createOrder as createOrderService } from '../services/order.service.js';
+
+const { Op } = pkg;
 
 const orderIncludes = [
   { model: Customer },
@@ -14,9 +18,12 @@ const orderIncludes = [
   },
 ];
 
+// Solo los de un período (?from=AAAA-MM-DD&to=AAAA-MM-DD, hasta un año; sin fechas, los últimos
+// 30 días): con el tiempo un comercio acumula miles de remitos y no tiene sentido traerlos todos.
 export const getOrders = asyncHandler(async (req, res) => {
+  const { start, end } = readRange(req.query);
   const orders = await Order.findAll({
-    where: { businessId: req.user.businessId },
+    where: { businessId: req.user.businessId, date: { [Op.gte]: start, [Op.lt]: end } },
     include: orderIncludes,
     order: [
       ['date', 'DESC'],

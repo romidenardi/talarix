@@ -41,7 +41,8 @@ export const startTestServer = async () => {
   // Recién ahora: los módulos leen la configuración de la base al importarse
   const { default: app } = await import('../../src/app.js');
   const models = await import('../../src/models/index.js');
-  await models.sequelize.sync();
+  const { runMigrations } = await import('../../src/db/migrations.js');
+  await runMigrations(models.sequelize, { log: () => {} });
 
   const server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));

@@ -28,7 +28,7 @@ npm run dev            # nodemon server.js
 
 **Base local desde cero** (lo más simple si la base local quedó atrasada respecto de staging y producción):
 1. En el cliente de MySQL: `DROP DATABASE <DB_NAME>;` y `CREATE DATABASE <DB_NAME>;`.
-2. `npm run dev`: `sync` crea todas las tablas con sus columnas actuales.
+2. `npm run dev`: en una base vacía crea todas las tablas con sus columnas actuales (ver "Cambios en la base de datos").
 3. Crear el superadmin con `scripts/createPlatformAdmin.js` (ver "Superadmin") y un comercio desde `/plataforma`.
 
 Una base local vieja falla al arrancar si le faltan los cambios manuales del historial (por ejemplo, duplicados en el índice único de códigos de barras).
@@ -42,7 +42,7 @@ Una base local vieja falla al arrancar si le faltan los cambios manuales del his
 | `npm run lint` | Revisión de código con ESLint (reglas recomendadas): variables sin declarar o sin usar, código que no se ejecuta… |
 | `npm run format` | Ordena el formato de todo el código con Prettier (`npm run format:check` solo revisa) |
 
-Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, se conecta a MySQL, ejecuta `sequelize.sync()` (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
+Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SECRET` y `PLATFORM_JWT_SECRET` sean distintas, activa Sentry si está configurado, se conecta a MySQL, aplica las migraciones pendientes (ver "Cambios en la base de datos") y, una vez escuchando, arranca las tareas programadas (bajas y reinicio de la demo). Al recibir `SIGTERM` (Railway lo manda en cada deploy) se cierra en orden: deja de aceptar pedidos, termina los que están en curso (hasta 10 s), para las tareas y cierra la conexión con la base.
 
 ## Variables de entorno
 
@@ -68,13 +68,15 @@ En Railway, los `DB_*` se cargan como referencias a la base del propio entorno, 
 
 ## Estructura
 ```
-server.js          arranque: valida variables, Sentry, conecta, sync, listen, tareas y cierre ordenado
+server.js          arranque: valida variables, Sentry, conecta, migraciones, listen, tareas y cierre ordenado
+migrations/        cambios de base numerados (001-….sql), se aplican solos al arrancar
 test/unit/         pruebas unitarias (node --test)
 test/integration/  pruebas de la API contra MySQL
 ../.github/workflows/ci.yml   integración continua en GitHub Actions
 src/
   app.js           Express: middlewares globales y montaje de rutas
   config/          conexión a la base (database.js)
+  db/              migraciones (migrations.js)
   controllers/     arman la respuesta de cada ruta; la lógica pesada está en
                    services/ (por ejemplo, order.service.js crea los remitos)
   routes/          definición de rutas
@@ -95,7 +97,7 @@ src/
                    (decimalColumn.js), formato de etiquetas de balanza
                    (scaleConfig.js), tokens de invitación, versión de
                    términos, mails y links de acceso, mails de baja
-scripts/           scripts de operación (crear superadmin)
+scripts/           scripts de operación (crear superadmin, migrate.js)
 ```
 
 ## API
@@ -128,6 +130,9 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 Detalles que conviene saber:
 - Los precios incluyen IVA. `Order.total` es el final, después de descuentos; las cuotas son informativas.
 - Los remitos anulados (`status = 'cancelled'`) quedan en el historial y se excluyen de los reportes.
+- **Listados por fecha:** `GET /orders` y `GET /purchases` devuelven solo un período: `?from=AAAA-MM-DD&to=AAAA-MM-DD` (días argentinos, hasta 366 días). Sin fechas, los últimos 30 días. Fechas mal escritas o un rango más largo responden `400`. Usa `readRange` de `utils/dates.js`, lo mismo que los reportes.
+- **Reportes** (`src/reports/`): las sumas se hacen en la base (`SUM` / `GROUP BY` por día, producto, cliente, forma de pago o alícuota), así que al servidor llegan pocos renglones aunque el período tenga miles de remitos. El día de cada remito se calcula en hora argentina dentro de la consulta. Los descuentos del remito se reparten entre sus renglones (total / bruto). En el de IVA, los renglones comunes se suman por alícuota en la base; los combos se reparten entre sus productos en el servidor, con los datos guardados al vender.
+- **Exportación completa** (`/export`): el Excel se arma entero en memoria, así que se permiten **dos a la vez en todo el servidor y una por comercio** (`utils/gate.js`); si no hay lugar responde `429` ("Ya hay una exportación en curso"). Además, 5 por hora por usuario.
 - **Clientes y proveedores:** la condición fiscal tiene que ser una de las cuatro (`Consumidor Final`, `Responsable Inscripto`, `Monotributista`, `Exento`; se aceptan variantes como "RI" o minúsculas y se guarda bien escrita). El CUIT se valida con su dígito verificador y se guarda como `20-12345678-6`; también se acepta un DNI de 7 u 8 números (`utils/taxId.js`, el mismo archivo que en el frontend). Al editar, si el CUIT viene igual al que ya tenía, no se revisa, para no trabar clientes cargados antes de esta validación. La importación aplica las mismas reglas.
 - **Número de remito** (`orders.number`): correlativo por comercio (1, 2, 3…), se muestra como `00000123`. Lo asigna `services/orderNumber.service.js` bloqueando la fila del comercio, y el índice único `uq_orders_business_number` impide repetidos. Los anulados conservan su número.
 - **Stock: un solo lugar** (`services/stock.service.js`). Remitos, anulaciones, compras, ajustes manuales y datos demo cambian el stock solo con `moveStock`, que deja el movimiento, guarda quién lo hizo y no deja el stock negativo. Los productos se bloquean con `lockProducts`, **siempre ordenados por id**: dos ventas simultáneas con los mismos productos en distinto orden se esperan en lugar de trabarse (deadlock).
@@ -166,7 +171,8 @@ Detalles que conviene saber:
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
 - **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, IVA e impuestos internos, combos, configuración de la balanza, y que el cálculo del frontend (`frontend/src/utils/taxes.js`) dé lo mismo que el del backend. No necesitan base.
-- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios y borrado de productos con ventas.
+- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha y los reportes (con importes esperados exactos).
+  - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
   - En local usan `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` del `.env`. El usuario tiene que poder crear bases (con `root` local alcanza).
 - **GitHub Actions** (`.github/workflows/ci.yml`, en la raíz del repo): en cada push a `staging` o `main` corre las dos clases de pruebas con un MySQL propio, `npm audit` (falla con vulnerabilidades altas o críticas) y la compilación del frontend. El resultado se ve en la pestaña **Actions** del repo y al lado de cada commit (✓ o ✗).
@@ -275,7 +281,7 @@ Antes de ese ingreso, borrar en Google Authenticator la entrada vieja de Talarix
 Para correr los scripts contra Railway hay que habilitar temporalmente el TCP Proxy del MySQL (Settings → Networking) y **desactivarlo al terminar**. En ese caso, `DB_HOST` y `DB_PORT` son los del proxy (`xxx.proxy.rlwy.net` y su puerto), y `DB_NAME`, `DB_USER` y `DB_PASSWORD` salen de las variables del servicio MySQL.
 
 ## Registro de actividad
-Tabla `audit_logs` (la crea `sync`, sin claves foráneas: un registro sobrevive aunque se borre el usuario). Se ve en `/plataforma`, sección Actividad. `utils/audit.js` registra quién (superadmin, usuario o sistema), qué, sobre qué, desde qué IP y un detalle. Nunca corta la acción si falla el registro.
+Tabla `audit_logs` (sin claves foráneas: un registro sobrevive aunque se borre el usuario). Se ve en `/plataforma`, sección Actividad. `utils/audit.js` registra quién (superadmin, usuario o sistema), qué, sobre qué, desde qué IP y un detalle. Nunca corta la acción si falla el registro.
 
 Qué se registra:
 - **Superadmin:** ingresos, ingresos fallidos (contraseña o código), activación del segundo factor, uso de códigos de recuperación, alta de comercios, cambios de estado, inicio y cancelación de bajas, reinvitaciones y reinicio de la demo.
@@ -286,23 +292,27 @@ No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados
 
 ## Cambios en la base de datos
 
-`sequelize.sync()` corre en cada arranque. Hace dos cosas:
-- **Crea las tablas nuevas** que falten (por ejemplo, `closure_records`).
-- **Agrega los índices declarados en los modelos**, aun en tablas existentes. Si los datos no cumplen el índice (por ejemplo, duplicados en un índice único), **el servidor no arranca y Railway lo reinicia en bucle**.
+**Migraciones** (desde el bloque 7, octubre 2026). Cada cambio de base es un archivo SQL numerado en `backend/migrations/` (`001-agregar-tal-columna.sql`, `002-…`). El servidor los aplica **solo, al arrancar y antes de atender pedidos**, en orden. La tabla `schema_migrations` anota los que ya se aplicaron, así cada uno corre una sola vez en cada base (local, staging, producción). Código en `src/db/migrations.js`.
 
-No modifica columnas existentes: esos cambios se hacen con `ALTER TABLE` manual.
+- **Base existente:** solo se aplican las migraciones pendientes. Ya **no se corre `sequelize.sync()`** (podía dejar el servidor reiniciándose en bucle si no podía crear un índice).
+- **Base nueva** (vacía, sin la tabla `businesses`): se crea completa desde los modelos con `sync()` y todas las migraciones se dan por aplicadas. Por eso **cada cambio va en los dos lados: la migración y el modelo**.
+- **Si una migración falla**, el servidor no arranca y el log dice cuál y en qué sentencia (`Migración 003-…, sentencia 2: …`). En Railway, el deploy queda fallado y sigue andando la versión anterior. MySQL no deshace los `ALTER`: si la sentencia 1 se aplicó y la 2 no, corregir a mano en la base lo que quedó a medias, arreglar el archivo y volver a desplegar.
+- `npm run migrate` aplica las pendientes sin levantar el servidor; `npm run migrate -- --status` muestra cuáles están aplicadas y cuáles no.
 
-Regla de oro: **todo cambio de base se corre en producción antes de hacer el merge a `main`**.
+**Cómo escribir una migración**
+1. Crear `migrations/NNN-descripcion-corta.sql` con el número siguiente (tres cifras). Cada sentencia termina en `;` **al final de la línea**. Comentarios con `--` en su propia línea.
+2. Cambiar también el modelo (para que una base nueva quede igual).
+3. Escribirla para que no dependa de datos que pueden no estar: un `UPDATE` que completa datos viejos tiene que funcionar también con la tabla vacía.
+4. Si agrega un índice único, la misma migración (o una anterior) limpia los datos que lo violarían.
+5. Probarla en local (`npm run dev` la aplica) y después en staging (se aplica sola con el deploy).
+6. Antes del merge a `main`: **backup manual de producción**. El deploy de producción la aplica.
 
-En la pestaña **Data → Query** de Railway: **una sentencia por vez** (no acepta varias juntas) y sin `SET`. Railway le agrega un `LIMIT` a cada consulta, así que los `UPDATE` con `JOIN` fallan ("Incorrect usage of UPDATE and LIMIT"): hay que escribirlos con subconsultas y repetirlos hasta que digan 0 filas. En MySQL Workbench local, los `UPDATE` sin clave en el `WHERE` necesitan `SET SQL_SAFE_UPDATES = 0;` antes.
+No hace falta correr nada en la pestaña Data de Railway ni en Workbench. Para consultas a mano, lo de siempre: en Railway, **una sentencia por vez** y sin `SET` (y como le agrega `LIMIT`, los `UPDATE` con `JOIN` fallan: usar subconsultas); en Workbench, `SET SQL_SAFE_UPDATES = 0;` antes de un `UPDATE` sin clave en el `WHERE`.
 
-1. Probar en la base de staging, una sentencia por vez (Railway → MySQL → Data → Query).
-2. Si el cambio incluye un índice único, limpiar primero los datos que lo violarían.
-3. Correrlo en la base de producción (con un backup manual hecho antes).
-4. Recién entonces, hacer el merge a `main`.
+El usuario de la base tiene que poder hacer `CREATE`, `ALTER` e `INDEX` (`talarix_app` tiene `ALL PRIVILEGES` sobre la base). Se ve con `SHOW GRANTS FOR CURRENT_USER();`.
 
 ### Historial de cambios manuales
-Ya aplicados en staging y producción. Una base nueva creada desde cero no los necesita: `sync` crea las tablas con sus columnas actuales.
+Anteriores a las migraciones (`000-punto-de-partida.sql` marca desde dónde se cuenta). Ya aplicados en staging y producción; quedan como referencia. Una base nueva no los necesita: se crea desde los modelos.
 
 **Clientes: anonimización y condición fiscal** (bloque 5, octubre 2026). El `ALTER` va **antes** de desplegar; los `UPDATE`, antes o después.
 ```sql
@@ -462,7 +472,7 @@ El repositorio es único (`romidenardi/talarix`, público) y contiene `backend/`
 
 1. Trabajar en la rama `staging`. Antes del commit, en `backend` y en `frontend`: `npm run format` (ordena el formato) y `npm run lint` (tiene que dar sin errores). GitHub Actions revisa las dos cosas en cada push. Push: Railway y Vercel despliegan solos en staging.
 2. Probar en la URL de staging.
-3. Si hubo cambios de base, correrlos en producción **antes** del merge (ver arriba).
+3. Si hay migraciones nuevas: backup manual de producción **antes** del merge. El deploy las aplica (ver "Cambios en la base de datos").
 4. Si todo anda bien, pasar a producción:
 ```bash
 git checkout main
@@ -482,7 +492,7 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 - La restauración crea un **volumen nuevo** (tarda menos de 20 segundos en la base actual) y solo funciona dentro del mismo proyecto y entorno.
 - Es **todo o nada**: no hay restauración por comercio. Recuperar los datos de un solo comercio implica restaurar a un volumen nuevo y copiar lo necesario a mano.
 - Se probó en staging (octubre 2026): los datos y el backend volvieron correctamente.
-- Antes de un cambio de base en producción, crear un backup manual.
+- Antes de un merge a `main` que trae migraciones nuevas, crear un backup manual.
 - Si se restaura un backup anterior a una baja, revisar los comercios en `closing` y considerar `DISABLE_AUTO_PURGE=true` hasta verificar.
 - Un backup restaura la base **completa, incluidos los usuarios de MySQL y sus contraseñas**. Si se restaura uno anterior al 22/10/2026, el usuario `talarix_app` no existe y `root` vuelve a la contraseña expuesta: hay que crear `talarix_app` de nuevo y cambiar la clave de `root` (ver "Credenciales y rotación de claves").
 

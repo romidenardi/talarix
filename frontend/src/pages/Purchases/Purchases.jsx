@@ -9,6 +9,8 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Spinner from '../../components/common/Spinner.jsx';
+import DateRangeFilter from '../../components/common/DateRangeFilter.jsx';
+import { presetRange } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
@@ -37,6 +39,9 @@ const emptyForm = () => ({
 
 const Purchases = () => {
   const [purchases, setPurchases] = useState([]);
+  // Período de la lista: por defecto los últimos 30 días (no se cargan todas las de la historia)
+  const [range, setRange] = useState(() => presetRange('last30'));
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,7 +72,7 @@ const Purchases = () => {
     setLoading(true);
     try {
       const [purchasesRes, suppliersRes, productsRes] = await Promise.all([
-        getPurchases(),
+        getPurchases(range),
         getSuppliers(),
         getProducts(),
       ]);
@@ -84,6 +89,19 @@ const Purchases = () => {
   useEffect(() => {
     loadAll();
   }, []);
+
+  const loadPurchases = async (nextRange) => {
+    setPurchasesLoading(true);
+    try {
+      const { data } = await getPurchases(nextRange);
+      setPurchases(data);
+      setRange(nextRange);
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudieron cargar las compras'), 'page');
+    } finally {
+      setPurchasesLoading(false);
+    }
+  };
 
   const total = (watchedItems || []).reduce(
     (sum, item) => sum + Math.round(toKg(item.quantity, item.qtyUnit) * (Number(item.unitCost) || 0) * 100) / 100,
@@ -627,6 +645,13 @@ const Purchases = () => {
         <FormMessage message={msg.at()} onClose={msg.clear} />
         <RequiredLegend />
       </form>
+
+      <DateRangeFilter value={range} loading={purchasesLoading} label="Compras" onChange={loadPurchases} />
+      <p className="list-range-note">
+        {purchases.length} {purchases.length === 1 ? 'compra' : 'compras'} del{' '}
+        {new Date(`${range.from}T12:00:00`).toLocaleDateString('es-AR')} al{' '}
+        {new Date(`${range.to}T12:00:00`).toLocaleDateString('es-AR')}
+      </p>
 
       <div className="table-wrapper">
         <table>

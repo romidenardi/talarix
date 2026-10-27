@@ -3,6 +3,10 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { buildBusinessExport } from '../services/export.service.js';
 import { audit } from '../utils/audit.js';
+import { createGate } from '../utils/gate.js';
+
+// El Excel se arma entero en memoria: como mucho dos a la vez en el servidor y una por comercio
+const exportGate = createGate({ max: 2, perKey: 1 });
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
@@ -20,7 +24,15 @@ export const exportStatus = asyncHandler(async (req, res) => {
 });
 
 export const exportBusinessData = asyncHandler(async (req, res) => {
-  const { buffer, filename } = await buildBusinessExport(req.user.businessId);
+  const release = exportGate.tryEnter(req.user.businessId);
+  if (!release) throw httpError('Ya hay una exportación en curso. Probá de nuevo en un minuto.', 429);
+  let result;
+  try {
+    result = await buildBusinessExport(req.user.businessId);
+  } finally {
+    release();
+  }
+  const { buffer, filename } = result;
 
   console.log(`[export] comercio ${req.user.businessId} · usuario ${req.user.id}`);
   await audit(req, { action: 'business.exported', targetType: 'business', targetId: req.user.businessId });

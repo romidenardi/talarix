@@ -3,6 +3,7 @@ dotenv.config();
 
 import app from './src/app.js';
 import { sequelize } from './src/models/index.js';
+import { runMigrations } from './src/db/migrations.js';
 import { startClosureScheduler } from './src/services/closureScheduler.service.js';
 import { startDemoResetJob } from './src/jobs/demoReset.job.js';
 import { initMonitoring, captureError, flushMonitoring } from './src/utils/monitoring.js';
@@ -81,7 +82,9 @@ const start = async () => {
     await sequelize.authenticate();
     console.log('Conexión a MySQL exitosa');
 
-    await sequelize.sync();
+    // Cambios de base pendientes (migrations/): se aplican antes de atender pedidos. Si uno falla,
+    // el servidor no arranca y Railway sigue con la versión anterior (healthcheck).
+    await runMigrations(sequelize);
 
     server = app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 

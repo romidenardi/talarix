@@ -3,7 +3,7 @@ import { Product } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { round2 } from '../utils/numbers.js';
 import { dayKey, startOfDay } from '../utils/dates.js';
-import { LOW_STOCK_THRESHOLD, loadOrders, orderScale, loadProductsMap } from './common.js';
+import { LOW_STOCK_THRESHOLD, select, ORDERS_IN_RANGE, productTotals, loadProductsMap } from './common.js';
 
 const { Op } = pkg;
 
@@ -23,32 +23,23 @@ export const dashboard = asyncHandler(async (req, res) => {
     Math.min(prevStart.getTime() + (now.getTime() - monthStart.getTime()), monthStart.getTime()),
   );
 
-  const orders = await loadOrders(businessId, prevStart, new Date(now.getTime() + 1000));
+  const nowEnd = new Date(now.getTime() + 1000);
+  const sumOrders = (start, end) =>
+    select(`SELECT COUNT(*) AS orders, SUM(o.total) AS total FROM orders o WHERE ${ORDERS_IN_RANGE}`, {
+      businessId,
+      start,
+      end,
+    }).then(([row]) => ({ orders: Number(row?.orders) || 0, total: Number(row?.total) || 0 }));
 
-  const current = { total: 0, orders: 0 };
-  const previous = { total: 0, orders: 0 };
-  const productTotals = new Map();
-  for (const order of orders) {
-    if (order.date >= monthStart) {
-      current.total += Number(order.total);
-      current.orders += 1;
-      const scale = orderScale(order);
-      for (const item of order.items) {
-        const row = productTotals.get(item.productId) || { units: 0, amount: 0 };
-        row.units += Number(item.quantity);
-        row.amount += Number(item.quantity) * Number(item.unitPrice) * scale;
-        productTotals.set(item.productId, row);
-      }
-    } else if (order.date < prevEnd) {
-      previous.total += Number(order.total);
-      previous.orders += 1;
-    }
-  }
+  const [current, previous, top] = await Promise.all([
+    sumOrders(monthStart, nowEnd),
+    sumOrders(prevStart, prevEnd),
+    productTotals({ businessId, start: monthStart, end: nowEnd, limit: 5 }),
+  ]);
 
-  const top = [...productTotals.entries()].sort((a, b) => b[1].amount - a[1].amount).slice(0, 5);
   const topProducts = await loadProductsMap(
     businessId,
-    top.map(([id]) => id),
+    top.map((t) => t.productId),
   );
 
   // Los combos no tienen stock propio: no cuentan como stock bajo
@@ -70,11 +61,11 @@ export const dashboard = asyncHandler(async (req, res) => {
   res.json({
     month: { from: monthKey, total: round2(current.total), orders: current.orders },
     previous: { total: round2(previous.total), orders: previous.orders },
-    topProducts: top.map(([productId, row]) => ({
+    topProducts: top.map(({ productId, units, amount }) => ({
       productId,
       name: topProducts.get(productId)?.name || 'Producto eliminado',
-      units: row.units,
-      amount: round2(row.amount),
+      units,
+      amount: round2(amount),
     })),
     stock: {
       threshold: LOW_STOCK_THRESHOLD,
