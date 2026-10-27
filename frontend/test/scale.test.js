@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ean13CheckDigit, parseScaleCode, lineFromLabel } from '../src/utils/scale.js';
+import { ean13CheckDigit, parseScaleCode, readScaleCode, scaleCodeProblem, lineFromLabel } from '../src/utils/scale.js';
 
 const ON = { enabled: true };
 // Arma un EAN-13 válido a partir de los 12 primeros dígitos
@@ -24,6 +24,26 @@ test('no lee etiquetas con la balanza desactivada, otro prefijo, dígito de cont
   assert.equal(parseScaleCode(badCheck, ON), null);
   assert.equal(parseScaleCode('20041700025', ON), null);
   assert.equal(parseScaleCode('abc', ON), null);
+});
+
+test('dígito de control mal: dice cuál es y cuál debería ser', () => {
+  const code = withCheck('200417000250');
+  const wrong = `${code.slice(0, 12)}${(Number(code[12]) + 1) % 10}`;
+  const result = readScaleCode(wrong, ON);
+  assert.equal(result.error, 'checkDigit');
+  assert.equal(result.expected, Number(code[12]));
+  assert.equal(result.found, Number(wrong[12]));
+  assert.match(scaleCodeProblem(result, ON), /se leyó mal/);
+  assert.match(scaleCodeProblem(result, ON), new RegExp(`debería ser ${code[12]}`));
+});
+
+test('motivo cuando no es una etiqueta de balanza', () => {
+  const code = withCheck('200417000250');
+  assert.equal(readScaleCode(code, { enabled: false }).error, 'disabled');
+  assert.equal(readScaleCode('7790001234567', ON).error, 'prefix');
+  assert.equal(readScaleCode('20123', ON).error, 'format');
+  assert.equal(readScaleCode(code, { enabled: true, pluStart: 12, pluLength: 4 }).error, 'positions');
+  assert.match(scaleCodeProblem(readScaleCode('20123', ON), ON), /13 números/);
 });
 
 test('etiqueta de importe: cantidad = importe / precio', () => {

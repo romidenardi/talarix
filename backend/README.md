@@ -176,7 +176,7 @@ Detalles que conviene saber:
 ## Tests
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
-- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración y lectura de etiquetas de balanza, migraciones, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
+- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración de la balanza (la lectura de etiquetas se prueba en el frontend), migraciones, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
 - **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) y el vencimiento y la renovación de la prueba gratis.
   - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.

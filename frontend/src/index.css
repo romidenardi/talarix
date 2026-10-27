@@ -415,39 +415,6 @@ td:nth-child(1),
   width: 100%;
 }
 
-/* ---------- Toasts ---------- */
-
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 1000;
-}
-
-.toast {
-  padding: 12px 18px;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 500;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-primary) 15%, transparent);
-  border: 1px solid transparent;
-}
-
-.toast-success {
-  background: var(--color-success-bg);
-  color: var(--color-success);
-  border-color: var(--color-success);
-}
-
-.toast-error {
-  background: var(--color-danger-bg);
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-}
-
 /* ---------- Spinner ---------- */
 
 .spinner-wrapper {
