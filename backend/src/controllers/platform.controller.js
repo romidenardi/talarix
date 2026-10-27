@@ -10,6 +10,8 @@ import { inviteEmail } from '../utils/mailTemplates.js';
 import { closureStartedEmail } from '../utils/closureEmails.js';
 import { resetDemoBusiness } from '../services/demo.service.js';
 import { audit } from '../utils/audit.js';
+import { KEY_RE, dayKey, addDays } from '../utils/dates.js';
+import { TRIAL_EXPIRED, MANUAL } from '../services/trialExpiry.service.js';
 import { compareWithDummy } from '../utils/password.js';
 import {
   generateTotpSecret,
@@ -196,7 +198,17 @@ export const listAuditLog = asyncHandler(async (req, res) => {
 
 export const listBusinesses = asyncHandler(async (req, res) => {
   const businesses = await Business.findAll({
-    attributes: ['id', 'name', 'status', 'type', 'trialEndsAt', 'deleteAt', 'contactEmail', 'createdAt'],
+    attributes: [
+      'id',
+      'name',
+      'status',
+      'suspendedReason',
+      'type',
+      'trialEndsAt',
+      'deleteAt',
+      'contactEmail',
+      'createdAt',
+    ],
     order: [['createdAt', 'DESC']],
   });
 
@@ -336,8 +348,18 @@ export const setBusinessStatus = asyncHandler(async (req, res) => {
     throw httpError('El comercio tiene una baja pendiente. Cancelá la baja antes de cambiar su estado.', 409);
   }
 
+  // Con la prueba vencida no se reactiva sin más: la tarea programada lo volvería a suspender.
+  // Hay que renovarla (PATCH /businesses/:id/trial), que además lo reactiva.
+  if (status === 'active' && business.trialEndsAt && business.trialEndsAt <= new Date()) {
+    throw httpError(
+      'La prueba de este comercio venció. Renovala con una fecha nueva o sin vencimiento.',
+      409,
+      'TRIAL_EXPIRED',
+    );
+  }
+
   const previous = business.status;
-  await business.update({ status });
+  await business.update({ status, suspendedReason: status === 'suspended' ? MANUAL : null });
   await audit(req, {
     action: 'business.status_changed',
     businessId: business.id,
@@ -346,6 +368,55 @@ export const setBusinessStatus = asyncHandler(async (req, res) => {
     detail: { from: previous, to: status },
   });
   res.json({ id: business.id, name: business.name, status: business.status });
+});
+
+// Renovar o cambiar el vencimiento de la prueba: { until: 'AAAA-MM-DD' } (vence al terminar ese día,
+// hora argentina) o { until: null } (sin vencimiento). Si estaba suspendido por la prueba, lo reactiva.
+const MAX_TRIAL_DAYS = 3 * 366;
+
+export const setBusinessTrial = asyncHandler(async (req, res) => {
+  const business = await Business.findByPk(req.params.id);
+  if (!business) throw httpError('Comercio no encontrado', 404);
+  if (business.type !== 'client') throw httpError('La cuenta demo no tiene período de prueba');
+  if (business.status === 'closing') {
+    throw httpError('El comercio tiene una baja pendiente. Cancelá la baja antes de renovar la prueba.', 409);
+  }
+
+  const { until } = req.body;
+  let trialEndsAt = null;
+  if (until !== null) {
+    if (typeof until !== 'string' || !KEY_RE.test(until)) {
+      throw httpError('Indicá la fecha (AAAA-MM-DD) o "sin vencimiento"');
+    }
+    trialEndsAt = new Date(`${until}T23:59:59-03:00`);
+    if (Number.isNaN(trialEndsAt.getTime()) || dayKey(trialEndsAt) !== until) throw httpError('Fecha inválida');
+    const today = dayKey(new Date());
+    if (until < today) throw httpError('La fecha no puede ser anterior a hoy');
+    if (until > addDays(today, MAX_TRIAL_DAYS)) throw httpError('La fecha puede ser hasta dentro de 3 años');
+  }
+
+  const previous = business.trialEndsAt;
+  const reactivate = business.status === 'suspended' && business.suspendedReason === TRIAL_EXPIRED;
+  await business.update({
+    trialEndsAt,
+    ...(reactivate ? { status: 'active', suspendedReason: null } : {}),
+  });
+  await audit(req, {
+    action: 'business.trial_renewed',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
+    detail: { from: previous, to: trialEndsAt, reactivated: reactivate },
+  });
+
+  res.json({
+    id: business.id,
+    name: business.name,
+    status: business.status,
+    suspendedReason: business.suspendedReason,
+    trialEndsAt: business.trialEndsAt,
+    reactivated: reactivate,
+  });
 });
 
 export const startClosure = asyncHandler(async (req, res) => {
@@ -402,7 +473,7 @@ export const cancelClosure = asyncHandler(async (req, res) => {
   if (!business) throw httpError('Comercio no encontrado', 404);
   if (business.status !== 'closing') throw httpError('El comercio no tiene una baja pendiente', 409);
 
-  await business.update({ status: 'active', deleteAt: null });
+  await business.update({ status: 'active', suspendedReason: null, deleteAt: null });
   await audit(req, {
     action: 'business.closure_cancelled',
     businessId: business.id,

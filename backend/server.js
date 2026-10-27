@@ -6,6 +6,7 @@ import { sequelize } from './src/models/index.js';
 import { runMigrations } from './src/db/migrations.js';
 import { startClosureScheduler } from './src/services/closureScheduler.service.js';
 import { startDemoResetJob } from './src/jobs/demoReset.job.js';
+import { startTrialExpiryScheduler } from './src/services/trialExpiry.service.js';
 import { initMonitoring, captureError, flushMonitoring } from './src/utils/monitoring.js';
 
 const PORT = process.env.PORT || 3000;
@@ -88,7 +89,7 @@ const start = async () => {
 
     server = app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 
-    jobs.push(...startClosureScheduler(), startDemoResetJob());
+    jobs.push(...startClosureScheduler(), ...startTrialExpiryScheduler(), startDemoResetJob());
   } catch (error) {
     console.error('Error al iniciar:', error);
     captureError(error, { origen: 'arranque' });

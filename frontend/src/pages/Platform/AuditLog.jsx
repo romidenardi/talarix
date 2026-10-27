@@ -11,6 +11,8 @@ const ACTION_LABELS = {
   'business.created': 'Alta de comercio',
   'business.status_changed': 'Cambio de estado del comercio',
   'business.closure_started': 'Inicio de baja del comercio',
+  'business.trial_expired': 'Venció la prueba: comercio suspendido',
+  'business.trial_renewed': 'Renovó la prueba',
   'business.closure_cancelled': 'Baja cancelada',
   'business.purged': 'Comercio eliminado definitivamente',
   'business.exported': 'Exportó los datos del comercio',
@@ -31,6 +33,7 @@ const ACTION_LABELS = {
 const STATUS = { active: 'activo', suspended: 'suspendido', closing: 'en baja' };
 const ROLES = { admin: 'administrador', editor: 'editor', operador: 'operador' };
 const word = (map, value) => map[value] || value;
+const dateOf = (value) => new Date(value).toLocaleDateString('es-AR');
 
 const describe = (row) => {
   const d = row.detail || {};
@@ -41,6 +44,10 @@ const describe = (row) => {
       return `${word(STATUS, d.from)} → ${word(STATUS, d.to)}`;
     case 'business.closure_started':
       return d.deleteAt ? `Se borra el ${new Date(d.deleteAt).toLocaleDateString('es-AR')}` : '';
+    case 'business.trial_expired':
+      return d.trialEndsAt ? `Vencía el ${dateOf(d.trialEndsAt)}` : '';
+    case 'business.trial_renewed':
+      return `${d.to ? `Hasta el ${dateOf(d.to)}` : 'Sin vencimiento'}${d.reactivated ? ', reactivado' : ''}`;
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
     case 'order.approved': {

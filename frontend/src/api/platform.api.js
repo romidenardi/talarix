@@ -54,6 +54,8 @@ export const getAuditLog = (params = {}) => platformApi.get('/platform/audit', {
 export const getBusinesses = () => platformApi.get('/platform/businesses');
 export const createBusiness = (data) => platformApi.post('/platform/businesses', data);
 export const setBusinessStatus = (id, status) => platformApi.patch(`/platform/businesses/${id}/status`, { status });
+// until: 'AAAA-MM-DD' (vence al terminar ese día) o null (sin vencimiento)
+export const setBusinessTrial = (id, until) => platformApi.patch(`/platform/businesses/${id}/trial`, { until });
 export const reinviteBusinessAdmin = (id, userId) =>
   platformApi.post(`/platform/businesses/${id}/reinvite`, userId ? { userId } : {});
 export const resetDemoBusiness = (id) => platformApi.post(`/platform/businesses/${id}/reset-demo`);

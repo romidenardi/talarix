@@ -7,12 +7,14 @@ import {
   getBusinesses,
   createBusiness,
   setBusinessStatus,
+  setBusinessTrial,
   reinviteBusinessAdmin,
   resetDemoBusiness,
   startBusinessClosure,
   cancelBusinessClosure,
 } from '../../api/platform.api';
 import AuditLog from './AuditLog';
+import TrialDialog from './TrialDialog';
 
 const EMPTY_FORM = { name: '', adminName: '', adminEmail: '', type: 'client', trialDays: '' };
 
@@ -32,6 +34,35 @@ const STATUS_LABELS = {
   closing: 'En baja',
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WARN_DAYS = 3;
+const TRIAL_EXPIRED = 'trial_expired';
+
+// Pruebas que vencen en los próximos 3 días, y las ya vencidas (suspendidas por la tarea programada)
+const trialAlerts = (businesses, now = new Date()) => {
+  const soon = [];
+  const expired = [];
+  for (const business of businesses) {
+    if (business.type !== 'client') continue;
+    if (business.status === 'suspended' && business.suspendedReason === TRIAL_EXPIRED) {
+      expired.push(business);
+    } else if (business.status === 'active' && business.trialEndsAt) {
+      const left = new Date(business.trialEndsAt) - now;
+      if (left <= WARN_DAYS * DAY_MS) soon.push(business);
+    }
+  }
+  const byDate = (a, b) => new Date(a.trialEndsAt) - new Date(b.trialEndsAt);
+  return { soon: soon.sort(byDate), expired: expired.sort(byDate) };
+};
+
+const whenLeft = (trialEndsAt) => {
+  const end = new Date(trialEndsAt);
+  const days = Math.round((new Date(end.toDateString()) - new Date(new Date().toDateString())) / DAY_MS);
+  if (days <= 0) return 'hoy';
+  if (days === 1) return 'mañana';
+  return `en ${days} días`;
+};
+
 const STATUS_CLASSES = {
   active: 'platform-badge-ok',
   suspended: 'platform-badge-off',
@@ -48,6 +79,8 @@ export default function Platform() {
   const [submitting, setSubmitting] = useState(false);
   const [invite, setInvite] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [renewing, setRenewing] = useState(null);
+  const [savingTrial, setSavingTrial] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -109,6 +142,12 @@ export default function Platform() {
 
   const handleToggleStatus = async (business) => {
     const next = business.status === 'active' ? 'suspended' : 'active';
+    // Con la prueba vencida, reactivar es renovarla
+    const trialOver = business.trialEndsAt && new Date(business.trialEndsAt) <= new Date();
+    if (next === 'active' && trialOver) {
+      setRenewing(business);
+      return;
+    }
     const message =
       next === 'suspended'
         ? `¿Suspender "${business.name}"? Los usuarios no van a poder ingresar.`
@@ -128,6 +167,33 @@ export default function Platform() {
       await load();
     } catch (err) {
       setError(errorMessage(err));
+    }
+  };
+
+  const handleRenewClosed = async (result) => {
+    if (!result) {
+      setRenewing(null);
+      return;
+    }
+    setError('');
+    setSavingTrial(true);
+    try {
+      const { data } = await setBusinessTrial(renewing.id, result.until);
+      setRenewing(null);
+      await load();
+      const until = data.trialEndsAt ? `hasta el ${formatDate(data.trialEndsAt)}` : 'sin vencimiento';
+      await dialog.alert({
+        title: 'Prueba renovada',
+        message:
+          `${data.name}: ${until}.` +
+          (data.reactivated ? '\nEl comercio se reactivó: ya pueden volver a ingresar.' : '') +
+          (data.status === 'suspended' ? '\nSigue suspendido a mano: reactivalo si corresponde.' : ''),
+      });
+    } catch (err) {
+      setRenewing(null);
+      setError(errorMessage(err));
+    } finally {
+      setSavingTrial(false);
     }
   };
 
@@ -227,6 +293,8 @@ export default function Platform() {
       )}`
     : '#';
 
+  const alerts = trialAlerts(businesses);
+
   return (
     <div className="platform-page">
       <header className="platform-header">
@@ -237,6 +305,36 @@ export default function Platform() {
       </header>
 
       {error && <p className="auth-error">{error}</p>}
+
+      {(alerts.soon.length > 0 || alerts.expired.length > 0) && (
+        <section className="trial-alert" role="status">
+          <strong>Pruebas gratis</strong>
+          <ul>
+            {alerts.soon.map((business) => (
+              <li key={business.id}>
+                <span>
+                  <b>{business.name}</b> vence {whenLeft(business.trialEndsAt)} ({formatDate(business.trialEndsAt)})
+                </span>
+                <button type="button" onClick={() => setRenewing(business)}>
+                  Renovar
+                </button>
+              </li>
+            ))}
+            {alerts.expired.map((business) => (
+              <li key={business.id}>
+                <span>
+                  <b>{business.name}</b> venció el {formatDate(business.trialEndsAt)} y está suspendido
+                </span>
+                <button type="button" onClick={() => setRenewing(business)}>
+                  Renovar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {renewing && <TrialDialog business={renewing} saving={savingTrial} onClose={handleRenewClosed} />}
 
       {invite && (
         <section className="invite-box">
@@ -342,6 +440,12 @@ export default function Platform() {
                         <span className={`platform-badge ${STATUS_CLASSES[business.status] || 'platform-badge-off'}`}>
                           {STATUS_LABELS[business.status] || business.status}
                         </span>
+                        {business.status === 'suspended' && business.suspendedReason === TRIAL_EXPIRED && (
+                          <>
+                            <br />
+                            <small>Venció la prueba</small>
+                          </>
+                        )}
                         {isClosing && business.deleteAt && (
                           <>
                             <br />
@@ -351,7 +455,10 @@ export default function Platform() {
                         {business.trialEndsAt && (
                           <>
                             <br />
-                            <small>Prueba hasta {formatDate(business.trialEndsAt)}</small>
+                            <small>
+                              {new Date(business.trialEndsAt) <= new Date() ? 'Prueba vencida el' : 'Prueba hasta'}{' '}
+                              {formatDate(business.trialEndsAt)}
+                            </small>
                           </>
                         )}
                       </td>
@@ -381,6 +488,11 @@ export default function Platform() {
                           {!isClosing && (
                             <button type="button" onClick={() => handleToggleStatus(business)}>
                               {business.status === 'active' ? 'Suspender' : 'Reactivar'}
+                            </button>
+                          )}
+                          {business.type === 'client' && !isClosing && (
+                            <button type="button" onClick={() => setRenewing(business)}>
+                              {business.trialEndsAt ? 'Renovar prueba' : 'Poner vencimiento'}
                             </button>
                           )}
                           {admin && (

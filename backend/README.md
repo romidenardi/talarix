@@ -111,6 +111,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/platform/login`, `/platform/login/mfa*` | pública | Ingreso del superadmin en dos pasos (contraseña y código de Google Authenticator) |
 | `/platform/*` | superadmin | Alta de comercios, estado, reinvitar, reiniciar demo |
 | `/platform/audit` | superadmin | Registro de actividad (`?limit=` hasta 500, `?businessId=`) |
+| `/platform/businesses/:id/trial` | superadmin | `PATCH { until: 'AAAA-MM-DD' }` renueva la prueba hasta ese día; `{ until: null }`, sin vencimiento. Reactiva al comercio si estaba suspendido por la prueba |
 | `/platform/businesses/:id/closure` | superadmin | `POST` inicia la baja (pide el nombre exacto del comercio en `confirmName`); `DELETE` la cancela |
 | `/categories`, `/products`, `/stock-movements` | autenticados | Catálogo y movimientos de stock |
 | `/combos` | autenticados | Combos de productos |
@@ -171,7 +172,7 @@ Detalles que conviene saber:
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
 - **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, IVA e impuestos internos, combos, configuración de la balanza, y que el cálculo del frontend (`frontend/src/utils/taxes.js`) dé lo mismo que el del backend. No necesitan base.
-- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha y los reportes (con importes esperados exactos).
+- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) y el vencimiento y la renovación de la prueba gratis.
   - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
   - En local usan `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` del `.env`. El usuario tiene que poder crear bases (con `root` local alcanza).
@@ -257,6 +258,14 @@ node scripts/createPlatformAdmin.js
 La contraseña del superadmin tiene que tener **al menos 12 caracteres**.
 
 **Recuperar o cambiar la contraseña del superadmin:** a propósito no hay "Olvidé mi contraseña" en `/plataforma`: si alguien tomara el control del mail, podría quedarse con toda la plataforma. Se cambia corriendo el mismo script con el **mismo email** y la contraseña nueva: si el email ya existe, actualiza la contraseña (y lo reactiva) en lugar de crear otro. Los ingresos que ya estaban abiertos siguen valiendo hasta que vence su token (2 h). Las variables escritas en la línea de comando tienen prioridad sobre las del `.env`.
+
+### Prueba gratis
+- Al crear un comercio, "Días de prueba" guarda `trial_ends_at`. Vacío = sin vencimiento.
+- **Vence sola:** `services/trialExpiry.service.js` corre cada hora (a los 5 minutos) y 40 segundos después de arrancar. Suspende a los clientes activos con `trial_ends_at` vencido: `status = 'suspended'` y `suspended_reason = 'trial_expired'`. La demo no vence; un comercio en baja sigue con su baja. Queda en el registro de actividad (`business.trial_expired`).
+- Un comercio suspendido no puede usar el sistema: las sesiones abiertas se cortan y al ingresar ve "Terminó el período de prueba de este comercio. Contactanos para seguir usándolo."
+- **Renovar** (`PATCH /platform/businesses/:id/trial`): hasta una fecha (vence a las 23:59:59 de ese día, hora argentina; hasta 3 años) o sin vencimiento. Si estaba suspendido por la prueba, lo reactiva. Una suspensión manual (`suspended_reason = 'manual'`) no se levanta al renovar: se reactiva con el botón de siempre.
+- Con la prueba vencida, `PATCH /status` a `active` responde `409` (`TRIAL_EXPIRED`): hay que renovarla, porque si no la tarea la volvería a suspender.
+- En `/plataforma`, un aviso muestra las pruebas que vencen en los próximos 3 días y las ya vencidas, con el botón **Renovar**.
 
 ### Segundo factor (Google Authenticator)
 El ingreso a `/plataforma` pide la contraseña y después un código de 6 dígitos de la app. Es obligatorio: sin el segundo factor activado, el token de plataforma no sirve (lo revisa `platformAuth.middleware.js`).

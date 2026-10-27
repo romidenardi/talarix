@@ -18,7 +18,11 @@ const Business = sequelize.define(
       allowNull: false,
       defaultValue: 'client',
     },
+    // Fin de la prueba gratis (NULL = sin vencimiento). Al pasar, se suspende solo
+    // (services/trialExpiry.service.js)
     trialEndsAt: { type: DataTypes.DATE, allowNull: true, field: 'trial_ends_at' },
+    // Por qué está suspendido: 'trial_expired' o 'manual' (migrations/001-motivo-de-suspension.sql)
+    suspendedReason: { type: DataTypes.STRING(20), allowNull: true, field: 'suspended_reason' },
     contactEmail: { type: DataTypes.STRING, allowNull: true, field: 'contact_email' },
     // Fecha en que se borran definitivamente los datos (solo si status = closing)
     deleteAt: { type: DataTypes.DATE, allowNull: true, field: 'delete_at' },

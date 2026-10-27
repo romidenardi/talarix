@@ -7,6 +7,7 @@ import { hashToken } from '../utils/inviteToken.js';
 import { LEGAL_VERSION } from '../utils/legal.js';
 import { issueAccessLink, wasIssuedRecently } from '../utils/accessLinks.js';
 import { checkPassword, compareWithDummy, BCRYPT_ROUNDS } from '../utils/password.js';
+import { TRIAL_EXPIRED } from '../services/trialExpiry.service.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -20,7 +21,7 @@ export const login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({
     where: { email },
-    include: [{ model: Business, attributes: ['id', 'status', 'type', 'deleteAt'] }],
+    include: [{ model: Business, attributes: ['id', 'status', 'type', 'deleteAt', 'suspendedReason'] }],
   });
 
   // Si el email no existe (o no tiene contraseña) se compara igual contra un hash falso: la respuesta
@@ -37,6 +38,9 @@ export const login = asyncHandler(async (req, res) => {
       throw httpError('Esta cuenta está en proceso de baja. Consultale al administrador del comercio.', 403);
     }
   } else if (businessStatus !== 'active') {
+    if (user.Business.suspendedReason === TRIAL_EXPIRED) {
+      throw httpError('Terminó el período de prueba de este comercio. Contactanos para seguir usándolo.', 403);
+    }
     throw httpError('El acceso de este comercio está suspendido. Contactanos para reactivarlo.', 403);
   }
 

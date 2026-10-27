@@ -8,6 +8,7 @@ import {
   listBusinesses,
   createBusiness,
   setBusinessStatus,
+  setBusinessTrial,
   startClosure,
   cancelClosure,
   reinviteUser,
@@ -28,6 +29,7 @@ router.get('/audit', listAuditLog);
 router.get('/businesses', listBusinesses);
 router.post('/businesses', createBusiness);
 router.patch('/businesses/:id/status', setBusinessStatus);
+router.patch('/businesses/:id/trial', setBusinessTrial);
 router.post('/businesses/:id/closure', startClosure);
 router.delete('/businesses/:id/closure', cancelClosure);
 router.post('/businesses/:id/reinvite', reinviteUser);
