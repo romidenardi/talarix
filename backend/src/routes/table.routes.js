@@ -4,7 +4,6 @@ import { httpError } from '../utils/httpError.js';
 import { MANAGER_ROLES, CASHIER_ROLES } from '../services/table.service.js';
 import {
   getSettings,
-  updateSettings,
   getTables,
   createTable,
   updateTable,
@@ -24,9 +23,8 @@ import {
 
 const router = Router();
 
-// El administrador activa las mesas para su comercio
+// Si el comercio tiene el módulo de mesas (lo activa el superadmin, PATCH /platform/businesses/:id/modules)
 router.get('/settings', getSettings);
-router.put('/settings', requireRole('admin'), updateSettings);
 
 // El resto, solo con las mesas activadas
 router.use((req, res, next) => {

@@ -23,7 +23,7 @@ const Business = sequelize.define(
     trialEndsAt: { type: DataTypes.DATE, allowNull: true, field: 'trial_ends_at' },
     // Por qué está suspendido: 'trial_expired' o 'manual' (migrations/001-motivo-de-suspension.sql)
     suspendedReason: { type: DataTypes.STRING(20), allowNull: true, field: 'suspended_reason' },
-    // Usa mesas y comandas (lo activa el administrador desde la pantalla Mesas)
+    // Tiene el módulo de mesas y comandas (lo activa el superadmin desde /plataforma)
     tablesEnabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'tables_enabled' },
     contactEmail: { type: DataTypes.STRING, allowNull: true, field: 'contact_email' },
     // Fecha en que se borran definitivamente los datos (solo si status = closing)

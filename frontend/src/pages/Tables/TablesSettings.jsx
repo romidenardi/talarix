@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext.jsx';
 import { useDialog } from '../../context/DialogContext.jsx';
 import * as tablesApi from '../../api/tables.api.js';
 import FormMessage from '../../components/common/FormMessage.jsx';
@@ -9,9 +8,8 @@ import { serverMessage } from '../../utils/serverErrors.js';
 
 const EMPTY = { name: '', area: '', sortOrder: '' };
 
-// Alta y cambios de mesas (administrador y editor). El administrador puede desactivar las mesas.
+// Alta y cambios de mesas (administrador y editor)
 export default function TablesSettings() {
-  const { role, setTablesEnabled } = useAuth();
   const dialog = useDialog();
   const msg = useMessage();
   const [tables, setTables] = useState([]);
@@ -77,23 +75,6 @@ export default function TablesSettings() {
       await load();
     } catch (err) {
       msg.error(serverMessage(err, 'No se pudo eliminar la mesa'), table.id);
-    }
-  };
-
-  const disable = async () => {
-    if (
-      !(await dialog.confirm({
-        message: 'Se oculta el menú Mesas para todos. Las mesas y su historial se conservan.',
-        confirmLabel: 'Desactivar mesas',
-        danger: true,
-      }))
-    )
-      return;
-    try {
-      await tablesApi.setTablesEnabled(false);
-      setTablesEnabled(false);
-    } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron desactivar las mesas'), 'list');
     }
   };
 
@@ -244,14 +225,6 @@ export default function TablesSettings() {
           </tbody>
         </table>
       </div>
-
-      {role === 'admin' && (
-        <div className="inline-edit-actions">
-          <button type="button" className="btn-danger" onClick={disable}>
-            Desactivar mesas
-          </button>
-        </div>
-      )}
     </div>
   );
 }

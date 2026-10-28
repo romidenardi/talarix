@@ -3,6 +3,7 @@ import { useDialog } from '../../context/DialogContext.jsx';
 import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import logo from '../../assets/logo.png';
+import { getTablesSettings } from '../../api/tables.api.js';
 
 const ROLE_LABELS = {
   admin: 'Administrador',
@@ -12,10 +13,18 @@ const ROLE_LABELS = {
 };
 
 const Layout = () => {
-  const { logout, role, user, isDemo, isClosing, tablesEnabled } = useAuth();
+  const { logout, role, user, isDemo, isClosing, tablesEnabled, setTablesEnabled } = useAuth();
   const dialog = useDialog();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+
+  // El superadmin puede activar o quitar el módulo de mesas en cualquier momento: se revisa al entrar
+  useEffect(() => {
+    if (isClosing) return;
+    getTablesSettings()
+      .then(({ data }) => setTablesEnabled(Boolean(data.enabled)))
+      .catch(() => {});
+  }, [isClosing]);
 
   // Cierra el menú al navegar a otra pantalla
   useEffect(() => {
@@ -113,7 +122,7 @@ const Layout = () => {
               {canManageData && <NavLink to="/categories">Categorías</NavLink>}
               {canManageData && <NavLink to="/payments">Formas de pago</NavLink>}
               {canManageData && <NavLink to="/customers">Clientes</NavLink>}
-              {(tablesEnabled || isAdmin) && <NavLink to="/mesas">Mesas</NavLink>}
+              {tablesEnabled && <NavLink to="/mesas">Mesas</NavLink>}
               <NavLink to="/orders">Remitos</NavLink>
               {canManageData && <NavLink to="/suppliers">Proveedores</NavLink>}
               <NavLink to="/purchases">Compras</NavLink>

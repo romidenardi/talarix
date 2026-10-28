@@ -39,10 +39,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Al activar o desactivar las mesas, el menú se actualiza sin volver a ingresar
+  // Si el superadmin activa o quita el módulo de mesas, el menú se actualiza sin volver a ingresar
   const setTablesEnabled = (enabled) => {
     setUser((current) => {
-      if (!current) return current;
+      if (!current || Boolean(current.tablesEnabled) === enabled) return current;
       const next = { ...current, tablesEnabled: enabled };
       localStorage.setItem('user', JSON.stringify(next));
       return next;

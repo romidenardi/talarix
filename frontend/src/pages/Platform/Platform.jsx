@@ -8,6 +8,7 @@ import {
   createBusiness,
   setBusinessStatus,
   setBusinessTrial,
+  setBusinessModules,
   reinviteBusinessAdmin,
   resetDemoBusiness,
   startBusinessClosure,
@@ -194,6 +195,23 @@ export default function Platform() {
       setError(errorMessage(err));
     } finally {
       setSavingTrial(false);
+    }
+  };
+
+  // Módulo de mesas y comandas: lo activa o lo quita el superadmin (no borra datos)
+  const handleToggleTables = async (business) => {
+    const enable = !business.tablesEnabled;
+    const message = enable
+      ? `¿Activar el módulo de mesas para "${business.name}"? Va a aparecer el menú Mesas para sus usuarios.`
+      : `¿Quitar el módulo de mesas a "${business.name}"? Se oculta el menú Mesas; las mesas y su historial se conservan.`;
+    if (!(await dialog.confirm({ message, confirmLabel: enable ? 'Activar mesas' : 'Quitar mesas', danger: !enable })))
+      return;
+    setError('');
+    try {
+      await setBusinessModules(business.id, { tables: enable });
+      await load();
+    } catch (err) {
+      setError(errorMessage(err));
     }
   };
 
@@ -440,6 +458,12 @@ export default function Platform() {
                         <span className={`platform-badge ${STATUS_CLASSES[business.status] || 'platform-badge-off'}`}>
                           {STATUS_LABELS[business.status] || business.status}
                         </span>
+                        {business.tablesEnabled && (
+                          <>
+                            <br />
+                            <small>Módulo: mesas</small>
+                          </>
+                        )}
                         {business.status === 'suspended' && business.suspendedReason === TRIAL_EXPIRED && (
                           <>
                             <br />
@@ -493,6 +517,11 @@ export default function Platform() {
                           {business.type === 'client' && !isClosing && (
                             <button type="button" onClick={() => setRenewing(business)}>
                               {business.trialEndsAt ? 'Renovar prueba' : 'Poner vencimiento'}
+                            </button>
+                          )}
+                          {!isClosing && (
+                            <button type="button" onClick={() => handleToggleTables(business)}>
+                              {business.tablesEnabled ? 'Quitar mesas' : 'Activar mesas'}
                             </button>
                           )}
                           {admin && (

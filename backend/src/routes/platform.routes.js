@@ -9,6 +9,7 @@ import {
   createBusiness,
   setBusinessStatus,
   setBusinessTrial,
+  setBusinessModules,
   startClosure,
   cancelClosure,
   reinviteUser,
@@ -30,6 +31,7 @@ router.get('/businesses', listBusinesses);
 router.post('/businesses', createBusiness);
 router.patch('/businesses/:id/status', setBusinessStatus);
 router.patch('/businesses/:id/trial', setBusinessTrial);
+router.patch('/businesses/:id/modules', setBusinessModules);
 router.post('/businesses/:id/closure', startClosure);
 router.delete('/businesses/:id/closure', cancelClosure);
 router.post('/businesses/:id/reinvite', reinviteUser);

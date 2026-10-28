@@ -13,6 +13,10 @@ const ACTION_LABELS = {
   'business.closure_started': 'Inicio de baja del comercio',
   'business.trial_expired': 'Venció la prueba: comercio suspendido',
   'business.trial_renewed': 'Renovó la prueba',
+  'business.modules_changed': 'Cambió los módulos del comercio',
+  'tables.settings_changed': 'Activó o desactivó las mesas',
+  'tables.item_cancelled': 'Anuló un plato de una mesa',
+  'tables.tab_cancelled': 'Anuló una mesa',
   'business.closure_cancelled': 'Baja cancelada',
   'business.purged': 'Comercio eliminado definitivamente',
   'business.exported': 'Exportó los datos del comercio',
@@ -48,6 +52,8 @@ const describe = (row) => {
       return d.trialEndsAt ? `Vencía el ${dateOf(d.trialEndsAt)}` : '';
     case 'business.trial_renewed':
       return `${d.to ? `Hasta el ${dateOf(d.to)}` : 'Sin vencimiento'}${d.reactivated ? ', reactivado' : ''}`;
+    case 'business.modules_changed':
+      return d.tables ? `Mesas: ${d.tables.to ? 'activadas' : 'quitadas'}` : '';
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
     case 'order.approved': {

@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS order_payments (
   KEY idx_order_payments_order (order_id),
   KEY idx_order_payments_business (business_id)
 );
--- El comercio usa mesas (lo activa el administrador desde la pantalla Mesas)
+-- El comercio tiene el módulo de mesas (lo activa el superadmin desde /plataforma)
 ALTER TABLE businesses ADD COLUMN tables_enabled TINYINT(1) NOT NULL DEFAULT 0;
 -- El remito que se generó al cobrar una mesa
 ALTER TABLE orders ADD COLUMN table_tab_id CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL;

@@ -132,7 +132,8 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/imports` | `admin`, `editor` | Importación desde Excel (bloqueada en demo) |
 | `/users` | `admin` | Usuarios del comercio (bloqueada en demo) |
 | `/export` | `admin` | Descarga de todos los datos del comercio en un Excel. **Única ruta disponible durante la baja** |
-| `/tables/*` | autenticados con las mesas activadas | Mesas y comandas (ver "Mesas y comandas"). Activar: `PUT /tables/settings` (`admin`) |
+| `/tables/*` | autenticados, con el módulo de mesas | Mesas y comandas (ver "Mesas y comandas"). `GET /tables/settings` dice si el comercio tiene el módulo |
+| `/platform/businesses/:id/modules` | superadmin | `PATCH { tables: true \| false }` activa o quita el módulo de mesas. No borra datos |
 | `/data-rights/customers/:id/export` | `admin` | Exporta los datos de un cliente (pedido de acceso) |
 | `/data-rights/customers/:id/anonymize` | `admin` | Anonimiza a un cliente (pedido de supresión), conservando sus remitos |
 
@@ -220,7 +221,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 
 ## Mesas y comandas
 
-Para restaurantes, bares y cafés (`services/table.service.js`, migración `003`). El administrador las activa desde la pantalla Mesas (`businesses.tables_enabled`); sin eso, `/api/tables` responde `403`.
+Para restaurantes, bares y cafés (`services/table.service.js`, migración `003`). Es un **módulo opcional**: lo activa o lo quita el superadmin desde /plataforma (`PATCH /platform/businesses/:id/modules`, guarda `businesses.tables_enabled` y queda en el registro de actividad como `business.modules_changed`). El comercio no lo puede cambiar. Sin el módulo, `/api/tables` responde `403` (salvo `GET /tables/settings`). Quitarlo no borra las mesas ni su historial.
 
 - **Tablas:** `dining_tables` (mesas, con sector y orden), `table_tabs` (la cuenta de una mesa: `open`, `billing` = pidió la cuenta, `closed`, `cancelled`), `kitchen_tickets` (comandas, numeradas por comercio) y `tab_items` (platos, con el nombre y el precio del momento, y una nota para la cocina). Sin claves foráneas, como `parent_id` de productos.
 - **Abrir:** una sola cuenta abierta por mesa (se bloquea la fila de la mesa). Guarda el mozo que la abrió.

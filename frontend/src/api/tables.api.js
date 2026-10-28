@@ -1,8 +1,8 @@
 import api from './axios.js';
 
 // Mesas y comandas (backend/src/routes/table.routes.js)
+// Si el comercio tiene el módulo de mesas (lo activa el superadmin)
 export const getTablesSettings = () => api.get('/tables/settings');
-export const setTablesEnabled = (enabled) => api.put('/tables/settings', { enabled });
 
 export const getTables = () => api.get('/tables');
 export const createTable = (data) => api.post('/tables', data);

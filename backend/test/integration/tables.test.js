@@ -1,6 +1,7 @@
 // Mesas y comandas: stock al mandar la comanda, anulación, cuenta dividida, propinas y rol mozo
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import jwt from 'jsonwebtoken';
 import { startTestServer, createBusiness, newRequestId, stockOf, tokenFor } from './helpers.js';
 
 let api;
@@ -11,6 +12,7 @@ let admin;
 let operador;
 let mozo;
 let card;
+let platformToken;
 
 before(async () => {
   ({ api, models, stop } = await startTestServer());
@@ -26,6 +28,16 @@ before(async () => {
   });
   mozo = tokenFor(waiter);
   card = await models.Payment.create({ businessId: A.business.id, name: 'Tarjeta' });
+  const superadmin = await models.PlatformAdmin.create({
+    name: 'Superadmin',
+    email: 'super@resto.test',
+    passwordHash: 'x',
+    active: true,
+    totpEnabled: true,
+  });
+  platformToken = jwt.sign({ adminId: superadmin.id, scope: 'platform' }, process.env.PLATFORM_JWT_SECRET, {
+    expiresIn: '1h',
+  });
 });
 
 after(async () => {
@@ -34,14 +46,29 @@ after(async () => {
 
 const call = (method, path, token, body) => api(method, `/api/tables${path}`, { token, body });
 
-describe('Activar las mesas', () => {
-  it('desactivadas no se pueden usar; solo el administrador las activa', async () => {
+describe('Módulo de mesas', () => {
+  it('sin el módulo no se pueden usar; lo activa solo el superadmin', async () => {
     assert.equal((await call('GET', '/', admin)).status, 403);
-    assert.equal((await call('PUT', '/settings', A.users.editor.token, { enabled: true })).status, 403);
-    const res = await call('PUT', '/settings', admin, { enabled: true });
+    assert.equal((await call('GET', '/settings', admin)).body.enabled, false);
+    // El administrador del comercio ya no lo puede activar
+    assert.notEqual((await call('PUT', '/settings', admin, { enabled: true })).status, 200);
+    assert.equal((await call('GET', '/settings', admin)).body.enabled, false);
+
+    const modules = (body) =>
+      api('PATCH', `/api/platform/businesses/${A.business.id}/modules`, { token: platformToken, body });
+    assert.equal((await modules({ tables: 'sí' })).status, 400);
+    const res = await modules({ tables: true });
     assert.equal(res.status, 200, JSON.stringify(res.body));
-    assert.equal(res.body.enabled, true);
+    assert.equal(res.body.tablesEnabled, true);
     assert.equal((await call('GET', '/', admin)).status, 200);
+
+    const logged = await models.AuditLog.findOne({
+      where: { action: 'business.modules_changed', businessId: A.business.id },
+    });
+    assert.ok(logged, 'queda en el registro de actividad');
+
+    const list = await api('GET', '/api/platform/businesses', { token: platformToken });
+    assert.equal(list.body.find((b) => b.id === A.business.id).tablesEnabled, true);
 
     const login = await api('POST', '/api/auth/login', { body: { email: A.users.admin.email, password: A.password } });
     assert.equal(login.body.user.tablesEnabled, true);

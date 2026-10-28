@@ -20,24 +20,11 @@ import {
   OPEN_STATUSES,
 } from '../services/table.service.js';
 
-// ---- Activar las mesas (administrador) ----
+// ---- Módulo de mesas (lo activa el superadmin) ----
 
 export const getSettings = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.user.businessId, { attributes: ['tablesEnabled'] });
   res.json({ enabled: Boolean(business?.tablesEnabled) });
-});
-
-export const updateSettings = asyncHandler(async (req, res) => {
-  if (typeof req.body.enabled !== 'boolean') throw httpError('Indicá si las mesas están activadas');
-  const business = await Business.findByPk(req.user.businessId);
-  await business.update({ tablesEnabled: req.body.enabled });
-  await audit(req, {
-    action: 'tables.settings_changed',
-    targetType: 'business',
-    targetId: business.id,
-    detail: { enabled: req.body.enabled },
-  });
-  res.json({ enabled: business.tablesEnabled });
 });
 
 // ---- Mesas (alta y cambios: administrador y editor) ----

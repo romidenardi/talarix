@@ -204,6 +204,7 @@ export const listBusinesses = asyncHandler(async (req, res) => {
       'status',
       'suspendedReason',
       'type',
+      'tablesEnabled',
       'trialEndsAt',
       'deleteAt',
       'contactEmail',
@@ -417,6 +418,25 @@ export const setBusinessTrial = asyncHandler(async (req, res) => {
     trialEndsAt: business.trialEndsAt,
     reactivated: reactivate,
   });
+});
+
+// Módulos opcionales del comercio, que activa o quita el superadmin: { tables: true | false }.
+// Quitar un módulo no borra nada: sus datos quedan guardados para cuando se vuelva a activar.
+export const setBusinessModules = asyncHandler(async (req, res) => {
+  const business = await Business.findByPk(req.params.id);
+  if (!business) throw httpError('Comercio no encontrado', 404);
+  if (typeof req.body.tables !== 'boolean') throw httpError('Indicá si el comercio tiene el módulo de mesas');
+
+  const previous = business.tablesEnabled;
+  await business.update({ tablesEnabled: req.body.tables });
+  await audit(req, {
+    action: 'business.modules_changed',
+    businessId: business.id,
+    targetType: 'business',
+    targetId: business.id,
+    detail: { tables: { from: previous, to: business.tablesEnabled } },
+  });
+  res.json({ id: business.id, name: business.name, tablesEnabled: business.tablesEnabled });
 });
 
 export const startClosure = asyncHandler(async (req, res) => {
