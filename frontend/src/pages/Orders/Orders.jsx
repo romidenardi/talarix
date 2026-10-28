@@ -24,6 +24,7 @@ import { splitPrice, splitLineParts, toPercentOrNull } from '../../utils/taxes.j
 import { readScaleCode, scaleCodeProblem, lineFromLabel, resolveScaleConfig } from '../../utils/scale.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { formatQuantity, quantityStep, quantityMin, round3, toKg } from '../../utils/quantity.js';
+import { isVariantGroup } from '../../utils/variants.js';
 
 const NEW_CUSTOMER = '__new__';
 const NEW_PRODUCT = '__new_product__';
@@ -327,7 +328,7 @@ const Orders = () => {
 
     const items = watchedItems || [];
     const emptyIndex = items.findIndex((it) => !it.productId);
-    const product = products.find((p) => p.barcode === code || p.internalCode === code);
+    const product = products.find((p) => !isVariantGroup(p) && (p.barcode === code || p.internalCode === code));
 
     if (!product) {
       const reading = readScaleCode(code, scaleConfig);
@@ -569,9 +570,10 @@ const Orders = () => {
       detail: [c.fiscalCondition, c.cuit && `CUIT ${c.cuit}`].filter(Boolean).join(' · '),
       keywords: [c.firstName, c.lastName, c.businessName, c.cuit],
     }));
-  // Los productos inactivos no se pueden vender (el servidor también lo controla)
+  // Los productos inactivos no se pueden vender (el servidor también lo controla). De un producto
+  // con variantes se elige la variante.
   const productOptions = products
-    .filter((p) => p.active !== false)
+    .filter((p) => p.active !== false && !isVariantGroup(p))
     .map((p) => ({
       value: p.id,
       label: p.name,

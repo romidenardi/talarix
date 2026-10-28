@@ -14,6 +14,11 @@ import {
   Order,
   OrderItem,
   ComboItem,
+  DiningTable,
+  TableTab,
+  KitchenTicket,
+  TabItem,
+  OrderPayment,
 } from '../models/index.js';
 
 const TIMEZONE = 'America/Argentina/Buenos_Aires';
@@ -119,6 +124,11 @@ export const buildBusinessExport = async (businessId) => {
     installmentPlans,
     stockMovements,
     users,
+    diningTables,
+    tableTabs,
+    kitchenTickets,
+    tabItems,
+    orderPayments,
   ] = await Promise.all([
     byBusiness(Category, businessId),
     byBusiness(Product, businessId),
@@ -133,6 +143,11 @@ export const buildBusinessExport = async (businessId) => {
     byParent(InstallmentPlan, Payment, businessId),
     byParent(StockMovement, Product, businessId),
     byBusiness(User, businessId),
+    byBusiness(DiningTable, businessId),
+    byBusiness(TableTab, businessId),
+    byBusiness(KitchenTicket, businessId),
+    byBusiness(TabItem, businessId),
+    byBusiness(OrderPayment, businessId),
   ]);
 
   const productNames = namesById(products);
@@ -185,6 +200,25 @@ export const buildBusinessExport = async (businessId) => {
     { name: 'Movimientos de stock', ...sheetFrom(StockMovement, stockMovements, { productoNombre: productOf }) },
     { name: 'Usuarios', ...sheetFrom(User, users) },
   ];
+
+  // Mesas: solo si el comercio las usó
+  if (diningTables.length) {
+    const tableNames = namesById(diningTables);
+    const paymentNames = namesById(payments);
+    sheets.push(
+      { name: 'Mesas', ...sheetFrom(DiningTable, diningTables) },
+      {
+        name: 'Cuentas de mesas',
+        ...sheetFrom(TableTab, tableTabs, { mesaNombre: (row) => tableNames.get(row.tableId) || '' }),
+      },
+      { name: 'Comandas', ...sheetFrom(KitchenTicket, kitchenTickets) },
+      { name: 'Platos de comandas', ...sheetFrom(TabItem, tabItems) },
+      {
+        name: 'Cobros en partes',
+        ...sheetFrom(OrderPayment, orderPayments, { formaDePago: (row) => paymentNames.get(row.paymentId) || '' }),
+      },
+    );
+  }
 
   return {
     buffer: buildWorkbookBuffer(sheets),

@@ -16,6 +16,11 @@ import ComboItem from './comboItem.model.js';
 import PlatformAdmin from './platformAdmin.model.js';
 import ClosureRecord from './closureRecord.model.js';
 import AuditLog from './auditLog.model.js';
+import DiningTable from './diningTable.model.js';
+import TableTab from './tableTab.model.js';
+import KitchenTicket from './kitchenTicket.model.js';
+import TabItem from './tabItem.model.js';
+import OrderPayment from './orderPayment.model.js';
 
 // Borrado de registros con historial: las claves de remitos y compras hacia clientes, proveedores,
 // productos y formas de pago son RESTRICT. La base rechaza borrar algo que ya se usó en un remito
@@ -79,6 +84,15 @@ Order.belongsTo(InstallmentPlan, { foreignKey: 'installmentPlanId' });
 Order.hasMany(OrderItem, { as: 'items', foreignKey: 'orderId' });
 OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 
+// Mesas: sin claves foráneas en la base (constraints: false), igual que en migrations/003
+TableTab.belongsTo(DiningTable, { as: 'table', foreignKey: 'tableId', constraints: false });
+TableTab.hasMany(TabItem, { as: 'items', foreignKey: 'tabId', constraints: false });
+TableTab.hasMany(KitchenTicket, { as: 'tickets', foreignKey: 'tabId', constraints: false });
+KitchenTicket.belongsTo(TableTab, { as: 'tab', foreignKey: 'tabId', constraints: false });
+KitchenTicket.hasMany(TabItem, { as: 'items', foreignKey: 'ticketId', constraints: false });
+Order.hasMany(OrderPayment, { as: 'payments', foreignKey: 'orderId', constraints: false });
+OrderPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false });
+
 Product.hasMany(OrderItem, { foreignKey: 'productId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 OrderItem.belongsTo(Product, { foreignKey: 'productId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 
@@ -107,4 +121,9 @@ export {
   PlatformAdmin,
   ClosureRecord,
   AuditLog,
+  DiningTable,
+  TableTab,
+  KitchenTicket,
+  TabItem,
+  OrderPayment,
 };

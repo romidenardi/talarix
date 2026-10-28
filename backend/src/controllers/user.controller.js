@@ -11,7 +11,7 @@ import { audit } from '../utils/audit.js';
 
 const { Op } = pkg;
 
-const ROLES = ['admin', 'editor', 'operador'];
+const ROLES = ['admin', 'editor', 'operador', 'mozo'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Los cambios de usuarios de un comercio se hacen de a uno: se bloquea la fila del comercio durante

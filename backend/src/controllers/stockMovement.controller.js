@@ -1,4 +1,5 @@
 import { StockMovement, Product, sequelize } from '../models/index.js';
+import { isVariantGroup } from '../services/variant.service.js';
 import { lockProducts, moveStock } from '../services/stock.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
@@ -39,6 +40,8 @@ export const createStockMovement = asyncHandler(async (req, res) => {
       typeof productId === 'string' ? (await lockProducts([productId], businessId, t)).get(productId) : null;
     if (!product) throw httpError('Producto no encontrado', 404);
     if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos');
+    if (isVariantGroup(product))
+      throw httpError('Un producto con variantes no tiene stock propio: se maneja en cada variante');
 
     const amount = round3(toNumber(type === 'adjustment' ? newStock : quantity));
     if (!quantityAllowedFor(product, amount)) {

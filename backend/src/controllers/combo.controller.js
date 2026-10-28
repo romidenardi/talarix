@@ -1,4 +1,5 @@
 import { Product, ComboItem, Category, sequelize } from '../models/index.js';
+import { isVariantGroup } from '../services/variant.service.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { isPositiveInt, toNumber, round2 } from '../utils/numbers.js';
@@ -49,6 +50,8 @@ const readComponents = async (raw, businessId, comboId, transaction) => {
   });
   if (products.length !== quantities.size) throw httpError('Alguno de los productos del combo no existe', 404);
   if (products.some((p) => p.isCombo)) throw httpError('Un combo no puede incluir a otro combo');
+  if (products.some(isVariantGroup))
+    throw httpError('En un combo va la variante (talle, color…), no el producto principal');
 
   return products.map((product) => ({ product, quantity: quantities.get(product.id) }));
 };

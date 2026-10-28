@@ -61,7 +61,7 @@ const User = sequelize.define(
       field: 'terms_accepted_ip',
     },
     role: {
-      type: DataTypes.ENUM('admin', 'editor', 'operador'),
+      type: DataTypes.ENUM('admin', 'editor', 'operador', 'mozo'),
       allowNull: false,
       defaultValue: 'operador',
     },

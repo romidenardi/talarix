@@ -39,6 +39,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Al activar o desactivar las mesas, el menú se actualiza sin volver a ingresar
+  const setTablesEnabled = (enabled) => {
+    setUser((current) => {
+      if (!current) return current;
+      const next = { ...current, tablesEnabled: enabled };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -54,6 +64,8 @@ export const AuthProvider = ({ children }) => {
         role: user?.role || null,
         isDemo: user?.businessType === 'demo',
         isClosing: user?.businessStatus === 'closing',
+        tablesEnabled: Boolean(user?.tablesEnabled),
+        setTablesEnabled,
         isAuthenticated: !!token,
         login,
         logout,

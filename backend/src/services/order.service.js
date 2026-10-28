@@ -1,4 +1,5 @@
 import { Order, OrderItem, Product, Customer, Payment, InstallmentPlan, sequelize } from '../models/index.js';
+import { isVariantGroup } from './variant.service.js';
 import { httpError } from '../utils/httpError.js';
 import { loadComboComponents } from './combo.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
@@ -26,7 +27,13 @@ const MAX_PRICE = 99999999;
 //   body: lo que manda el frontend · user: req.user
 // Devuelve { orderId, created } (created = false si ya existía por el mismo requestId) y, si un
 // administrador autorizó un descuento o precio, { approver, approval } para el registro de actividad.
-export const createOrder = async ({ body, user }) => {
+//
+// Al cobrar una mesa (services/table.service.js) se llama con options = { tableTabId, transaction }:
+// el stock ya se descontó al mandar cada comanda y los precios son los del momento del pedido, así que
+// no se mueve stock, no se pide autorización y no se revisa si el producto sigue activo.
+export const createOrder = async ({ body, user, options = {} }) => {
+  const fromTab = Boolean(options.tableTabId);
+  const external = options.transaction || null;
   const { customerId, paymentId, installmentPlanId, items, notes } = body;
   const { businessId, role, id: userId } = user;
   const requestId = cleanRequestId(body.requestId);
@@ -73,7 +80,7 @@ export const createOrder = async ({ body, user }) => {
   let approver = null;
   let approval = null;
 
-  const t = await sequelize.transaction();
+  const t = external || (await sequelize.transaction());
   let orderId;
   try {
     const customer = await Customer.findOne({ where: { id: customerId, businessId }, transaction: t });
@@ -105,8 +112,11 @@ export const createOrder = async ({ body, user }) => {
     for (const [index, row] of rows.entries()) {
       const rowProduct = rowProductMap.get(row.productId);
       if (!rowProduct) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
-      if (!rowProduct.active) {
+      if (!rowProduct.active && !fromTab) {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} está inactivo. Activalo en Productos o elegí otro.`);
+      }
+      if (isVariantGroup(rowProduct)) {
+        throw httpError(`Artículo ${index + 1}: ${rowProduct.name} tiene variantes. Elegí cuál (talle, color…).`);
       }
       if (!quantityAllowedFor(rowProduct, row.quantity)) {
         throw httpError(
@@ -116,7 +126,7 @@ export const createOrder = async ({ body, user }) => {
     }
 
     // El operador vende a precio de lista y sin descuentos, salvo que lo autorice un administrador o editor
-    if (!APPROVER_ROLES.includes(role)) {
+    if (!fromTab && !APPROVER_ROLES.includes(role)) {
       approval = approvalSummary({ rows, productMap: rowProductMap, discountPercent, discountAmount });
       if (approval.needed) {
         approver = await checkApproval(body.approvalToken, {
@@ -158,10 +168,10 @@ export const createOrder = async ({ body, user }) => {
 
     // Primero el número (bloquea el comercio) y después los productos, siempre en el mismo orden
     const number = await nextOrderNumber(businessId, t);
-    const locked = await lockProducts([...requested.keys()], businessId, t);
+    const locked = fromTab ? new Map() : await lockProducts([...requested.keys()], businessId, t);
 
     const stockPlan = [];
-    for (const [productId, qty] of requested) {
+    for (const [productId, qty] of fromTab ? [] : requested) {
       const product = locked.get(productId);
       if (!product) throw httpError(`Producto no encontrado: ${productId}`, 404);
 
@@ -239,6 +249,7 @@ export const createOrder = async ({ body, user }) => {
         installmentAmount: totals.installmentAmount,
         totalFinanced: totals.totalFinanced,
         requestId,
+        tableTabId: options.tableTabId || null,
         ...actorFields(user),
       },
       { transaction: t },
@@ -285,8 +296,9 @@ export const createOrder = async ({ body, user }) => {
       );
     }
 
-    await t.commit();
+    if (!external) await t.commit();
   } catch (error) {
+    if (external) throw error;
     await t.rollback();
     // Dos envíos iguales al mismo tiempo: el otro ya lo creó
     if (requestId && isDuplicateRequest(error)) {

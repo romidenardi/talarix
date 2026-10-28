@@ -1,4 +1,5 @@
 import { Purchase, PurchaseItem, Product, Supplier, sequelize } from '../models/index.js';
+import { isVariantGroup } from '../services/variant.service.js';
 import { lockProducts, moveStock, actorFields } from '../services/stock.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -133,6 +134,9 @@ export const createPurchase = asyncHandler(async (req, res) => {
           throw httpError(
             `Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`,
           );
+        }
+        if (isVariantGroup(product)) {
+          throw httpError(`Artículo ${index + 1}: ${product.name} tiene variantes. Elegí cuál (talle, color…).`);
         }
         entry = { product, quantity: 0, amount: 0 };
         byProduct.set(row.productId, entry);

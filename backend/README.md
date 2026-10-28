@@ -88,6 +88,8 @@ src/
                    movimientos de stock (stock.service.js), cálculo
                    del remito (orderPricing.js), número de remito
                    (orderNumber.service.js), autorización de descuentos,
+                   variantes de productos (variant.service.js), mesas y
+                   comandas (table.service.js),
                    importación, datos de la cuenta demo, exportación a Excel,
                    borrado de un comercio, programador de bajas y vencimiento
                    de pruebas (trialExpiry.service.js)
@@ -130,6 +132,7 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/imports` | `admin`, `editor` | Importación desde Excel (bloqueada en demo) |
 | `/users` | `admin` | Usuarios del comercio (bloqueada en demo) |
 | `/export` | `admin` | Descarga de todos los datos del comercio en un Excel. **Única ruta disponible durante la baja** |
+| `/tables/*` | autenticados con las mesas activadas | Mesas y comandas (ver "Mesas y comandas"). Activar: `PUT /tables/settings` (`admin`) |
 | `/data-rights/customers/:id/export` | `admin` | Exporta los datos de un cliente (pedido de acceso) |
 | `/data-rights/customers/:id/anonymize` | `admin` | Anonimiza a un cliente (pedido de supresión), conservando sus remitos |
 
@@ -166,6 +169,11 @@ Detalles que conviene saber:
 - Stock y cantidades (`products.stock`, `order_items`, `purchase_items`, `stock_movements`) son `DECIMAL(12,3)`. Sequelize devuelve los DECIMAL como texto: los modelos usan `numericGetter` (`utils/decimalColumn.js`) para que lleguen como número, y las cuentas con cantidades se redondean con `round3`.
 - **Balanza:** cada producto por peso puede tener un `scalePlu` (1 a 9999), único por comercio. El comercio guarda en `businesses.scale_config` cómo se arma la etiqueta EAN-13 (prefijo, posición del PLU y del valor, si trae peso o importe, decimales, dígito de control). El valor de fábrica es el de Systel. La etiqueta se interpreta en el frontend; el backend solo guarda la configuración.
 - Los combos siguen usando cantidades enteras y no admiten productos por peso (se filtra en el frontend).
+- **Productos con variantes** (`services/variant.service.js`, migración `002`): cada variante (talle, color…) es un producto más, con su código, código de barras, stock y costo, así remitos, compras, stock, combos y reportes no cambian. La agrupa un **producto principal** (`variant_attributes`, hasta 3 atributos) que no se vende, no se compra ni tiene stock: remitos, compras, movimientos de stock y combos responden `400` si se lo elige. Cada variante guarda `parent_id` y `variant_values` (en el orden de los atributos), y su nombre se arma solo (`Remera · M / Rojo`).
+  - `POST /products` con `variants: { attributes, items: [{ values, internalCode?, barcode?, price? }] }` crea el principal y sus variantes en una transacción (hasta 100; código por defecto `CÓDIGO-1`, `-2`…). `POST /products/:id/variants` agrega combinaciones nuevas. Una combinación repetida (sin importar mayúsculas) responde `409`.
+  - Editar el principal pasa a las variantes la categoría, el IVA, los impuestos internos, la marca, el modelo, la descripción, el nombre y el estado; el precio y la promo solo a las que no tienen precio propio (`own_price`), y el costo solo a las que todavía tenían el mismo. Se pueden renombrar los atributos, pero no agregar ni quitar.
+  - En una variante se cambian el código, el código de barras, el precio (queda `own_price = 1`; con `ownPrice: false` vuelve al del principal), el costo, el estado y sus valores. No se activa si el principal está inactivo.
+  - Solo productos por unidad. Borrar el principal borra sus variantes, salvo que alguna tenga historial o esté en un combo. La importación desde Excel crea productos sin variantes.
 - **Importación:** hasta 5 MB y 5.000 filas por archivo, solo la primera hoja. Además del filtro por extensión, `utils/parseSpreadsheet.js` revisa que el contenido coincida (un .xlsx tiene que ser un ZIP; un .csv, texto) y responde `400` con un mensaje claro si el archivo no se puede leer.
 - **Importación: todo o nada** (`services/import.service.js`). Primero se revisan todas las filas; si alguna tiene un error, no se guarda ninguna y se devuelve la lista (`imported: false`, `errors: [{ row, message }]`). Si están todas bien, se guardan juntas en una transacción.
 - **Sin duplicados:** las filas que ya existen se saltean y se informan en `skipped` (productos por código interno; clientes y proveedores por CUIT o, sin CUIT, por nombre). Subir dos veces el mismo archivo no duplica nada. Un código de barras o un PLU que ya usa otro producto es un error. Un producto existente **no se modifica** desde la importación.
@@ -176,8 +184,8 @@ Detalles que conviene saber:
 ## Tests
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
-- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración de la balanza (la lectura de etiquetas se prueba en el frontend), migraciones, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
-- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) y el vencimiento y la renovación de la prueba gratis.
+- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración de la balanza (la lectura de etiquetas se prueba en el frontend), migraciones, variantes de productos, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
+- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) el vencimiento y la renovación de la prueba gratis, los productos con variantes, y las mesas y comandas (con el rol mozo).
   - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
   - En local usan `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` del `.env`. El usuario tiene que poder crear bases (con `root` local alcanza).
@@ -192,7 +200,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 
 ## Seguridad y multi-comercio
 - Todo recurso se filtra por `req.user.businessId`. El middleware de autenticación revalida en cada request que el usuario esté activo y con contraseña, y que el comercio esté activo.
-- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios) y `operador` (solo compras y remitos; descuentos y precios fuera de lista con autorización de un admin o editor).
+- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios), `operador` (solo compras y remitos; descuentos y precios fuera de lista con autorización de un admin o editor) y `mozo` (solo Mesas: abre mesas, manda comandas y pide la cuenta; no cobra). Al `mozo` el middleware de autenticación solo le deja usar `/api/tables`, y leer productos y categorías (`mozoCanUse` en `auth.middleware.js`).
 - El **superadmin** usa un login y un token aparte (`/api/platform/*`). Ve metadatos de cuentas, nunca contenido de los comercios ni contraseñas.
 - **Siempre queda un administrador:** para quitar el rol, desactivar o borrar a un `admin`, el servidor bloquea los usuarios del comercio durante el cambio (`lockUsersOf`), revisa que quien lo pide siga siendo administrador y que quede otro activo (`assertAnotherAdmin`). Si dos administradores se quitan el rol al mismo tiempo, el segundo es rechazado.
 - Los usuarios se crean de dos maneras: el administrador del comercio les asigna una contraseña, o les manda una **invitación** por mail para que elijan la suya.
@@ -209,6 +217,20 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 - **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se rechazan las fáciles de adivinar (`utils/passwordStrength.js`, el mismo archivo que en el frontend): las más usadas, un carácter repetido, secuencias (`12345678`, `abcdefgh`, `qwerty…`), las que contienen "talarix" y las que contienen el nombre o el email de la persona. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
 - **Emails registrados:** el ingreso tarda lo mismo exista o no el email (si no existe, se compara contra un hash falso: `compareWithDummy`), y responde siempre "Credenciales inválidas". Al crear un usuario con un email que ya existe, el mensaje no dice de qué comercio es. El email es único en todo el sistema (es el usuario para ingresar), así que ese aviso no se puede evitar del todo; lo limita el tope de 30 usuarios nuevos por día por comercio.
 - Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo, se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
+
+## Mesas y comandas
+
+Para restaurantes, bares y cafés (`services/table.service.js`, migración `003`). El administrador las activa desde la pantalla Mesas (`businesses.tables_enabled`); sin eso, `/api/tables` responde `403`.
+
+- **Tablas:** `dining_tables` (mesas, con sector y orden), `table_tabs` (la cuenta de una mesa: `open`, `billing` = pidió la cuenta, `closed`, `cancelled`), `kitchen_tickets` (comandas, numeradas por comercio) y `tab_items` (platos, con el nombre y el precio del momento, y una nota para la cocina). Sin claves foráneas, como `parent_id` de productos.
+- **Abrir:** una sola cuenta abierta por mesa (se bloquea la fila de la mesa). Guarda el mozo que la abrió.
+- **Comanda:** `POST /tables/tabs/:id/tickets` con `requestId` (un doble envío es una sola comanda). **El stock baja al mandarla**, con los componentes si es un combo; si no alcanza, queda negativo, porque el plato ya se está preparando. El precio es el de lista (o el del combo).
+- **Anular un plato** (`admin`, `editor`): el stock vuelve y queda quién y por qué. **Anular la mesa entera** devuelve el stock de todo lo pedido y no genera remito.
+- **Cocina:** `GET /tables/kitchen` (pendientes y las listas de la última hora) y `POST /tables/tickets/:id/ready`.
+- **Cobrar** (`admin`, `editor`, `operador`): `POST /tables/tabs/:id/close` con `parts: [{ paymentId, amount, tip }]`. Las partes tienen que sumar el total exacto. Genera **un remito** con todos los platos (`orders.table_tab_id`), con `createOrder` en modo mesa: no vuelve a mover el stock, no pide autorización y acepta productos desactivados después del pedido. Sin cliente elegido, usa (o crea) "Consumidor Final". Cada parte queda en `order_payments`; el reporte por forma de pago las cuenta por separado. La forma de pago del remito es la de la parte más grande.
+- **Propinas:** van en `order_payments.tip`, aparte del importe: no suman al remito ni al IVA. `GET /tables/tips?from&to` las suma por mozo.
+- Anular el remito de una mesa devuelve el stock, como cualquier remito.
+- Un producto pedido en una mesa no se puede borrar (historial). La exportación completa incluye las hojas de mesas si el comercio las usó; la baja y el reinicio de la demo las borran.
 
 ## Mails
 

@@ -42,8 +42,8 @@ export const dashboard = asyncHandler(async (req, res) => {
     top.map((t) => t.productId),
   );
 
-  // Los combos no tienen stock propio: no cuentan como stock bajo
-  const stockWhere = { businessId, active: true, isCombo: false };
+  // Los combos y los productos con variantes no tienen stock propio: no cuentan como stock bajo
+  const stockWhere = { businessId, active: true, isCombo: false, variantAttributes: null };
   const [lowStockCount, outOfStockCount, lowStockItems] = await Promise.all([
     Product.count({ where: { ...stockWhere, stock: { [Op.lte]: LOW_STOCK_THRESHOLD } } }),
     Product.count({ where: { ...stockWhere, stock: { [Op.lte]: 0 } } }),

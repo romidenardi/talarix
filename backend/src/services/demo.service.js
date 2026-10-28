@@ -13,6 +13,11 @@ import {
   Order,
   OrderItem,
   sequelize,
+  OrderPayment,
+  TabItem,
+  KitchenTicket,
+  TableTab,
+  DiningTable,
 } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
 import { round2 } from '../utils/numbers.js';
@@ -29,6 +34,10 @@ const wipeBusinessData = async (businessId, t) => {
     (await Model.findAll({ where: { businessId }, attributes: ['id'], raw: true, transaction: t })).map(
       (row) => row.id,
     );
+
+  for (const Model of [OrderPayment, TabItem, KitchenTicket, TableTab, DiningTable]) {
+    await Model.destroy({ where: { businessId }, transaction: t });
+  }
 
   const orderIds = await idsOf(Order);
   if (orderIds.length) await OrderItem.destroy({ where: { orderId: { [Op.in]: orderIds } }, transaction: t });

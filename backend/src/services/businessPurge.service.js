@@ -16,6 +16,11 @@ import {
   ComboItem,
   ClosureRecord,
   AuditLog,
+  DiningTable,
+  TableTab,
+  KitchenTicket,
+  TabItem,
+  OrderPayment,
 } from '../models/index.js';
 import { audit } from '../utils/audit.js';
 
@@ -45,6 +50,12 @@ export const purgeBusiness = async (businessId) => {
 
   const transaction = await sequelize.transaction();
   try {
+    await OrderPayment.destroy({ where: { businessId }, force: true, transaction });
+    await TabItem.destroy({ where: { businessId }, force: true, transaction });
+    await KitchenTicket.destroy({ where: { businessId }, force: true, transaction });
+    await TableTab.destroy({ where: { businessId }, force: true, transaction });
+    await DiningTable.destroy({ where: { businessId }, force: true, transaction });
+
     const orderIds = await idsOf(Order, { businessId }, transaction);
     await destroyByIds(OrderItem, 'orderId', orderIds, transaction);
     await Order.destroy({ where: { businessId }, force: true, transaction });

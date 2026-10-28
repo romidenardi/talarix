@@ -139,6 +139,12 @@ const Order = sequelize.define(
       allowNull: true,
       field: 'created_by_name',
     },
+    // La cuenta de mesa que se cobró con este remito (services/table.service.js)
+    tableTabId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'table_tab_id',
+    },
     // Identificador del envío desde el frontend, para no crear dos veces el mismo (ver utils/requestId.js)
     requestId: {
       type: DataTypes.UUID,

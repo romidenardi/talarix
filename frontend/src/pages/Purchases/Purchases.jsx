@@ -18,6 +18,7 @@ import { toPercentOrNull } from '../../utils/taxes.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { formatQuantity, quantityStep, quantityMin, toKg } from '../../utils/quantity.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
+import { isVariantGroup } from '../../utils/variants.js';
 
 const NEW_SUPPLIER = '__new_supplier__';
 const NEW_PRODUCT = '__new_product__';
@@ -115,7 +116,9 @@ const Purchases = () => {
 
     const items = watchedItems || [];
     const emptyIndex = items.findIndex((it) => !it.productId);
-    const product = products.find((p) => !p.isCombo && (p.barcode === code || p.internalCode === code));
+    const product = products.find(
+      (p) => !p.isCombo && !isVariantGroup(p) && (p.barcode === code || p.internalCode === code),
+    );
 
     if (product) {
       const existing = items.findIndex((it) => it.productId === product.id);
@@ -340,7 +343,7 @@ const Purchases = () => {
       keywords: [s.cuit, s.email],
     }));
   const productOptions = products
-    .filter((p) => !p.isCombo)
+    .filter((p) => !p.isCombo && !isVariantGroup(p))
     .map((p) => ({
       value: p.id,
       label: p.name,

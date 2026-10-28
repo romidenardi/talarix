@@ -7,13 +7,23 @@ export const salesByPayment = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const { from, to, start, end } = readRange(req.query);
 
+  // Un remito cobrado en partes (mesa con la cuenta dividida) cuenta en cada forma de pago por su parte
   const rows = await select(
-    `SELECT o.payment_id AS paymentId, COUNT(*) AS orders, SUM(o.total) AS total,
-       SUM(o.installment_plan_id IS NOT NULL) AS installmentOrders,
-       SUM(CASE WHEN o.installment_plan_id IS NOT NULL THEN COALESCE(o.total_financed, 0) ELSE 0 END) AS financed
-     FROM orders o
-     WHERE ${ORDERS_IN_RANGE}
-     GROUP BY o.payment_id`,
+    `SELECT x.paymentId, COUNT(DISTINCT x.orderId) AS orders, SUM(x.amount) AS total,
+       SUM(x.installment) AS installmentOrders, SUM(x.financed) AS financed
+     FROM (
+       SELECT o.id AS orderId, o.payment_id AS paymentId, o.total AS amount,
+         (o.installment_plan_id IS NOT NULL) AS installment,
+         CASE WHEN o.installment_plan_id IS NOT NULL THEN COALESCE(o.total_financed, 0) ELSE 0 END AS financed
+       FROM orders o
+       WHERE ${ORDERS_IN_RANGE} AND NOT EXISTS (SELECT 1 FROM order_payments p WHERE p.order_id = o.id)
+       UNION ALL
+       SELECT o.id, op.payment_id, op.amount, 0, 0
+       FROM orders o
+       JOIN order_payments op ON op.order_id = o.id
+       WHERE ${ORDERS_IN_RANGE}
+     ) x
+     GROUP BY x.paymentId`,
     { businessId, start, end },
   );
   const payments = await loadPaymentsMap(

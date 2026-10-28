@@ -22,6 +22,7 @@ const ROLES = [
   { value: 'admin', label: 'Administrador (todo, incluye gestionar usuarios)' },
   { value: 'editor', label: 'Editor (todo, sin gestionar usuarios)' },
   { value: 'operador', label: 'Operador (solo Compras y Remitos)' },
+  { value: 'mozo', label: 'Mozo (solo Mesas: abre mesas y manda comandas)' },
 ];
 
 const DEFAULT_CREATE = { role: 'operador', mode: 'password' };

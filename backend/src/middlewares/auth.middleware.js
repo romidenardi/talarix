@@ -6,6 +6,21 @@ const { Op } = pkg;
 
 const CLOSING_MESSAGE = 'Esta cuenta está en proceso de baja. Solo se permite exportar los datos.';
 
+// El mozo solo usa Mesas: la API de mesas (cada ruta revisa además su rol) y la lista de productos
+// y categorías para elegir los platos. Todo lo demás le responde 403.
+const MOZO_ALLOWED = [
+  { method: 'GET', prefix: '/api/products' },
+  { method: 'GET', prefix: '/api/categories' },
+  { method: '*', prefix: '/api/tables' },
+];
+export const mozoCanUse = (method, url) => {
+  const path = String(url || '').split('?')[0];
+  return MOZO_ALLOWED.some(
+    (rule) =>
+      (rule.method === '*' || rule.method === method) && (path === rule.prefix || path.startsWith(`${rule.prefix}/`)),
+  );
+};
+
 const buildAuthMiddleware =
   ({ allowClosing }) =>
   async (req, res, next) => {
@@ -35,7 +50,7 @@ const buildAuthMiddleware =
           passwordHash: { [Op.ne]: null },
         },
         attributes: ['id', 'businessId', 'role', 'tokenVersion', 'name'],
-        include: [{ model: Business, attributes: ['status', 'type'] }],
+        include: [{ model: Business, attributes: ['status', 'type', 'tablesEnabled'] }],
       });
 
       if (!user) {
@@ -57,6 +72,10 @@ const buildAuthMiddleware =
         return res.status(401).json({ message: 'Sesión inválida' });
       }
 
+      if (user.role === 'mozo' && !mozoCanUse(req.method, req.originalUrl)) {
+        return res.status(403).json({ message: 'No tenés permisos para realizar esta acción' });
+      }
+
       req.user = {
         id: user.id,
         name: user.name,
@@ -64,6 +83,7 @@ const buildAuthMiddleware =
         role: user.role,
         businessType: user.Business.type,
         businessStatus: status,
+        tablesEnabled: Boolean(user.Business.tablesEnabled),
       };
       next();
     } catch (error) {

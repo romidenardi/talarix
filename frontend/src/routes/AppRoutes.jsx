@@ -20,6 +20,8 @@ import OrderPrint from '../pages/Orders/OrderPrint.jsx';
 import Imports from '../pages/Imports/Imports.jsx';
 import Users from '../pages/Users/Users.jsx';
 import ExportData from '../pages/Export/ExportData.jsx';
+import Tables from '../pages/Tables/Tables.jsx';
+import TicketPrint from '../pages/Tables/TicketPrint.jsx';
 import NotFound from '../pages/NotFound/NotFound.jsx';
 import PrivateRoute from './PrivateRoute.jsx';
 import Layout from '../components/layout/Layout.jsx';
@@ -38,12 +40,14 @@ const AppRoutes = () => {
 
       <Route element={<PrivateRoute />}>
         <Route path="/orders/:id/print" element={<OrderPrint />} />
+        <Route path="/mesas/comandas/:id/imprimir" element={<TicketPrint />} />
 
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
 
           <Route path="/orders" element={<Orders />} />
           <Route path="/purchases" element={<Purchases />} />
+          <Route path="/mesas" element={<Tables />} />
 
           {/* La pantalla controla por sí misma que solo el administrador pueda exportar,
               porque también es la única disponible cuando el comercio está en baja */}

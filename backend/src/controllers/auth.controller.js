@@ -21,7 +21,9 @@ export const login = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({
     where: { email },
-    include: [{ model: Business, attributes: ['id', 'status', 'type', 'deleteAt', 'suspendedReason'] }],
+    include: [
+      { model: Business, attributes: ['id', 'status', 'type', 'deleteAt', 'suspendedReason', 'tablesEnabled'] },
+    ],
   });
 
   // Si el email no existe (o no tiene contraseña) se compara igual contra un hash falso: la respuesta
@@ -63,6 +65,7 @@ export const login = asyncHandler(async (req, res) => {
       businessType: user.Business.type,
       businessStatus,
       deleteAt: businessStatus === 'closing' ? user.Business.deleteAt : null,
+      tablesEnabled: Boolean(user.Business.tablesEnabled),
     },
   });
 });

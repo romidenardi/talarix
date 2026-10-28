@@ -1729,3 +1729,256 @@ td .form-message {
   font-size: 13px;
   margin: 0 0 8px;
 }
+
+/* ---------- Productos con variantes (pages/Products/VariantBuilder.jsx y VariantsPanel.jsx) ---------- */
+.variant-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.variant-builder-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(200px, 3fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.variant-builder > button {
+  align-self: flex-start;
+}
+
+.variants-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variants-add {
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
+}
+
+@media (max-width: 640px) {
+  .variant-builder-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Mesas y comandas (pages/Tables/) ---------- */
+.tables-activate {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tables-area h2 {
+  font-size: 1rem;
+  margin: 16px 0 8px;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.table-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px;
+  min-height: 92px;
+  text-align: left;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.table-card-free {
+  border-color: var(--color-success);
+}
+
+.table-card-open {
+  border-color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.table-card-billing {
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+}
+
+.table-card.selected {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.tab-panel {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tab-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-panel-header h2 {
+  margin: 0;
+}
+
+.tab-ticket {
+  border-top: 1px solid var(--color-border);
+  padding-top: 8px;
+}
+
+.tab-ticket-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.tab-items {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tab-items li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-item-cancelled {
+  text-decoration: line-through;
+  color: var(--color-text-muted);
+}
+
+.tab-total {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.tab-draft-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 3fr) minmax(80px, 1fr) minmax(140px, 2fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.close-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.close-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.kitchen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.kitchen-ticket {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 2px solid var(--color-warning);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.kitchen-ticket-ready {
+  border-color: var(--color-success);
+  opacity: 0.8;
+}
+
+.kitchen-ticket header {
+  display: flex;
+  flex-direction: column;
+}
+
+.kitchen-ticket ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 1.05rem;
+}
+
+.ticket-print {
+  padding: 16px;
+}
+
+.ticket-sheet {
+  width: 72mm;
+  font-family: var(--font-mono, monospace);
+  font-size: 14px;
+}
+
+.ticket-sheet h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.ticket-sheet p {
+  margin: 0;
+}
+
+.ticket-sheet ul {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.ticket-sheet li {
+  margin-bottom: 6px;
+  font-size: 16px;
+}
+
+.ticket-note {
+  font-style: italic;
+  padding-left: 12px;
+}
+
+@media print {
+  .ticket-print {
+    padding: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .tab-draft-row {
+    grid-template-columns: 1fr;
+  }
+}

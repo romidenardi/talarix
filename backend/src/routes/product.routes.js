@@ -6,6 +6,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  addVariants,
 } from '../controllers/product.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
@@ -42,6 +43,7 @@ router.get('/', getProducts);
 router.get('/barcode/:barcode', getProductByBarcode);
 router.post('/', requireRole('admin', 'editor'), createRules, validate, createProduct);
 router.put('/:id', requireRole('admin', 'editor'), updateRules, validate, updateProduct);
+router.post('/:id/variants', requireRole('admin', 'editor'), addVariants);
 router.delete('/:id', requireRole('admin', 'editor'), deleteProduct);
 
 export default router;

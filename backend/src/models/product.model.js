@@ -108,12 +108,37 @@ const Product = sequelize.define(
       allowNull: true,
       field: 'special_price',
     },
+    // Variantes (services/variant.service.js). En el producto principal, los nombres de los
+    // atributos (["Talle", "Color"]); en cada variante, su principal y sus valores (["M", "Rojo"]).
+    parentId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'parent_id',
+    },
+    variantAttributes: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'variant_attributes',
+    },
+    variantValues: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      field: 'variant_values',
+    },
+    // La variante tiene precio y promo propios; si no, toma los del principal
+    ownPrice: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'own_price',
+    },
   },
   {
     tableName: 'products',
     indexes: [
       { unique: true, fields: ['business_id', 'barcode'], name: 'uq_products_business_barcode' },
       { unique: true, fields: ['business_id', 'scale_plu'], name: 'uq_products_business_scale_plu' },
+      { fields: ['parent_id'], name: 'idx_products_parent' },
     ],
   },
 );

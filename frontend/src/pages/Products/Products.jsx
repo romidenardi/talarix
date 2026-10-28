@@ -18,6 +18,9 @@ import FormMessage from '../../components/common/FormMessage.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { applyServerFieldErrors, fieldFromMessage } from '../../utils/serverErrors.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
+import VariantBuilder, { EMPTY_VARIANT_ROWS } from './VariantBuilder.jsx';
+import VariantsPanel from './VariantsPanel.jsx';
+import { isVariantGroup, buildVariants } from '../../utils/variants.js';
 
 const api = {
   getAll: productsApi.getProducts,
@@ -57,6 +60,9 @@ const Products = () => {
   const [stockPanelId, setStockPanelId] = useState(null);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('products'); // 'products' | 'combos' | 'scale'
+  const [withVariants, setWithVariants] = useState(false);
+  const [variantRows, setVariantRows] = useState(EMPTY_VARIANT_ROWS);
+  const [openVariantsId, setOpenVariantsId] = useState(null);
 
   const createForm = useForm({
     defaultValues: { unitType: 'unit', vatRate: '21', priceBase: '1000' },
@@ -113,18 +119,33 @@ const Products = () => {
   const flatCategories = categories.flatMap((c) => [c, ...(c.subcategories || [])]);
 
   const onCreate = async (formData) => {
-    const { priceBase: _base, ...rest } = formData;
+    const { priceBase: _base, barcode, scalePlu: _plu, ...rest } = formData;
+    const variants = withVariants && formData.unitType === 'unit' ? buildVariants(variantRows) : null;
+    if (variants?.error) {
+      msg.error(variants.error, 'create');
+      return;
+    }
     const result = await create({
       ...rest,
       ...priceFields(formData),
       vatRate: Number(formData.vatRate),
       otherTaxes: toPercentOrNull(formData.otherTaxes),
       categoryId: formData.categoryId || null,
-      scalePlu: formData.unitType === 'weight' && formData.scalePlu ? Number(formData.scalePlu) : null,
+      ...(variants
+        ? { variants: { attributes: variants.attributes, items: variants.items } }
+        : {
+            barcode,
+            scalePlu: formData.unitType === 'weight' && formData.scalePlu ? Number(formData.scalePlu) : null,
+          }),
     });
     if (result.success) {
       reset({ unitType: 'unit', vatRate: '21', priceBase: '1000' });
-      msg.success('Producto agregado', 'create');
+      setWithVariants(false);
+      setVariantRows(EMPTY_VARIANT_ROWS);
+      msg.success(
+        variants ? `Producto agregado con ${variants.items.length} variantes` : 'Producto agregado',
+        'create',
+      );
     } else {
       showServerError(result, createForm, 'create');
     }
@@ -151,19 +172,28 @@ const Products = () => {
       otherTaxes: product.otherTaxes ?? '',
       description: product.description || '',
       active: String(product.active),
+      attributes: product.variantAttributes || [],
     });
   };
 
   const onUpdate = async (formData) => {
-    const { priceBase: _base, ...rest } = formData;
+    const { priceBase: _base, attributes, barcode, scalePlu: _plu, unitType, ...rest } = formData;
+    const group = isVariantGroup(products.find((p) => p.id === editingId));
     const result = await update(editingId, {
       ...rest,
       ...priceFields(formData),
       vatRate: Number(formData.vatRate),
       otherTaxes: toPercentOrNull(formData.otherTaxes),
       categoryId: formData.categoryId || null,
-      scalePlu: formData.unitType === 'weight' && formData.scalePlu ? Number(formData.scalePlu) : null,
       active: formData.active === 'true',
+      // Con variantes: sin código de barras ni PLU (van en cada variante); se pueden renombrar los atributos
+      ...(group
+        ? { variantAttributes: (attributes || []).map((a) => String(a).trim()) }
+        : {
+            barcode,
+            unitType,
+            scalePlu: unitType === 'weight' && formData.scalePlu ? Number(formData.scalePlu) : null,
+          }),
     });
     if (result.success) {
       const savedId = editingId;
@@ -175,8 +205,9 @@ const Products = () => {
   };
 
   const onDelete = async (id) => {
-    if (!(await dialog.confirm({ message: '¿Eliminar este producto?', confirmLabel: 'Eliminar', danger: true })))
-      return;
+    const count = (variantsByParent.get(id) || []).length;
+    const message = count ? `¿Eliminar este producto y sus ${count} variantes?` : '¿Eliminar este producto?';
+    if (!(await dialog.confirm({ message, confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
     if (result.success) msg.success('Producto eliminado', 'list');
     else msg.error(result.message, id);
@@ -184,13 +215,27 @@ const Products = () => {
 
   const categoryName = (categoryId) => flatCategories.find((c) => c.id === categoryId)?.name || '—';
 
-  // La fila que se está editando sigue visible aunque el filtro no la incluya
+  // Las variantes se muestran dentro de su producto principal
+  const variantsByParent = new Map();
+  for (const p of products) {
+    if (!p.parentId) continue;
+    if (!variantsByParent.has(p.parentId)) variantsByParent.set(p.parentId, []);
+    variantsByParent.get(p.parentId).push(p);
+  }
+  for (const list of variantsByParent.values()) list.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+
+  const productMatches = (p) =>
+    matchesSearch(search, [p.name, p.internalCode, p.barcode, p.brand, p.model, categoryName(p.categoryId)]);
+
+  // La fila que se está editando sigue visible aunque el filtro no la incluya. Un producto con
+  // variantes aparece si coincide él o alguna de sus variantes (por ejemplo, por código de barras).
   const visibleProducts = products.filter(
     (p) =>
       !p.isCombo &&
-      (p.id === editingId ||
-        matchesSearch(search, [p.name, p.internalCode, p.barcode, p.brand, p.model, categoryName(p.categoryId)])),
+      !p.parentId &&
+      (p.id === editingId || productMatches(p) || (variantsByParent.get(p.id) || []).some(productMatches)),
   );
+  const groupStock = (p) => (variantsByParent.get(p.id) || []).reduce((sum, v) => sum + (Number(v.stock) || 0), 0);
 
   const tabs = (
     <div className="report-tabs" role="tablist">
@@ -262,26 +307,28 @@ const Products = () => {
           {errors.internalCode && <span className="error">{errors.internalCode.message}</span>}
         </div>
 
-        <div className="field">
-          <label htmlFor="barcode">Código de barras</label>
-          <div className="input-with-action">
-            <input
-              id="barcode"
-              placeholder="Escribí o escaneá el código"
-              {...register('barcode')}
-              onKeyDown={blockEnter}
-            />
-            <button
-              type="button"
-              className="scan-button"
-              title="Escanear con la cámara del celular"
-              onClick={() => setScanTarget('create')}
-            >
-              Cámara
-            </button>
+        {!(withVariants && createUnitType === 'unit') && (
+          <div className="field">
+            <label htmlFor="barcode">Código de barras</label>
+            <div className="input-with-action">
+              <input
+                id="barcode"
+                placeholder="Escribí o escaneá el código"
+                {...register('barcode')}
+                onKeyDown={blockEnter}
+              />
+              <button
+                type="button"
+                className="scan-button"
+                title="Escanear con la cámara del celular"
+                onClick={() => setScanTarget('create')}
+              >
+                Cámara
+              </button>
+            </div>
+            {errors.barcode && <span className="error">{errors.barcode.message}</span>}
           </div>
-          {errors.barcode && <span className="error">{errors.barcode.message}</span>}
-        </div>
+        )}
 
         <div className="field">
           <label htmlFor="name">
@@ -321,6 +368,26 @@ const Products = () => {
             <option value="weight">Por peso</option>
           </select>
         </div>
+
+        {createUnitType === 'unit' && (
+          <div className="field">
+            <label htmlFor="withVariants">
+              <input
+                id="withVariants"
+                type="checkbox"
+                checked={withVariants}
+                onChange={(e) => setWithVariants(e.target.checked)}
+              />{' '}
+              Tiene variantes (talle, color, sabor…)
+            </label>
+          </div>
+        )}
+
+        {withVariants && createUnitType === 'unit' && (
+          <div className="field field-full">
+            <VariantBuilder value={variantRows} onChange={setVariantRows} />
+          </div>
+        )}
 
         {createUnitType === 'weight' && (
           <div className="field">
@@ -472,238 +539,288 @@ const Products = () => {
                 </td>
               </tr>
             )}
-            {visibleProducts.map((product) => (
-              <Fragment key={product.id}>
-                <tr>
-                  {editingId === product.id ? (
-                    <td colSpan={8} className="edit-cell">
-                      <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
-                        <div className="field">
-                          <label htmlFor={`edit-internalCode-${product.id}`}>
-                            Código interno
-                            <RequiredMark />
-                          </label>
-                          <input
-                            id={`edit-internalCode-${product.id}`}
-                            {...editForm.register('internalCode', { required: 'El código interno es obligatorio' })}
-                          />
-                          {editErrors.internalCode && <span className="error">{editErrors.internalCode.message}</span>}
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-barcode-${product.id}`}>Código de barras</label>
-                          <div className="input-with-action">
+            {visibleProducts.map((product) => {
+              const group = isVariantGroup(product);
+              return (
+                <Fragment key={product.id}>
+                  <tr>
+                    {editingId === product.id ? (
+                      <td colSpan={8} className="edit-cell">
+                        <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
+                          <div className="field">
+                            <label htmlFor={`edit-internalCode-${product.id}`}>
+                              Código interno
+                              <RequiredMark />
+                            </label>
                             <input
-                              id={`edit-barcode-${product.id}`}
-                              placeholder="Escribí o escaneá el código"
-                              {...editForm.register('barcode')}
-                              onKeyDown={blockEnter}
+                              id={`edit-internalCode-${product.id}`}
+                              {...editForm.register('internalCode', { required: 'El código interno es obligatorio' })}
                             />
-                            <button
-                              type="button"
-                              className="scan-button"
-                              title="Escanear con la cámara del celular"
-                              onClick={() => setScanTarget('edit')}
-                            >
-                              Cámara
-                            </button>
+                            {editErrors.internalCode && (
+                              <span className="error">{editErrors.internalCode.message}</span>
+                            )}
                           </div>
-                          {editErrors.barcode && <span className="error">{editErrors.barcode.message}</span>}
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-name-${product.id}`}>
-                            Producto
-                            <RequiredMark />
-                          </label>
-                          <input
-                            id={`edit-name-${product.id}`}
-                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
-                          />
-                          {editErrors.name && <span className="error">{editErrors.name.message}</span>}
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-brand-${product.id}`}>Marca</label>
-                          <input id={`edit-brand-${product.id}`} {...editForm.register('brand')} />
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-model-${product.id}`}>Modelo</label>
-                          <input id={`edit-model-${product.id}`} {...editForm.register('model')} />
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-categoryId-${product.id}`}>Categoría</label>
-                          <select id={`edit-categoryId-${product.id}`} {...editForm.register('categoryId')}>
-                            <option value="">Sin categoría</option>
-                            {flatCategories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
+                          {!group && (
+                            <div className="field">
+                              <label htmlFor={`edit-barcode-${product.id}`}>Código de barras</label>
+                              <div className="input-with-action">
+                                <input
+                                  id={`edit-barcode-${product.id}`}
+                                  placeholder="Escribí o escaneá el código"
+                                  {...editForm.register('barcode')}
+                                  onKeyDown={blockEnter}
+                                />
+                                <button
+                                  type="button"
+                                  className="scan-button"
+                                  title="Escanear con la cámara del celular"
+                                  onClick={() => setScanTarget('edit')}
+                                >
+                                  Cámara
+                                </button>
+                              </div>
+                              {editErrors.barcode && <span className="error">{editErrors.barcode.message}</span>}
+                            </div>
+                          )}
+                          <div className="field">
+                            <label htmlFor={`edit-name-${product.id}`}>
+                              Producto
+                              <RequiredMark />
+                            </label>
+                            <input
+                              id={`edit-name-${product.id}`}
+                              {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                            />
+                            {editErrors.name && <span className="error">{editErrors.name.message}</span>}
+                          </div>
+                          {group &&
+                            product.variantAttributes.map((attribute, i) => (
+                              <div className="field" key={attribute}>
+                                <label htmlFor={`edit-attribute-${product.id}-${i}`}>Atributo {i + 1}</label>
+                                <input
+                                  id={`edit-attribute-${product.id}-${i}`}
+                                  {...editForm.register(`attributes.${i}`, {
+                                    required: 'El atributo necesita un nombre',
+                                  })}
+                                />
+                              </div>
                             ))}
-                          </select>
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-unitType-${product.id}`}>Unidad</label>
-                          <select id={`edit-unitType-${product.id}`} {...editForm.register('unitType')}>
-                            <option value="unit">Por unidad</option>
-                            <option value="weight">Por peso</option>
-                          </select>
-                        </div>
-                        {editUnitType === 'weight' && (
                           <div className="field">
-                            <label htmlFor={`edit-scalePlu-${product.id}`}>PLU de balanza</label>
-                            <input
-                              id={`edit-scalePlu-${product.id}`}
-                              type="number"
-                              min="1"
-                              max="9999"
-                              step="1"
-                              placeholder="Ej: 417"
-                              {...editForm.register('scalePlu')}
-                            />
-                            {editErrors.scalePlu && <span className="error">{editErrors.scalePlu.message}</span>}
+                            <label htmlFor={`edit-brand-${product.id}`}>Marca</label>
+                            <input id={`edit-brand-${product.id}`} {...editForm.register('brand')} />
                           </div>
-                        )}
-                        {editUnitType === 'weight' && (
                           <div className="field">
-                            <label htmlFor={`edit-priceBase-${product.id}`}>Cargo precio y costo por</label>
-                            <select id={`edit-priceBase-${product.id}`} {...editForm.register('priceBase')}>
-                              {PRICE_BASES.map((b) => (
-                                <option key={b.value} value={b.value}>
-                                  {b.label}
+                            <label htmlFor={`edit-model-${product.id}`}>Modelo</label>
+                            <input id={`edit-model-${product.id}`} {...editForm.register('model')} />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`edit-categoryId-${product.id}`}>Categoría</label>
+                            <select id={`edit-categoryId-${product.id}`} {...editForm.register('categoryId')}>
+                              <option value="">Sin categoría</option>
+                              {flatCategories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
                                 </option>
                               ))}
                             </select>
                           </div>
-                        )}
-                        <div className="field">
-                          <label htmlFor={`edit-price-${product.id}`}>
-                            Precio{editUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}
-                            <RequiredMark />
-                          </label>
-                          <input
-                            id={`edit-price-${product.id}`}
-                            type="number"
-                            step="0.01"
-                            {...editForm.register('price', {
-                              required: 'El precio es obligatorio',
-                              min: { value: 0, message: 'El precio no puede ser negativo' },
-                            })}
-                          />
-                          {editErrors.price && <span className="error">{editErrors.price.message}</span>}
-                        </div>
-                        {perKgHint(editUnitType, editPriceBase, editPrice) && (
-                          <div className="field field-full">
-                            <small className="report-note">{perKgHint(editUnitType, editPriceBase, editPrice)}</small>
+                          {!group && (
+                            <div className="field">
+                              <label htmlFor={`edit-unitType-${product.id}`}>Unidad</label>
+                              <select id={`edit-unitType-${product.id}`} {...editForm.register('unitType')}>
+                                <option value="unit">Por unidad</option>
+                                <option value="weight">Por peso</option>
+                              </select>
+                            </div>
+                          )}
+                          {editUnitType === 'weight' && (
+                            <div className="field">
+                              <label htmlFor={`edit-scalePlu-${product.id}`}>PLU de balanza</label>
+                              <input
+                                id={`edit-scalePlu-${product.id}`}
+                                type="number"
+                                min="1"
+                                max="9999"
+                                step="1"
+                                placeholder="Ej: 417"
+                                {...editForm.register('scalePlu')}
+                              />
+                              {editErrors.scalePlu && <span className="error">{editErrors.scalePlu.message}</span>}
+                            </div>
+                          )}
+                          {editUnitType === 'weight' && (
+                            <div className="field">
+                              <label htmlFor={`edit-priceBase-${product.id}`}>Cargo precio y costo por</label>
+                              <select id={`edit-priceBase-${product.id}`} {...editForm.register('priceBase')}>
+                                {PRICE_BASES.map((b) => (
+                                  <option key={b.value} value={b.value}>
+                                    {b.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className="field">
+                            <label htmlFor={`edit-price-${product.id}`}>
+                              Precio{editUnitType === 'weight' ? ' (por la cantidad elegida)' : ''}
+                              <RequiredMark />
+                            </label>
+                            <input
+                              id={`edit-price-${product.id}`}
+                              type="number"
+                              step="0.01"
+                              {...editForm.register('price', {
+                                required: 'El precio es obligatorio',
+                                min: { value: 0, message: 'El precio no puede ser negativo' },
+                              })}
+                            />
+                            {editErrors.price && <span className="error">{editErrors.price.message}</span>}
+                            {group && <small className="report-note">Pasa a las variantes sin precio propio.</small>}
                           </div>
-                        )}
-                        <div className="field">
-                          <label htmlFor={`edit-promoPrice-${product.id}`}>Precio promo</label>
-                          <input
-                            id={`edit-promoPrice-${product.id}`}
-                            type="number"
-                            step="0.01"
-                            {...editForm.register('promoPrice')}
-                          />
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-cost-${product.id}`}>
-                            Costo
-                            <RequiredMark />
-                          </label>
-                          <input
-                            id={`edit-cost-${product.id}`}
-                            type="number"
-                            step="0.01"
-                            {...editForm.register('cost', {
-                              required: 'El costo es obligatorio',
-                              min: { value: 0, message: 'El costo no puede ser negativo' },
-                            })}
-                          />
-                          {editErrors.cost && <span className="error">{editErrors.cost.message}</span>}
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-vatRate-${product.id}`}>IVA</label>
-                          <VatSelect
-                            id={`edit-vatRate-${product.id}`}
-                            registration={editForm.register('vatRate')}
-                            legacyValue={product.vatRate}
-                          />
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-otherTaxes-${product.id}`}>
-                            Impuestos internos (%) <small>(opcional)</small>
-                          </label>
-                          <input
-                            id={`edit-otherTaxes-${product.id}`}
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            placeholder="Ej: 8"
-                            {...editForm.register('otherTaxes')}
-                          />
-                        </div>
-                        <div className="field">
-                          <label htmlFor={`edit-active-${product.id}`}>Estado</label>
-                          <select id={`edit-active-${product.id}`} {...editForm.register('active')}>
-                            <option value="true">Activo</option>
-                            <option value="false">Inactivo</option>
-                          </select>
-                        </div>
-                        <div className="field field-full">
-                          <label htmlFor={`edit-description-${product.id}`}>Descripción</label>
-                          <textarea id={`edit-description-${product.id}`} {...editForm.register('description')} />
-                        </div>
-                        <div className="inline-edit-actions">
-                          <button type="submit">Guardar</button>
-                          <button type="button" onClick={() => setEditingId(null)}>
-                            Cancelar
-                          </button>
-                        </div>
-                        <FormMessage message={msg.at('edit')} onClose={msg.clear} />
-                        <RequiredLegend />
-                      </form>
-                    </td>
-                  ) : (
-                    <>
-                      <td data-label="Código">{product.internalCode}</td>
-                      <td data-label="Producto">
-                        {product.name}
-                        {product.scalePlu ? <small> · PLU {product.scalePlu}</small> : null}
+                          {perKgHint(editUnitType, editPriceBase, editPrice) && (
+                            <div className="field field-full">
+                              <small className="report-note">{perKgHint(editUnitType, editPriceBase, editPrice)}</small>
+                            </div>
+                          )}
+                          <div className="field">
+                            <label htmlFor={`edit-promoPrice-${product.id}`}>Precio promo</label>
+                            <input
+                              id={`edit-promoPrice-${product.id}`}
+                              type="number"
+                              step="0.01"
+                              {...editForm.register('promoPrice')}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`edit-cost-${product.id}`}>
+                              Costo
+                              <RequiredMark />
+                            </label>
+                            <input
+                              id={`edit-cost-${product.id}`}
+                              type="number"
+                              step="0.01"
+                              {...editForm.register('cost', {
+                                required: 'El costo es obligatorio',
+                                min: { value: 0, message: 'El costo no puede ser negativo' },
+                              })}
+                            />
+                            {editErrors.cost && <span className="error">{editErrors.cost.message}</span>}
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`edit-vatRate-${product.id}`}>IVA</label>
+                            <VatSelect
+                              id={`edit-vatRate-${product.id}`}
+                              registration={editForm.register('vatRate')}
+                              legacyValue={product.vatRate}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`edit-otherTaxes-${product.id}`}>
+                              Impuestos internos (%) <small>(opcional)</small>
+                            </label>
+                            <input
+                              id={`edit-otherTaxes-${product.id}`}
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              max="100"
+                              placeholder="Ej: 8"
+                              {...editForm.register('otherTaxes')}
+                            />
+                          </div>
+                          <div className="field">
+                            <label htmlFor={`edit-active-${product.id}`}>Estado</label>
+                            <select id={`edit-active-${product.id}`} {...editForm.register('active')}>
+                              <option value="true">Activo</option>
+                              <option value="false">Inactivo</option>
+                            </select>
+                          </div>
+                          <div className="field field-full">
+                            <label htmlFor={`edit-description-${product.id}`}>Descripción</label>
+                            <textarea id={`edit-description-${product.id}`} {...editForm.register('description')} />
+                          </div>
+                          <div className="inline-edit-actions">
+                            <button type="submit">Guardar</button>
+                            <button type="button" onClick={() => setEditingId(null)}>
+                              Cancelar
+                            </button>
+                          </div>
+                          <FormMessage message={msg.at('edit')} onClose={msg.clear} />
+                          <RequiredLegend />
+                        </form>
                       </td>
-                      <td data-label="Categoría">{categoryName(product.categoryId)}</td>
-                      <td data-label="Precio">
-                        ${Number(product.price).toFixed(2)}
-                        {perKg(product.unitType)}
-                      </td>
-                      <td data-label="Precio promo">
-                        {product.promoPrice
-                          ? `$${Number(product.promoPrice).toFixed(2)}${perKg(product.unitType)}`
-                          : '—'}
-                      </td>
-                      <td data-label="Costo">
-                        ${Number(product.cost).toFixed(2)}
-                        {perKg(product.unitType)}
-                      </td>
-                      <td data-label="Stock">{formatQuantity(product.stock, product.unitType)}</td>
-                      <td data-label="Acciones">
-                        <button onClick={() => startEdit(product)}>Editar</button>
-                        <button onClick={() => onDelete(product.id)}>Eliminar</button>
-                        <button onClick={() => setStockPanelId(stockPanelId === product.id ? null : product.id)}>
-                          {stockPanelId === product.id ? 'Cerrar stock' : 'Stock'}
-                        </button>
-                        <FormMessage message={msg.at(product.id)} onClose={msg.clear} />
-                      </td>
-                    </>
-                  )}
-                </tr>
-                {stockPanelId === product.id && (
-                  <tr>
-                    <td colSpan={8} className="edit-cell">
-                      <StockMovementPanel product={product} onStockChange={reload} />
-                    </td>
+                    ) : (
+                      <>
+                        <td data-label="Código">{product.internalCode}</td>
+                        <td data-label="Producto">
+                          {product.name}
+                          {product.scalePlu ? <small> · PLU {product.scalePlu}</small> : null}
+                          {group && (
+                            <small>
+                              {' '}
+                              · {(variantsByParent.get(product.id) || []).length} variantes (
+                              {product.variantAttributes.join(', ')})
+                            </small>
+                          )}
+                        </td>
+                        <td data-label="Categoría">{categoryName(product.categoryId)}</td>
+                        <td data-label="Precio">
+                          ${Number(product.price).toFixed(2)}
+                          {perKg(product.unitType)}
+                        </td>
+                        <td data-label="Precio promo">
+                          {product.promoPrice
+                            ? `$${Number(product.promoPrice).toFixed(2)}${perKg(product.unitType)}`
+                            : '—'}
+                        </td>
+                        <td data-label="Costo">
+                          ${Number(product.cost).toFixed(2)}
+                          {perKg(product.unitType)}
+                        </td>
+                        <td data-label="Stock">
+                          {formatQuantity(group ? groupStock(product) : product.stock, product.unitType)}
+                        </td>
+                        <td data-label="Acciones">
+                          <button onClick={() => startEdit(product)}>Editar</button>
+                          <button onClick={() => onDelete(product.id)}>Eliminar</button>
+                          {group ? (
+                            <button
+                              onClick={() => setOpenVariantsId(openVariantsId === product.id ? null : product.id)}
+                            >
+                              {openVariantsId === product.id ? 'Cerrar variantes' : 'Variantes'}
+                            </button>
+                          ) : (
+                            <button onClick={() => setStockPanelId(stockPanelId === product.id ? null : product.id)}>
+                              {stockPanelId === product.id ? 'Cerrar stock' : 'Stock'}
+                            </button>
+                          )}
+                          <FormMessage message={msg.at(product.id)} onClose={msg.clear} />
+                        </td>
+                      </>
+                    )}
                   </tr>
-                )}
-              </Fragment>
-            ))}
+                  {stockPanelId === product.id && (
+                    <tr>
+                      <td colSpan={8} className="edit-cell">
+                        <StockMovementPanel product={product} onStockChange={reload} />
+                      </td>
+                    </tr>
+                  )}
+                  {group && openVariantsId === product.id && (
+                    <tr>
+                      <td colSpan={8} className="edit-cell">
+                        <VariantsPanel
+                          parent={product}
+                          variants={variantsByParent.get(product.id) || []}
+                          onChanged={reload}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

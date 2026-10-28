@@ -8,10 +8,11 @@ const ROLE_LABELS = {
   admin: 'Administrador',
   editor: 'Editor',
   operador: 'Operador',
+  mozo: 'Mozo',
 };
 
 const Layout = () => {
-  const { logout, role, user, isDemo, isClosing } = useAuth();
+  const { logout, role, user, isDemo, isClosing, tablesEnabled } = useAuth();
   const dialog = useDialog();
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
@@ -56,6 +57,12 @@ const Layout = () => {
     return <Navigate to="/exportar" replace />;
   }
 
+  // El mozo solo usa Mesas
+  const isWaiter = role === 'mozo';
+  if (isWaiter && !location.pathname.startsWith('/mesas')) {
+    return <Navigate to="/mesas" replace />;
+  }
+
   const canManageData = role === 'admin' || role === 'editor';
   const isAdmin = role === 'admin';
 
@@ -94,6 +101,8 @@ const Layout = () => {
         <nav className="sidebar-nav">
           {isClosing ? (
             <NavLink to="/exportar">Exportar mis datos</NavLink>
+          ) : isWaiter ? (
+            <NavLink to="/mesas">Mesas</NavLink>
           ) : (
             <>
               <NavLink to="/" end>
@@ -104,6 +113,7 @@ const Layout = () => {
               {canManageData && <NavLink to="/categories">Categorías</NavLink>}
               {canManageData && <NavLink to="/payments">Formas de pago</NavLink>}
               {canManageData && <NavLink to="/customers">Clientes</NavLink>}
+              {(tablesEnabled || isAdmin) && <NavLink to="/mesas">Mesas</NavLink>}
               <NavLink to="/orders">Remitos</NavLink>
               {canManageData && <NavLink to="/suppliers">Proveedores</NavLink>}
               <NavLink to="/purchases">Compras</NavLink>

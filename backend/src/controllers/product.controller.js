@@ -1,9 +1,30 @@
 import pkg from 'sequelize';
-import { Product, ComboItem, Category, OrderItem, PurchaseItem, Order, Purchase } from '../models/index.js';
+import {
+  Product,
+  ComboItem,
+  Category,
+  OrderItem,
+  PurchaseItem,
+  Order,
+  Purchase,
+  TabItem,
+  sequelize,
+} from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { withComboData } from '../services/combo.service.js';
 import { pick } from '../utils/pick.js';
+import {
+  MAX_VARIANTS,
+  isVariantGroup,
+  isVariant,
+  variantName,
+  inheritedFields,
+  normalizeAttributes,
+  normalizeValues,
+  assertNewCombinations,
+  PRICE_FIELDS,
+} from '../services/variant.service.js';
 
 const { Op } = pkg;
 
@@ -121,6 +142,9 @@ const findOwnProduct = async (id, businessId) => {
   return product;
 };
 
+// Lo que se puede cambiar en una variante: lo demás lo toma del producto principal
+const VARIANT_FIELDS = ['internalCode', 'barcode', 'price', 'promoPrice', 'cost', 'active'];
+
 export const getProducts = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const products = await Product.findAll({ where: { businessId } });
@@ -135,8 +159,85 @@ export const getProductByBarcode = asyncHandler(async (req, res) => {
   res.json(data);
 });
 
+// Variantes nuevas de un producto principal. items: [{ values, internalCode?, barcode?, price? }]
+// `existing`: las variantes que ya tiene, para no repetir combinaciones ni códigos.
+const createVariants = async ({ parent, items, existing = [], businessId, transaction }) => {
+  if (!Array.isArray(items) || !items.length) throw httpError('Agregá al menos una variante');
+  if (existing.length + items.length > MAX_VARIANTS) {
+    throw httpError(`Un producto puede tener hasta ${MAX_VARIANTS} variantes`);
+  }
+  const attributes = parent.variantAttributes;
+  const rows = items.map((item) => ({ ...item, values: normalizeValues(item?.values, attributes) }));
+  assertNewCombinations(
+    rows.map((r) => r.values),
+    existing.map((v) => v.variantValues || []),
+  );
+
+  const barcodes = new Set();
+  let next = existing.length + 1;
+  const created = [];
+  for (const row of rows) {
+    const barcode = cleanBarcode(row.barcode) ?? null;
+    if (barcode) {
+      if (barcodes.has(barcode)) throw httpError(`El código de barras ${barcode} está repetido`, 409);
+      barcodes.add(barcode);
+      await assertBarcodeFree(businessId, barcode);
+    }
+    const ownPrice = row.price !== undefined && row.price !== null && row.price !== '';
+    const price = ownPrice ? Number(row.price) : Number(parent.price);
+    if (!Number.isFinite(price) || price < 0) throw httpError('El precio de la variante debe ser un número positivo');
+    const internalCode = String(row.internalCode ?? '').trim() || `${parent.internalCode}-${next}`;
+    next += 1;
+    created.push(
+      await Product.create(
+        {
+          ...inheritedFields(parent),
+          businessId,
+          parentId: parent.id,
+          variantValues: row.values,
+          name: variantName(parent.name, row.values),
+          internalCode,
+          barcode,
+          unitType: 'unit',
+          cost: parent.cost,
+          active: parent.active,
+          ownPrice,
+          ...(ownPrice ? { price, promoPrice: null } : {}),
+        },
+        { transaction },
+      ),
+    );
+  }
+  return created;
+};
+
 export const createProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
+  const variants = req.body.variants;
+
+  // Los combos se crean desde /combos: acá nunca
+  const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS)));
+  data.categoryId = await resolveCategoryId(data.categoryId, businessId);
+
+  if (variants) {
+    if (data.unitType !== 'unit') throw httpError('Las variantes son solo para productos que se venden por unidad');
+    const attributes = normalizeAttributes(variants.attributes);
+    const t = await sequelize.transaction();
+    let parent;
+    try {
+      parent = await Product.create(
+        { ...data, barcode: null, scalePlu: null, businessId, variantAttributes: attributes },
+        { transaction: t },
+      );
+      const created = await createVariants({ parent, items: variants.items, businessId, transaction: t });
+      await t.commit();
+      return res.status(201).json({ ...parent.toJSON(), variants: created });
+    } catch (err) {
+      await t.rollback();
+      rethrowDuplicate(err);
+    }
+  }
+
   const barcode = cleanBarcode(req.body.barcode) ?? null;
   await assertBarcodeFree(businessId, barcode);
 
@@ -145,10 +246,6 @@ export const createProduct = asyncHandler(async (req, res) => {
     throw httpError('El PLU de balanza solo se puede asignar a productos por peso');
   }
   await assertScalePluFree(businessId, scalePlu);
-
-  // Los combos se crean desde /combos: acá nunca
-  const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS)));
-  data.categoryId = await resolveCategoryId(data.categoryId, businessId);
 
   let product;
   try {
@@ -159,11 +256,115 @@ export const createProduct = asyncHandler(async (req, res) => {
   res.status(201).json(product);
 });
 
+// Variantes nuevas para un producto principal que ya existe (por ejemplo, un color nuevo)
+export const addVariants = asyncHandler(async (req, res) => {
+  const { businessId } = req.user;
+  const parent = await findOwnProduct(req.params.id, businessId);
+  if (!isVariantGroup(parent)) throw httpError('Este producto no tiene variantes', 400);
+
+  const t = await sequelize.transaction();
+  try {
+    const existing = await Product.findAll({ where: { businessId, parentId: parent.id }, transaction: t });
+    const created = await createVariants({ parent, items: req.body.items, existing, businessId, transaction: t });
+    await t.commit();
+    res.status(201).json(created);
+  } catch (err) {
+    await t.rollback();
+    rethrowDuplicate(err);
+  }
+});
+
+// Producto principal: cambia los datos comunes y los pasa a sus variantes
+const updateGroup = async (parent, body, businessId) => {
+  const data = cleanPromoPrice(normalizeTaxes(pick(body, PRODUCT_FIELDS), parent.vatRate));
+  delete data.barcode;
+  delete data.scalePlu;
+  if (data.unitType && data.unitType !== 'unit') {
+    throw httpError('Un producto con variantes se vende por unidad');
+  }
+  if ('categoryId' in data) data.categoryId = await resolveCategoryId(data.categoryId, businessId);
+  if (body.variantAttributes !== undefined) {
+    const names = normalizeAttributes(body.variantAttributes);
+    if (names.length !== parent.variantAttributes.length) {
+      throw httpError('Se pueden cambiar los nombres de los atributos, pero no agregar ni quitar atributos');
+    }
+    data.variantAttributes = names;
+  }
+
+  const previousCost = Number(parent.cost);
+  const t = await sequelize.transaction();
+  try {
+    await parent.update(data, { transaction: t });
+    const variants = await Product.findAll({ where: { businessId, parentId: parent.id }, transaction: t });
+    for (const variant of variants) {
+      const changes = inheritedFields(parent, { withPrice: !variant.ownPrice });
+      changes.name = variantName(parent.name, variant.variantValues || []);
+      if ('active' in data) changes.active = parent.active;
+      // El costo pasa solo a las variantes que todavía tenían el mismo costo (las compras lo cambian en cada una)
+      if ('cost' in data && Number(variant.cost) === previousCost) changes.cost = parent.cost;
+      await variant.update(changes, { transaction: t });
+    }
+    await t.commit();
+  } catch (err) {
+    await t.rollback();
+    rethrowDuplicate(err);
+  }
+  return parent;
+};
+
+// Variante: código, código de barras, precio propio, costo, estado y sus valores
+const updateVariant = async (variant, body, businessId) => {
+  const parent = await Product.findOne({ where: { id: variant.parentId, businessId } });
+  if (!parent) throw httpError('No se encontró el producto principal de esta variante', 404);
+
+  const data = cleanPromoPrice(pick(body, VARIANT_FIELDS));
+  if ('internalCode' in data) data.internalCode = String(data.internalCode ?? '').trim();
+  if ('barcode' in data) {
+    data.barcode = cleanBarcode(data.barcode) ?? null;
+    await assertBarcodeFree(businessId, data.barcode, variant.id);
+  }
+
+  if (body.ownPrice === false) {
+    // Vuelve a tomar el precio y la promo del principal
+    for (const field of PRICE_FIELDS) data[field] = parent[field] ?? null;
+    data.ownPrice = false;
+  } else if (PRICE_FIELDS.some((f) => f in data)) {
+    data.ownPrice = true;
+  }
+
+  if (data.active === true && !parent.active) {
+    throw httpError('El producto principal está inactivo: activalo primero');
+  }
+
+  if (body.variantValues !== undefined) {
+    const values = normalizeValues(body.variantValues, parent.variantAttributes);
+    const siblings = await Product.findAll({
+      where: { businessId, parentId: parent.id, id: { [Op.ne]: variant.id } },
+      attributes: ['variantValues'],
+    });
+    assertNewCombinations(
+      [values],
+      siblings.map((s) => s.variantValues || []),
+    );
+    data.variantValues = values;
+    data.name = variantName(parent.name, values);
+  }
+
+  try {
+    await variant.update(data);
+  } catch (err) {
+    rethrowDuplicate(err);
+  }
+  return variant;
+};
+
 export const updateProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const product = await findOwnProduct(req.params.id, businessId);
 
   if (product.isCombo) throw httpError('Los combos se editan desde la pestaña Combos', 400);
+  if (isVariantGroup(product)) return res.json(await updateGroup(product, req.body, businessId));
+  if (isVariant(product)) return res.json(await updateVariant(product, req.body, businessId));
 
   // Solo los campos editables: nunca el comercio, el id ni el stock
   const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS), product.vatRate));
@@ -191,21 +392,19 @@ export const updateProduct = asyncHandler(async (req, res) => {
   res.json(product);
 });
 
-export const deleteProduct = asyncHandler(async (req, res) => {
-  const product = await findOwnProduct(req.params.id, req.user.businessId);
-  if (product.isCombo) throw httpError('Los combos se eliminan desde la pestaña Combos', 400);
-
+// Por qué no se puede borrar un producto (o null si se puede): está en un combo o tiene historial
+const deleteBlocker = async (product) => {
   const usedIn = await ComboItem.findAll({
     where: { productId: product.id },
     include: [{ model: Product, as: 'combo', attributes: ['name'] }],
   });
   if (usedIn.length) {
     const names = usedIn.map((item) => `"${item.combo?.name}"`).join(', ');
-    throw httpError(`No se puede eliminar: forma parte de los combos ${names}`, 409);
+    return `"${product.name}" forma parte de los combos ${names}`;
   }
 
-  // Un producto que ya se vendió o se compró no se borra: se perdería el historial
-  const [sold, bought] = await Promise.all([
+  // Un producto que ya se vendió, se compró o se pidió en una mesa no se borra: se perdería el historial
+  const [sold, bought, ordered] = await Promise.all([
     Order.count({
       where: { businessId: product.businessId },
       include: [{ model: OrderItem, as: 'items', attributes: [], where: { productId: product.id } }],
@@ -216,17 +415,52 @@ export const deleteProduct = asyncHandler(async (req, res) => {
       include: [{ model: PurchaseItem, as: 'items', attributes: [], where: { productId: product.id } }],
       distinct: true,
     }),
+    TabItem.count({ where: { businessId: product.businessId, productId: product.id } }),
   ]);
-  if (sold > 0 || bought > 0) {
+  if (sold > 0 || bought > 0 || ordered > 0) {
     const parts = [
       sold > 0 && `${sold} ${sold === 1 ? 'remito' : 'remitos'}`,
       bought > 0 && `${bought} ${bought === 1 ? 'compra' : 'compras'}`,
+      !sold && ordered > 0 && 'comandas de mesas',
     ]
       .filter(Boolean)
       .join(' y ');
+    return `"${product.name}" aparece en ${parts}`;
+  }
+  return null;
+};
+
+export const deleteProduct = asyncHandler(async (req, res) => {
+  const { businessId } = req.user;
+  const product = await findOwnProduct(req.params.id, businessId);
+  if (product.isCombo) throw httpError('Los combos se eliminan desde la pestaña Combos', 400);
+
+  if (isVariantGroup(product)) {
+    const variants = await Product.findAll({ where: { businessId, parentId: product.id } });
+    for (const variant of variants) {
+      const blocker = await deleteBlocker(variant);
+      if (blocker) {
+        throw httpError(
+          `No se puede eliminar "${product.name}": ${blocker}. Si ya no lo vendés, editalo y marcalo como inactivo.`,
+          409,
+        );
+      }
+    }
+    await sequelize.transaction(async (t) => {
+      await Product.destroy({ where: { businessId, parentId: product.id }, transaction: t });
+      await product.destroy({ transaction: t });
+    });
+    return res.status(204).send();
+  }
+
+  const blocker = await deleteBlocker(product);
+  if (blocker) {
+    const inCombo = blocker.includes('combos');
     throw httpError(
-      `"${product.name}" aparece en ${parts} y no se puede eliminar, porque se perdería el historial. ` +
-        'Si ya no lo vendés, editalo y marcalo como inactivo.',
+      inCombo
+        ? `No se puede eliminar: ${blocker}`
+        : `${blocker} y no se puede eliminar, porque se perdería el historial. ` +
+            'Si ya no lo vendés, editalo y marcalo como inactivo.',
       409,
     );
   }

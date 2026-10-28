@@ -9,6 +9,7 @@ import SearchSelect from '../../components/common/SearchSelect.jsx';
 import SearchInput from '../../components/common/SearchInput.jsx';
 import { matchesSearch } from '../../utils/search.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
+import { isVariantGroup } from '../../utils/variants.js';
 
 const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
 
@@ -270,7 +271,8 @@ const Combos = ({ products, categories, onChanged }) => {
 
   const combos = products.filter((p) => p.isCombo);
 
-  const singles = products.filter((p) => !p.isCombo && p.unitType !== 'weight');
+  // En un combo va la variante, no el producto principal
+  const singles = products.filter((p) => !p.isCombo && p.unitType !== 'weight' && !isVariantGroup(p));
 
   const categoryName = (categoryId) => categories.find((c) => c.id === categoryId)?.name || '—';
 

@@ -21,6 +21,7 @@ import importRoutes from './routes/import.routes.js';
 import userRoutes from './routes/user.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import dataRightsRoutes from './routes/dataRights.routes.js';
+import tableRoutes from './routes/table.routes.js';
 import { authMiddleware, authAllowClosing } from './middlewares/auth.middleware.js';
 import { requireRole } from './middlewares/role.middleware.js';
 import { forbidInDemo } from './middlewares/demo.middleware.js';
@@ -133,6 +134,7 @@ app.use('/api/users', authMiddleware, forbidInDemo, requireRole('admin'), userRo
 
 app.use('/api/export', authAllowClosing, exportRoutes);
 app.use('/api/data-rights', authMiddleware, forbidInDemo, dataRightsRoutes);
+app.use('/api/tables', authMiddleware, tableRoutes);
 
 app.use(errorMiddleware);
 
