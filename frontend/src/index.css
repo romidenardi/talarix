@@ -215,8 +215,22 @@ textarea {
 input[type='radio'],
 input[type='checkbox'] {
   min-width: 0;
-  width: auto;
+  width: 18px;
+  height: 18px;
   padding: 0;
+  margin: 0 6px 0 0;
+  vertical-align: middle;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Etiqueta con su casilla adentro: casilla y texto alineados */
+label:has(> input[type='checkbox']),
+label:has(> input[type='radio']) {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
 }
 
 input:focus,
@@ -1755,6 +1769,18 @@ td .form-message {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Ocupa el ancho de la fila del producto sin estirar la tabla de afuera: si no entra, la tabla
+     de variantes se desplaza por dentro */
+  width: 0;
+  min-width: 100%;
+}
+
+.variants-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .variants-add {

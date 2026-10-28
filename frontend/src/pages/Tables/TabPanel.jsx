@@ -108,9 +108,9 @@ export default function TabPanel({ table, products, payments, customers, onChang
       if (printOnSend) printTicket(data.ticket.id);
       await load(tab.id);
       await onChanged();
-      msg.success(`Comanda ${data.ticket.number} enviada a la cocina`);
+      msg.success(`Comanda ${data.ticket.number} enviada a la cocina`, 'send');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo mandar la comanda'));
+      msg.error(serverMessage(err, 'No se pudo mandar la comanda'), 'send');
     } finally {
       setSending(false);
     }
@@ -326,6 +326,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
               Imprimir la comanda al mandarla
             </label>
           </div>
+          <FormMessage message={msg.at('send')} onClose={msg.clear} />
         </div>
       )}
 

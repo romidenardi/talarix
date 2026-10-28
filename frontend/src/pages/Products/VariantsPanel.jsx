@@ -23,7 +23,7 @@ const usedValues = (variants, index) => {
 
 // Variantes de un producto: editar código, código de barras, precio propio, costo, valores y estado;
 // stock de cada una; agregar combinaciones nuevas.
-export default function VariantsPanel({ parent, variants, onChanged }) {
+export default function VariantsPanel({ parent, variants, onChanged, onClose }) {
   const attributes = parent.variantAttributes || [];
   const msg = useMessage();
   const dialog = useDialog();
@@ -130,20 +130,27 @@ export default function VariantsPanel({ parent, variants, onChanged }) {
     return undefined;
   };
 
-  const columns = attributes.length + 7;
+  const columns = 7;
 
   return (
     <div className="variants-panel">
+      <div className="variants-panel-header">
+        <strong>
+          Variantes de {parent.name} ({variants.length})
+        </strong>
+        {onClose && (
+          <button type="button" onClick={onClose}>
+            Cerrar variantes
+          </button>
+        )}
+      </div>
       <FormMessage message={msg.at('variants')} />
       <div className="table-wrapper">
         <table>
           <thead>
             <tr>
-              {attributes.map((name) => (
-                <th key={name}>{name}</th>
-              ))}
-              <th>Código</th>
-              <th>Código de barras</th>
+              <th>{attributes.join(' / ')}</th>
+              <th>Códigos</th>
               <th>Precio</th>
               <th>Costo</th>
               <th>Stock</th>
@@ -253,13 +260,16 @@ export default function VariantsPanel({ parent, variants, onChanged }) {
                     </td>
                   ) : (
                     <>
-                      {attributes.map((name, i) => (
-                        <td key={name} data-label={name}>
-                          {(variant.variantValues || [])[i]}
-                        </td>
-                      ))}
-                      <td data-label="Código">{variant.internalCode}</td>
-                      <td data-label="Código de barras">{variant.barcode || '—'}</td>
+                      <td data-label={attributes.join(' / ')}>{(variant.variantValues || []).join(' / ')}</td>
+                      <td data-label="Códigos">
+                        {variant.internalCode}
+                        {variant.barcode && (
+                          <>
+                            <br />
+                            <small>{variant.barcode}</small>
+                          </>
+                        )}
+                      </td>
                       <td data-label="Precio">
                         {money(variant.price)}
                         {variant.ownPrice && <small> · propio</small>}

@@ -814,6 +814,7 @@ const Products = () => {
                           parent={product}
                           variants={variantsByParent.get(product.id) || []}
                           onChanged={reload}
+                          onClose={() => setOpenVariantsId(null)}
                         />
                       </td>
                     </tr>
