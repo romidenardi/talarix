@@ -80,7 +80,8 @@ export default function TabPanel({ table, products, payments, customers, onChang
     }));
   const productById = new Map(products.map((p) => [p.id, p]));
 
-  const addToDraft = () => {
+  // El plato elegido arriba, listo para sumar a la lista (o null con el motivo en pantalla)
+  const pickedItem = () => {
     const product = productById.get(pick.productId);
     const quantity = Number(pick.quantity);
     if (!product) return msg.error('Elegí el plato', 'draft');
@@ -88,23 +89,40 @@ export default function TabPanel({ table, products, payments, customers, onChang
     if (product.unitType !== 'weight' && !Number.isInteger(quantity)) {
       return msg.error(`${product.name} se pide por unidad`, 'draft');
     }
-    setDraft([...draft, { key: `${Date.now()}-${Math.random()}`, product, quantity, note: pick.note.trim() }]);
+    return { key: `${Date.now()}-${Math.random()}`, product, quantity, note: pick.note.trim() };
+  };
+
+  const addToDraft = () => {
+    const item = pickedItem();
+    if (!item) return;
+    setDraft([...draft, item]);
     setPick({ productId: '', quantity: '1', note: '' });
     msg.clear();
-    return undefined;
   };
 
   const send = async () => {
-    if (!draft.length || sending) return;
+    if (sending) return;
+    // Si quedó un plato elegido sin tocar "Agregar", se manda también
+    let items = draft;
+    if (pick.productId) {
+      const item = pickedItem();
+      if (!item) return;
+      items = [...draft, item];
+    }
+    if (!items.length) {
+      msg.error('Elegí un plato y tocá Agregar', 'draft');
+      return;
+    }
     setSending(true);
     try {
       const { data } = await tablesApi.sendTicket(
         tab.id,
-        draft.map((d) => ({ productId: d.product.id, quantity: d.quantity, note: d.note || null })),
+        items.map((d) => ({ productId: d.product.id, quantity: d.quantity, note: d.note || null })),
         requestIdRef.current,
       );
       requestIdRef.current = newRequestId();
       setDraft([]);
+      setPick({ productId: '', quantity: '1', note: '' });
       if (printOnSend) printTicket(data.ticket.id);
       await load(tab.id);
       await onChanged();
@@ -162,7 +180,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
             />
           </div>
           <div className="inline-edit-actions">
-            <button type="button" onClick={open}>
+            <button type="button" className="btn-primary" onClick={open}>
               Abrir mesa
             </button>
           </div>
@@ -310,7 +328,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
           )}
 
           <div className="inline-edit-actions">
-            <button type="button" onClick={send} disabled={!draft.length || sending}>
+            <button type="button" className="btn-primary" onClick={send} disabled={sending}>
               {sending ? 'Mandando…' : 'Mandar a cocina'}
             </button>
             <label htmlFor="tab-print">
@@ -341,7 +359,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
             </button>
           )}
           {canCharge && (
-            <button type="button" onClick={() => setClosing(true)} disabled={!tab.total}>
+            <button type="button" className="btn-primary" onClick={() => setClosing(true)} disabled={!tab.total}>
               Cobrar
             </button>
           )}

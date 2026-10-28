@@ -67,7 +67,7 @@ export default function Kitchen() {
       </ul>
       <div className="inline-edit-actions">
         {ticket.status === 'pending' ? (
-          <button type="button" onClick={() => mark(ticket, true)}>
+          <button type="button" className="btn-primary" onClick={() => mark(ticket, true)}>
             Lista
           </button>
         ) : (

@@ -41,7 +41,7 @@ export default function Tables() {
             comanda.
           </p>
           {role === 'admin' ? (
-            <button type="button" onClick={activate} disabled={saving}>
+            <button type="button" className="btn-primary" onClick={activate} disabled={saving}>
               {saving ? 'Activando…' : 'Activar mesas'}
             </button>
           ) : (

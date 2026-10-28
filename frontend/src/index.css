@@ -1813,7 +1813,7 @@ td .form-message {
   gap: 10px;
 }
 
-.table-card {
+.tables-grid button.table-card {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1827,23 +1827,62 @@ td .form-message {
   color: var(--color-text);
 }
 
-.table-card-free {
+/* Estado de la mesa: libre (verde), ocupada (amarillo), pidió la cuenta (rojo). Con la clase del
+   botón incluida, para ganarle a los estilos generales de button[type='button'] */
+.tables-grid button.table-card.table-card-free {
   border-color: var(--color-success);
+  background: var(--color-surface);
 }
 
-.table-card-open {
+.tables-grid button.table-card.table-card-open {
   border-color: var(--color-warning);
   background: var(--color-warning-bg);
 }
 
-.table-card-billing {
+.tables-grid button.table-card.table-card-billing {
   border-color: var(--color-danger);
   background: var(--color-danger-bg);
 }
 
-.table-card.selected {
+.tables-grid button.table-card:hover {
+  filter: brightness(0.97);
+}
+
+.tables-grid button.table-card.selected {
   outline: 3px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Botones de Mesas: celestes como "Editar" en las tablas; la acción principal de cada paso, llena */
+.tables-page button[type='button']:not(.table-card) {
+  color: var(--color-accent);
+}
+
+.tables-page button[type='button']:not(.table-card):hover {
+  background: var(--color-bg);
+  border-color: var(--color-accent);
+}
+
+.tables-page button[type='button'].btn-primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.tables-page button[type='button'].btn-primary:hover {
+  background: var(--color-primary-hover);
+  color: var(--color-on-primary);
+}
+
+.tables-page button[type='button'].btn-danger,
+.tables-page button[type='button'].btn-danger:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.tables-page button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .tab-panel {
