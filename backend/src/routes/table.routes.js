@@ -19,6 +19,13 @@ import {
   cancelTableTab,
   closeTableTab,
   getTips,
+  getMenu,
+  createMenuDish,
+  updateMenuDish,
+  deleteMenuDish,
+  createMenuExtra,
+  updateMenuExtra,
+  deleteMenuExtra,
 } from '../controllers/table.controller.js';
 
 const router = Router();
@@ -31,6 +38,15 @@ router.use((req, res, next) => {
   if (!req.user.tablesEnabled) return next(httpError('Las mesas no están activadas para este comercio', 403));
   next();
 });
+
+// Menú: lo ven todos (el mozo elige de acá); lo cargan administrador y editor
+router.get('/menu', getMenu);
+router.post('/menu/dishes', requireRole(...MANAGER_ROLES), createMenuDish);
+router.put('/menu/dishes/:id', requireRole(...MANAGER_ROLES), updateMenuDish);
+router.delete('/menu/dishes/:id', requireRole(...MANAGER_ROLES), deleteMenuDish);
+router.post('/menu/extras', requireRole(...MANAGER_ROLES), createMenuExtra);
+router.put('/menu/extras/:id', requireRole(...MANAGER_ROLES), updateMenuExtra);
+router.delete('/menu/extras/:id', requireRole(...MANAGER_ROLES), deleteMenuExtra);
 
 router.get('/', getTables);
 router.post('/', requireRole(...MANAGER_ROLES), createTable);

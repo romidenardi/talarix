@@ -19,6 +19,14 @@ import {
   closeTab,
   OPEN_STATUSES,
 } from '../services/table.service.js';
+import {
+  listMenu,
+  createDish,
+  updateDish,
+  createExtra,
+  updateExtra,
+  deleteMenuItem,
+} from '../services/menu.service.js';
 
 // ---- Módulo de mesas (lo activa el superadmin) ----
 
@@ -150,7 +158,7 @@ export const cancelTabItem = asyncHandler(async (req, res) => {
     action: 'tables.item_cancelled',
     targetType: 'tab',
     targetId: req.params.tabId,
-    detail: { quantity: Number(item.quantity), amount: round2(Number(item.quantity) * Number(item.unitPrice)) },
+    detail: { quantity: item.quantity, amount: item.amount },
   });
   res.json(await getTab(req.params.tabId, req.user.businessId));
 });
@@ -198,4 +206,49 @@ export const getTips = asyncHandler(async (req, res) => {
     waiters,
     total: round2(waiters.reduce((sum, w) => sum + w.tips, 0)),
   });
+});
+
+// ---- Menú: platos y adicionales (alta y cambios: administrador y editor) ----
+
+const rethrowMenu = (err) => {
+  if (err?.name === 'SequelizeUniqueConstraintError') throw httpError('Ese adicional ya está asignado al plato', 409);
+  throw err;
+};
+
+export const getMenu = asyncHandler(async (req, res) => {
+  res.json(await listMenu(req.user.businessId));
+});
+
+export const createMenuDish = asyncHandler(async (req, res) => {
+  try {
+    res.status(201).json(await createDish(req.body, req.user.businessId));
+  } catch (err) {
+    rethrowMenu(err);
+  }
+});
+
+export const updateMenuDish = asyncHandler(async (req, res) => {
+  try {
+    res.json(await updateDish(req.params.id, req.body, req.user.businessId));
+  } catch (err) {
+    rethrowMenu(err);
+  }
+});
+
+export const deleteMenuDish = asyncHandler(async (req, res) => {
+  await deleteMenuItem(req.params.id, req.user.businessId, 'dish');
+  res.status(204).send();
+});
+
+export const createMenuExtra = asyncHandler(async (req, res) => {
+  res.status(201).json(await createExtra(req.body, req.user.businessId));
+});
+
+export const updateMenuExtra = asyncHandler(async (req, res) => {
+  res.json(await updateExtra(req.params.id, req.body, req.user.businessId));
+});
+
+export const deleteMenuExtra = asyncHandler(async (req, res) => {
+  await deleteMenuItem(req.params.id, req.user.businessId, 'extra');
+  res.status(204).send();
 });

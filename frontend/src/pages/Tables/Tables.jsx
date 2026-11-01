@@ -4,9 +4,10 @@ import TablesFloor from './TablesFloor.jsx';
 import Kitchen from './Kitchen.jsx';
 import TipsReport from './TipsReport.jsx';
 import TablesSettings from './TablesSettings.jsx';
+import MenuSettings from './MenuSettings.jsx';
 
 // Mesas y comandas (módulo opcional que activa el superadmin): el salón (abrir mesas, mandar comandas, cobrar), la pantalla de la cocina,
-// las propinas por mozo y la configuración de las mesas.
+// el menú (platos y adicionales), las propinas por mozo y la configuración de las mesas.
 export default function Tables() {
   const { role, tablesEnabled } = useAuth();
   const isManager = role === 'admin' || role === 'editor';
@@ -33,6 +34,7 @@ export default function Tables() {
     ['kitchen', 'Cocina'],
     ...(isManager
       ? [
+          ['menu', 'Menú'],
           ['tips', 'Propinas'],
           ['settings', 'Configurar'],
         ]
@@ -58,6 +60,7 @@ export default function Tables() {
       </div>
       {tab === 'floor' && <TablesFloor />}
       {tab === 'kitchen' && <Kitchen />}
+      {tab === 'menu' && isManager && <MenuSettings />}
       {tab === 'tips' && isManager && <TipsReport />}
       {tab === 'settings' && isManager && <TablesSettings />}
     </div>

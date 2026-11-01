@@ -9,11 +9,11 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { money } from '../../utils/reportFormat.js';
-import { formatQuantity, quantityStep } from '../../utils/quantity.js';
-import { isVariantGroup } from '../../utils/variants.js';
 import {
   STATUS_LABELS,
   lineTotal,
+  groupWithExtras,
+  itemClass,
   timeLabel,
   formatQty,
   readPrintPref,
@@ -22,9 +22,11 @@ import {
 } from './tableUtils.js';
 import CloseTab from './CloseTab.jsx';
 
-// Una mesa: abrirla, ver lo pedido por comanda, mandar platos a la cocina, anular platos,
-// pedir la cuenta y cobrar.
-export default function TabPanel({ table, products, payments, customers, onChanged, onClose }) {
+const EMPTY_PICK = { productId: '', quantity: '1', note: '', extraIds: [] };
+
+// Una mesa: abrirla, ver lo pedido por comanda, mandar platos del menú (con sus adicionales) a la
+// cocina, anular platos, pedir la cuenta y cobrar.
+export default function TabPanel({ table, menu, payments, customers, onChanged, onClose }) {
   const { role } = useAuth();
   const dialog = useDialog();
   const isManager = role === 'admin' || role === 'editor';
@@ -34,7 +36,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
   const [loading, setLoading] = useState(Boolean(table.tab));
   const [guests, setGuests] = useState('');
   const [draft, setDraft] = useState([]);
-  const [pick, setPick] = useState({ productId: '', quantity: '1', note: '' });
+  const [pick, setPick] = useState(EMPTY_PICK);
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
   const [printOnSend, setPrintOnSend] = useState(readPrintPref);
@@ -69,36 +71,50 @@ export default function TabPanel({ table, products, payments, customers, onChang
 
   const open = () => run(() => tablesApi.openTab(table.id, guests || null), 'No se pudo abrir la mesa');
 
-  // Los platos que se pueden pedir: activos, y de un producto con variantes, la variante
-  const productOptions = products
-    .filter((p) => p.active !== false && !isVariantGroup(p))
-    .map((p) => ({
-      value: p.id,
-      label: p.name,
-      detail: [p.isCombo && 'Combo', money(p.price)].filter(Boolean).join(' · '),
-      keywords: [p.internalCode, p.barcode],
+  // Se piden solo los platos activos del menú (Mesas → Menú), con el precio promo si tienen
+  const priceOf = (p) => Number(p.promoPrice ?? p.price) || 0;
+  const dishOptions = menu.dishes
+    .filter((d) => d.active !== false)
+    .map((d) => ({
+      value: d.id,
+      label: d.name,
+      detail: [d.internalCode, money(priceOf(d))].filter(Boolean).join(' · '),
+      keywords: [d.internalCode],
     }));
-  const productById = new Map(products.map((p) => [p.id, p]));
+  const dishById = new Map(menu.dishes.map((d) => [d.id, d]));
+  const extraById = new Map(menu.extras.map((x) => [x.id, x]));
+  const extrasFor = (dish) =>
+    (dish?.extraIds || []).map((id) => extraById.get(id)).filter((x) => x && x.active !== false);
+  const pickedDish = dishById.get(pick.productId);
+  const pickExtras = extrasFor(pickedDish);
+
+  const toggleExtra = (id) =>
+    setPick({
+      ...pick,
+      extraIds: pick.extraIds.includes(id) ? pick.extraIds.filter((x) => x !== id) : [...pick.extraIds, id],
+    });
 
   // El plato elegido arriba, listo para sumar a la lista (o null con el motivo en pantalla)
   const pickedItem = () => {
-    const product = productById.get(pick.productId);
+    const dish = pickedDish;
     const quantity = Number(pick.quantity);
-    if (!product) return msg.error('Elegí el plato', 'draft');
-    if (!(quantity > 0)) return msg.error('La cantidad tiene que ser mayor a 0', 'draft');
-    if (product.unitType !== 'weight' && !Number.isInteger(quantity)) {
-      return msg.error(`${product.name} se pide por unidad`, 'draft');
+    if (!dish) return msg.error('Elegí el plato', 'draft');
+    if (!(quantity > 0) || !Number.isInteger(quantity)) {
+      return msg.error('La cantidad tiene que ser un número entero mayor a 0', 'draft');
     }
-    return { key: `${Date.now()}-${Math.random()}`, product, quantity, note: pick.note.trim() };
+    const extras = pickExtras.filter((x) => pick.extraIds.includes(x.id));
+    return { key: `${Date.now()}-${Math.random()}`, dish, extras, quantity, note: pick.note.trim() };
   };
 
   const addToDraft = () => {
     const item = pickedItem();
     if (!item) return;
     setDraft([...draft, item]);
-    setPick({ productId: '', quantity: '1', note: '' });
+    setPick(EMPTY_PICK);
     msg.clear();
   };
+
+  const draftTotal = (d) => d.quantity * (priceOf(d.dish) + d.extras.reduce((s, x) => s + priceOf(x), 0));
 
   const send = async () => {
     if (sending) return;
@@ -117,12 +133,17 @@ export default function TabPanel({ table, products, payments, customers, onChang
     try {
       const { data } = await tablesApi.sendTicket(
         tab.id,
-        items.map((d) => ({ productId: d.product.id, quantity: d.quantity, note: d.note || null })),
+        items.map((d) => ({
+          productId: d.dish.id,
+          quantity: d.quantity,
+          note: d.note || null,
+          extraIds: d.extras.map((x) => x.id),
+        })),
         requestIdRef.current,
       );
       requestIdRef.current = newRequestId();
       setDraft([]);
-      setPick({ productId: '', quantity: '1', note: '' });
+      setPick(EMPTY_PICK);
       if (printOnSend) printTicket(data.ticket.id);
       await load(tab.id);
       await onChanged();
@@ -134,10 +155,10 @@ export default function TabPanel({ table, products, payments, customers, onChang
     }
   };
 
-  const cancelItem = async (item) => {
+  const cancelItem = async (item, extras = []) => {
     const reason = await dialog.prompt({
-      title: 'Anular plato',
-      message: `${formatQty(item.quantity)} × ${item.name}. El stock vuelve.`,
+      title: item.parentItemId ? 'Anular adicional' : 'Anular plato',
+      message: `${formatQty(item.quantity)} × ${item.name}.${extras.length ? ' Se anulan también sus adicionales.' : ''}`,
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular',
       danger: true,
@@ -149,7 +170,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
   const cancelWholeTab = async () => {
     const reason = await dialog.prompt({
       title: `Anular mesa ${table.name}`,
-      message: 'Se anulan todos los platos y vuelve su stock. No se genera ningún remito.',
+      message: 'Se anulan todos los platos. No se genera ningún remito.',
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular mesa',
       danger: true,
@@ -195,7 +216,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
   const isOpen = tab.status === 'open' || tab.status === 'billing';
   const byTicket = (tab.tickets || []).map((ticket) => ({
     ticket,
-    items: tab.items.filter((i) => i.ticketId === ticket.id),
+    groups: groupWithExtras(tab.items.filter((i) => i.ticketId === ticket.id)),
   }));
 
   if (closing) {
@@ -231,7 +252,7 @@ export default function TabPanel({ table, products, payments, customers, onChang
       </p>
 
       {byTicket.length === 0 && <p className="report-note">Todavía no se pidió nada.</p>}
-      {byTicket.map(({ ticket, items }) => (
+      {byTicket.map(({ ticket, groups }) => (
         <div key={ticket.id} className="tab-ticket">
           <div className="tab-ticket-header">
             <strong>Comanda {ticket.number}</strong>
@@ -243,23 +264,28 @@ export default function TabPanel({ table, products, payments, customers, onChang
             </button>
           </div>
           <ul className="tab-items">
-            {items.map((item) => (
-              <li key={item.id} className={item.status === 'cancelled' ? 'tab-item-cancelled' : ''}>
-                <span>
-                  {formatQty(item.quantity)} × {item.name}
-                  {item.note && <small> · {item.note}</small>}
-                  {item.status === 'cancelled' && (
-                    <small> · Anulado{item.cancelReason ? `: ${item.cancelReason}` : ''}</small>
+            {groups.flatMap(({ item, extras }) =>
+              [item, ...extras].map((row) => (
+                <li key={row.id} className={itemClass(row)}>
+                  <span>
+                    {row === item ? `${formatQty(row.quantity)} × ${row.name}` : `+ ${row.name}`}
+                    {row.note && <small> · {row.note}</small>}
+                    {row.status === 'cancelled' && (
+                      <small> · Anulado{row.cancelReason ? `: ${row.cancelReason}` : ''}</small>
+                    )}
+                  </span>
+                  <span>{money(lineTotal(row))}</span>
+                  {isOpen && isManager && row.status === 'active' && (
+                    <button
+                      type="button"
+                      onClick={() => cancelItem(row, row === item ? extras.filter((x) => x.status === 'active') : [])}
+                    >
+                      Anular
+                    </button>
                   )}
-                </span>
-                <span>{money(lineTotal(item))}</span>
-                {isOpen && isManager && item.status === 'active' && (
-                  <button type="button" onClick={() => cancelItem(item)}>
-                    Anular
-                  </button>
-                )}
-              </li>
-            ))}
+                </li>
+              )),
+            )}
           </ul>
         </div>
       ))}
@@ -273,15 +299,15 @@ export default function TabPanel({ table, products, payments, customers, onChang
           <h3>Pedir</h3>
           <div className="tab-draft-row">
             <div className="field">
-              <label htmlFor="tab-product">Plato o producto</label>
+              <label htmlFor="tab-product">Plato</label>
               <SearchSelect
                 id="tab-product"
                 title="Buscar plato"
                 placeholder="Elegí un plato..."
                 searchPlaceholder="Nombre o código..."
                 value={pick.productId}
-                onChange={(value) => setPick({ ...pick, productId: value })}
-                options={productOptions}
+                onChange={(value) => setPick({ ...pick, productId: value, extraIds: [] })}
+                options={dishOptions}
               />
             </div>
             <div className="field">
@@ -289,8 +315,8 @@ export default function TabPanel({ table, products, payments, customers, onChang
               <input
                 id="tab-qty"
                 type="number"
-                min="0"
-                step={quantityStep(productById.get(pick.productId)?.unitType || 'unit', 'kg')}
+                min="1"
+                step="1"
                 value={pick.quantity}
                 onChange={(e) => setPick({ ...pick, quantity: e.target.value })}
               />
@@ -309,6 +335,28 @@ export default function TabPanel({ table, products, payments, customers, onChang
               Agregar
             </button>
           </div>
+          {pickExtras.length > 0 && (
+            <fieldset className="tab-extras">
+              <legend>Adicionales (opcional)</legend>
+              {pickExtras.map((x) => (
+                <label key={x.id} htmlFor={`tab-extra-${x.id}`}>
+                  <input
+                    id={`tab-extra-${x.id}`}
+                    type="checkbox"
+                    checked={pick.extraIds.includes(x.id)}
+                    onChange={() => toggleExtra(x.id)}
+                  />{' '}
+                  {x.name} <small>+{money(priceOf(x))}</small>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {menu.dishes.length === 0 && (
+            <p className="report-note">
+              Todavía no hay platos en el menú.{' '}
+              {isManager ? 'Cargalos en la pestaña Menú.' : 'Pedile al administrador que los cargue.'}
+            </p>
+          )}
           <FormMessage message={msg.at('draft')} onClose={msg.clear} />
 
           {draft.length > 0 && (
@@ -316,9 +364,11 @@ export default function TabPanel({ table, products, payments, customers, onChang
               {draft.map((d) => (
                 <li key={d.key}>
                   <span>
-                    {formatQuantity(d.quantity, d.product.unitType)} × {d.product.name}
+                    {d.quantity} × {d.dish.name}
+                    {d.extras.length > 0 && <small> · con {d.extras.map((x) => x.name).join(', ')}</small>}
                     {d.note && <small> · {d.note}</small>}
                   </span>
+                  <span>{money(draftTotal(d))}</span>
                   <button type="button" onClick={() => setDraft(draft.filter((x) => x.key !== d.key))}>
                     Quitar
                   </button>

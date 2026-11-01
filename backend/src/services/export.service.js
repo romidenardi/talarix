@@ -18,6 +18,7 @@ import {
   TableTab,
   KitchenTicket,
   TabItem,
+  MenuItemExtra,
   OrderPayment,
 } from '../models/index.js';
 
@@ -128,6 +129,7 @@ export const buildBusinessExport = async (businessId) => {
     tableTabs,
     kitchenTickets,
     tabItems,
+    menuItemExtras,
     orderPayments,
   ] = await Promise.all([
     byBusiness(Category, businessId),
@@ -147,6 +149,7 @@ export const buildBusinessExport = async (businessId) => {
     byBusiness(TableTab, businessId),
     byBusiness(KitchenTicket, businessId),
     byBusiness(TabItem, businessId),
+    byBusiness(MenuItemExtra, businessId),
     byBusiness(OrderPayment, businessId),
   ]);
 
@@ -213,6 +216,13 @@ export const buildBusinessExport = async (businessId) => {
       },
       { name: 'Comandas', ...sheetFrom(KitchenTicket, kitchenTickets) },
       { name: 'Platos de comandas', ...sheetFrom(TabItem, tabItems) },
+      {
+        name: 'Adicionales por plato',
+        ...sheetFrom(MenuItemExtra, menuItemExtras, {
+          plato: (row) => productNames.get(row.dishId) || '',
+          adicional: (row) => productNames.get(row.extraId) || '',
+        }),
+      },
       {
         name: 'Cobros en partes',
         ...sheetFrom(OrderPayment, orderPayments, { formaDePago: (row) => paymentNames.get(row.paymentId) || '' }),

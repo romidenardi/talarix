@@ -63,6 +63,8 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     for (const [productId, quantity] of quantityByProduct) {
       const product = locked.get(productId);
       if (!product) throw httpError('Un producto del remito ya no existe: no se puede anular', 409);
+      // Los platos y adicionales del menú no llevan stock
+      if (product.trackStock === false) continue;
 
       await moveStock(
         {

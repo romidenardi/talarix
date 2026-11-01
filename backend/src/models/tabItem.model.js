@@ -21,6 +21,10 @@ const TabItem = sequelize.define(
       field: 'unit_price',
       get: numericGetter('unitPrice'),
     },
+    // Si es un adicional, el plato al que pertenece (otro renglón de la misma cuenta)
+    parentItemId: { type: DataTypes.UUID, allowNull: true, field: 'parent_item_id' },
+    // Orden dentro de la comanda, como lo cargó el mozo
+    position: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     // Indicación para la cocina: "sin cebolla", "punto jugoso"
     note: { type: DataTypes.STRING, allowNull: true },
     status: {

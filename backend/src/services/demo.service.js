@@ -18,6 +18,7 @@ import {
   KitchenTicket,
   TableTab,
   DiningTable,
+  MenuItemExtra,
 } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
 import { round2 } from '../utils/numbers.js';
@@ -35,7 +36,7 @@ const wipeBusinessData = async (businessId, t) => {
       (row) => row.id,
     );
 
-  for (const Model of [OrderPayment, TabItem, KitchenTicket, TableTab, DiningTable]) {
+  for (const Model of [OrderPayment, TabItem, KitchenTicket, TableTab, DiningTable, MenuItemExtra]) {
     await Model.destroy({ where: { businessId }, transaction: t });
   }
 

@@ -125,6 +125,20 @@ const Product = sequelize.define(
       allowNull: true,
       field: 'variant_values',
     },
+    // Menú de las mesas: 'dish' (plato) o 'extra' (adicional). Se cargan desde Mesas → Menú.
+    menuKind: {
+      type: DataTypes.STRING(10),
+      allowNull: true,
+      field: 'menu_kind',
+      validate: { isIn: [['dish', 'extra']] },
+    },
+    // false = no lleva stock (platos y adicionales): no se mueve al vender ni al anular
+    trackStock: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
+      field: 'track_stock',
+    },
     // La variante tiene precio y promo propios; si no, toma los del principal
     ownPrice: {
       type: DataTypes.BOOLEAN,

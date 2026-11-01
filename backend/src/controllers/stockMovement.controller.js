@@ -40,6 +40,7 @@ export const createStockMovement = asyncHandler(async (req, res) => {
       typeof productId === 'string' ? (await lockProducts([productId], businessId, t)).get(productId) : null;
     if (!product) throw httpError('Producto no encontrado', 404);
     if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos');
+    if (product.trackStock === false) throw httpError(`${product.name} es del menú y no lleva stock`);
     if (isVariantGroup(product))
       throw httpError('Un producto con variantes no tiene stock propio: se maneja en cada variante');
 

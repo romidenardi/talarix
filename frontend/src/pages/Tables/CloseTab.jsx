@@ -7,7 +7,7 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { money } from '../../utils/reportFormat.js';
-import { equalParts, lineTotal, formatQty } from './tableUtils.js';
+import { equalParts, formatQty, groupWithExtras } from './tableUtils.js';
 
 const MODES = [
   ['single', 'Una sola cuenta'],
@@ -22,10 +22,11 @@ const round2 = (n) => Math.round(n * 100) / 100;
 export default function CloseTab({ tab, payments, customers, onCancel, onDone }) {
   const msg = useMessage();
   const activePayments = payments.filter((p) => p.active !== false);
-  const items = tab.items.filter((i) => i.status === 'active');
+  // Por ítems se reparte cada plato con sus adicionales
+  const groups = groupWithExtras(tab.items.filter((i) => i.status === 'active'));
   const [mode, setMode] = useState('single');
   const [count, setCount] = useState(2);
-  const [assign, setAssign] = useState(() => Object.fromEntries(items.map((i) => [i.id, 0])));
+  const [assign, setAssign] = useState(() => Object.fromEntries(groups.map((g) => [g.item.id, 0])));
   const [parts, setParts] = useState(() =>
     Array.from({ length: 20 }, () => ({ paymentId: activePayments[0]?.id || '', tip: '' })),
   );
@@ -41,7 +42,9 @@ export default function CloseTab({ tab, payments, customers, onCancel, onDone })
       : mode === 'equal'
         ? equalParts(tab.total, n)
         : Array.from({ length: n }, (_, part) =>
-            round2(items.filter((i) => (assign[i.id] || 0) === part).reduce((s, i) => s + lineTotal(i), 0)),
+            round2(
+              groups.filter((g) => Math.min(assign[g.item.id] || 0, n - 1) === part).reduce((s, g) => s + g.total, 0),
+            ),
           );
 
   const setPart = (index, field, value) => setParts(parts.map((p, i) => (i === index ? { ...p, [field]: value } : p)));
@@ -151,10 +154,11 @@ export default function CloseTab({ tab, payments, customers, onCancel, onDone })
 
       {mode === 'items' && (
         <ul className="tab-items">
-          {items.map((item) => (
+          {groups.map(({ item, extras, total }) => (
             <li key={item.id}>
               <span>
-                {formatQty(item.quantity)} × {item.name} · {money(lineTotal(item))}
+                {formatQty(item.quantity)} × {item.name}
+                {extras.length > 0 && <small> · con {extras.map((x) => x.name).join(', ')}</small>} · {money(total)}
               </span>
               <select
                 aria-label={`Parte de ${item.name}`}

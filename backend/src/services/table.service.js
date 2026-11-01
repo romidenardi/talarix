@@ -11,11 +11,12 @@ import {
   Payment,
   Order,
   OrderPayment,
+  MenuItemExtra,
 } from '../models/index.js';
+import { randomUUID } from 'node:crypto';
 import { httpError } from '../utils/httpError.js';
 import { lockProducts, moveStock } from './stock.service.js';
-import { loadComboComponents, computeCombo } from './combo.service.js';
-import { isVariantGroup } from './variant.service.js';
+import { loadComboComponents } from './combo.service.js';
 import { createOrder } from './order.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
@@ -47,6 +48,29 @@ export const lineTotal = (item) => round2(Number(item.quantity) * Number(item.un
 export const tabTotal = (items) =>
   round2(items.filter((i) => i.status === 'active').reduce((sum, i) => sum + lineTotal(i), 0));
 
+// Los renglones en orden: cada plato seguido de sus adicionales
+export const sortTabItems = (items) => {
+  const byTime = [...items].sort(
+    (a, b) =>
+      new Date(a.createdAt) - new Date(b.createdAt) ||
+      String(a.ticketId).localeCompare(String(b.ticketId)) ||
+      (a.position || 0) - (b.position || 0),
+  );
+  const extrasOf = new Map();
+  for (const item of byTime) {
+    if (!item.parentItemId) continue;
+    if (!extrasOf.has(item.parentItemId)) extrasOf.set(item.parentItemId, []);
+    extrasOf.get(item.parentItemId).push(item);
+  }
+  const ids = new Set(byTime.map((i) => i.id));
+  const sorted = [];
+  for (const item of byTime) {
+    if (item.parentItemId && ids.has(item.parentItemId)) continue;
+    sorted.push(item, ...(extrasOf.get(item.id) || []));
+  }
+  return sorted;
+};
+
 const lockTab = async (tabId, businessId, transaction) => {
   const tab = await TableTab.findOne({ where: { id: tabId, businessId }, transaction, lock: transaction.LOCK.UPDATE });
   if (!tab) throw httpError('Mesa no encontrada', 404);
@@ -72,7 +96,7 @@ const stockNeeds = async (lines, businessId, transaction) => {
   const needs = new Map();
   for (const line of lines) {
     const product = byId.get(line.productId);
-    if (!product) continue;
+    if (!product || product.trackStock === false) continue;
     const parts = product.isCombo
       ? (combos.get(product.id) || []).map((c) => [c.productId, c.quantity * line.quantity])
       : [[product.id, line.quantity]];
@@ -174,7 +198,8 @@ export const getTab = async (tabId, businessId) => {
     tab.status === 'closed'
       ? await Order.findOne({ where: { tableTabId: tab.id }, attributes: ['id', 'number'] })
       : null;
-  return { ...tab.toJSON(), total: tabTotal(tab.items), order };
+  const plain = tab.toJSON();
+  return { ...plain, items: sortTabItems(plain.items), total: tabTotal(tab.items), order };
 };
 
 // ---- Comandas ----
@@ -197,7 +222,16 @@ const readTicketItems = (items) => {
     if (!item || typeof item.productId !== 'string' || !item.productId)
       throw httpError(`Plato ${n}: falta el producto`);
     if (!isPositiveQuantity(item.quantity)) throw httpError(`Plato ${n}: la cantidad debe ser mayor a 0`);
-    return { productId: item.productId, quantity: round3(toNumber(item.quantity)), note: cleanText(item.note) };
+    if (item.extraIds !== undefined && !Array.isArray(item.extraIds)) {
+      throw httpError(`Plato ${n}: los adicionales no son válidos`);
+    }
+    const extraIds = [...new Set((item.extraIds || []).filter((id) => typeof id === 'string' && id))];
+    return {
+      productId: item.productId,
+      quantity: round3(toNumber(item.quantity)),
+      note: cleanText(item.note),
+      extraIds,
+    };
   });
 };
 
@@ -216,26 +250,34 @@ export const sendTicket = async ({ tabId, items, requestId: rawRequestId, user }
     const tab = await lockTab(tabId, businessId, t);
     assertOpen(tab);
 
-    const products = await Product.findAll({
-      where: { id: [...new Set(lines.map((l) => l.productId))], businessId },
-      transaction: t,
-    });
+    // En la mesa solo se piden platos del menú, con sus adicionales (services/menu.service.js)
+    const dishIds = [...new Set(lines.map((l) => l.productId))];
+    const extraIds = [...new Set(lines.flatMap((l) => l.extraIds))];
+    const [products, links] = await Promise.all([
+      Product.findAll({ where: { id: [...dishIds, ...extraIds], businessId }, transaction: t }),
+      extraIds.length
+        ? MenuItemExtra.findAll({ where: { businessId, dishId: dishIds, extraId: extraIds }, transaction: t })
+        : [],
+    ]);
     const byId = new Map(products.map((p) => [p.id, p]));
-    const combos = await loadComboComponents(
-      products.filter((p) => p.isCombo).map((p) => p.id),
-      businessId,
-      t,
-    );
+    const allowed = new Set(links.map((l) => `${l.dishId}:${l.extraId}`));
     for (const [index, line] of lines.entries()) {
+      const n = index + 1;
       const product = byId.get(line.productId);
-      if (!product) throw httpError(`Plato ${index + 1}: producto no encontrado`, 404);
-      if (!product.active) throw httpError(`Plato ${index + 1}: ${product.name} está inactivo`);
-      if (isVariantGroup(product)) throw httpError(`Plato ${index + 1}: ${product.name} tiene variantes. Elegí cuál.`);
-      if (!quantityAllowedFor(product, line.quantity)) {
-        throw httpError(`Plato ${index + 1}: ${product.name} se pide por unidad, la cantidad debe ser un entero`);
+      if (!product) throw httpError(`Plato ${n}: no se encontró`, 404);
+      if (product.menuKind !== 'dish') {
+        throw httpError(`Plato ${n}: ${product.name} no es un plato del menú. Cargalo en Mesas → Menú.`);
       }
-      if (product.isCombo && !(combos.get(product.id) || []).length) {
-        throw httpError(`El combo ${product.name} no tiene productos cargados`);
+      if (!product.active) throw httpError(`Plato ${n}: ${product.name} no está disponible`);
+      if (!quantityAllowedFor(product, line.quantity)) {
+        throw httpError(`Plato ${n}: ${product.name} se pide por unidad, la cantidad debe ser un entero`);
+      }
+      for (const extraId of line.extraIds) {
+        const extra = byId.get(extraId);
+        if (!extra || extra.menuKind !== 'extra' || !allowed.has(`${product.id}:${extraId}`)) {
+          throw httpError(`Plato ${n}: ese adicional no corresponde a ${product.name}`);
+        }
+        if (!extra.active) throw httpError(`Plato ${n}: el adicional ${extra.name} no está disponible`);
       }
     }
 
@@ -244,25 +286,42 @@ export const sendTicket = async ({ tabId, items, requestId: rawRequestId, user }
       { businessId, tabId: tab.id, number, requestId, createdById: user.id, createdByName: who(user) },
       { transaction: t },
     );
-    // El precio del momento: el de lista, o el del combo
-    const priceOf = (product) =>
-      product.isCombo ? computeCombo(product, combos.get(product.id)).price : round2(Number(product.price) || 0);
-    await TabItem.bulkCreate(
-      lines.map((line) => {
-        const product = byId.get(line.productId);
-        return {
+    // El precio del momento: el promocional si tiene, si no el de lista
+    const priceOf = (product) => round2(Number(product.promoPrice ?? product.price) || 0);
+    const rows = [];
+    for (const line of lines) {
+      const dish = byId.get(line.productId);
+      const dishRow = {
+        id: randomUUID(),
+        businessId,
+        tabId: tab.id,
+        ticketId: ticket.id,
+        productId: dish.id,
+        name: dish.name,
+        quantity: line.quantity,
+        unitPrice: priceOf(dish),
+        note: line.note,
+        position: rows.length,
+      };
+      rows.push(dishRow);
+      // Cada adicional, un renglón propio con la misma cantidad que el plato
+      for (const extraId of line.extraIds) {
+        const extra = byId.get(extraId);
+        rows.push({
+          id: randomUUID(),
           businessId,
           tabId: tab.id,
           ticketId: ticket.id,
-          productId: product.id,
-          name: product.name,
+          productId: extra.id,
+          parentItemId: dishRow.id,
+          name: extra.name,
           quantity: line.quantity,
-          unitPrice: priceOf(product),
-          note: line.note,
-        };
-      }),
-      { transaction: t },
-    );
+          unitPrice: priceOf(extra),
+          position: rows.length,
+        });
+      }
+    }
+    await TabItem.bulkCreate(rows, { transaction: t });
 
     const name = await tableName(tab, t);
     await moveTabStock({ lines, businessId, sign: -1, reason: `Mesa ${name}, comanda ${number}`, user }, t);
@@ -295,13 +354,13 @@ export const getTicket = async (ticketId, businessId) => {
     ],
   });
   if (!ticket) throw httpError('Comanda no encontrada', 404);
-  return ticket;
+  return { ...ticket.toJSON(), items: sortTabItems(ticket.items) };
 };
 
 // Comandas para la pantalla de la cocina: las pendientes y las listas de la última hora
 export const kitchenTickets = async (businessId) => {
   const since = new Date(Date.now() - 60 * 60 * 1000);
-  return KitchenTicket.findAll({
+  const tickets = await KitchenTicket.findAll({
     where: {
       businessId,
       [Op.or]: [{ status: 'pending' }, { status: 'ready', readyAt: { [Op.gte]: since } }],
@@ -318,6 +377,7 @@ export const kitchenTickets = async (businessId) => {
     order: [['number', 'ASC']],
     limit: 100,
   });
+  return tickets.map((ticket) => ({ ...ticket.toJSON(), items: sortTabItems(ticket.items) }));
 };
 
 export const markTicket = async ({ ticketId, ready, businessId }) => {
@@ -337,12 +397,18 @@ export const cancelItem = async ({ tabId, itemId, reason, user }) => {
     const item = await TabItem.findOne({ where: { id: itemId, tabId: tab.id, businessId }, transaction: t });
     if (!item) throw httpError('Plato no encontrado', 404);
     if (item.status !== 'active') throw httpError('Ese plato ya estaba anulado', 409);
+    // Anular un plato anula también sus adicionales
+    const extras = await TabItem.findAll({
+      where: { tabId: tab.id, businessId, parentItemId: item.id, status: 'active' },
+      transaction: t,
+    });
+    const all = [item, ...extras];
 
     const motive = cleanText(reason);
     const name = await tableName(tab, t);
     await moveTabStock(
       {
-        lines: [{ productId: item.productId, quantity: Number(item.quantity) }],
+        lines: all.map((i) => ({ productId: i.productId, quantity: Number(i.quantity) })),
         businessId,
         sign: 1,
         reason: `Anulado en mesa ${name}${motive ? `: ${motive}` : ''}`,
@@ -350,7 +416,7 @@ export const cancelItem = async ({ tabId, itemId, reason, user }) => {
       },
       t,
     );
-    await item.update(
+    await TabItem.update(
       {
         status: 'cancelled',
         cancelledAt: new Date(),
@@ -358,9 +424,10 @@ export const cancelItem = async ({ tabId, itemId, reason, user }) => {
         cancelledByName: who(user),
         cancelReason: motive,
       },
-      { transaction: t },
+      { where: { id: all.map((i) => i.id) }, transaction: t },
     );
-    return item;
+    // Importe anulado, para el registro de actividad
+    return { quantity: Number(item.quantity), amount: round2(all.reduce((sum, i) => sum + lineTotal(i), 0)) };
   });
 };
 
@@ -460,11 +527,9 @@ export const closeTab = async ({ tabId, body, user }) => {
   try {
     const tab = await lockTab(tabId, businessId, t);
     assertOpen(tab);
-    const items = await TabItem.findAll({
-      where: { tabId: tab.id, businessId, status: 'active' },
-      order: [['createdAt', 'ASC']],
-      transaction: t,
-    });
+    const items = sortTabItems(
+      await TabItem.findAll({ where: { tabId: tab.id, businessId, status: 'active' }, transaction: t }),
+    );
     if (!items.length) throw httpError('La mesa no tiene platos para cobrar. Si no se usó, anulala.');
     const total = tabTotal(items);
     const parts = readParts(body.parts, total);

@@ -147,7 +147,8 @@ const VARIANT_FIELDS = ['internalCode', 'barcode', 'price', 'promoPrice', 'cost'
 
 export const getProducts = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
-  const products = await Product.findAll({ where: { businessId } });
+  // Los platos y adicionales del menú se cargan desde Mesas → Menú: no se listan acá
+  const products = await Product.findAll({ where: { businessId, menuKind: null } });
   res.json(await withComboData(products, businessId));
 });
 
@@ -363,6 +364,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const product = await findOwnProduct(req.params.id, businessId);
 
   if (product.isCombo) throw httpError('Los combos se editan desde la pestaña Combos', 400);
+  if (product.menuKind) throw httpError('Los platos y adicionales se editan desde Mesas → Menú', 400);
   if (isVariantGroup(product)) return res.json(await updateGroup(product, req.body, businessId));
   if (isVariant(product)) return res.json(await updateVariant(product, req.body, businessId));
 
@@ -434,6 +436,7 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const product = await findOwnProduct(req.params.id, businessId);
   if (product.isCombo) throw httpError('Los combos se eliminan desde la pestaña Combos', 400);
+  if (product.menuKind) throw httpError('Los platos y adicionales se eliminan desde Mesas → Menú', 400);
 
   if (isVariantGroup(product)) {
     const variants = await Product.findAll({ where: { businessId, parentId: product.id } });

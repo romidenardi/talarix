@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as tablesApi from '../../api/tables.api.js';
-import { getProducts } from '../../api/products.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import { getCustomers } from '../../api/customers.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
@@ -19,7 +18,7 @@ export default function TablesFloor() {
   const { role } = useAuth();
   const canCharge = ['admin', 'editor', 'operador'].includes(role);
   const [tables, setTables] = useState([]);
-  const [products, setProducts] = useState([]);
+  const [menu, setMenu] = useState({ dishes: [], extras: [] });
   const [payments, setPayments] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,12 +37,12 @@ export default function TablesFloor() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [productsRes, paymentsRes, customersRes] = await Promise.all([
-          getProducts(),
+        const [menuRes, paymentsRes, customersRes] = await Promise.all([
+          tablesApi.getMenu(),
           canCharge ? getPayments() : Promise.resolve({ data: [] }),
           canCharge ? getCustomers() : Promise.resolve({ data: [] }),
         ]);
-        setProducts(productsRes.data);
+        setMenu(menuRes.data);
         setPayments(paymentsRes.data);
         setCustomers(customersRes.data);
         await loadTables();
@@ -107,7 +106,7 @@ export default function TablesFloor() {
         <TabPanel
           key={selected.id}
           table={selected}
-          products={products}
+          menu={menu}
           payments={payments}
           customers={customers}
           onChanged={loadTables}

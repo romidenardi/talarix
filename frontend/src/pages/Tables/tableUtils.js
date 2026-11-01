@@ -6,6 +6,32 @@ export const formatQty = (quantity) => Number(quantity).toLocaleString('es-AR', 
 
 export const lineTotal = (item) => Math.round(Number(item.quantity) * Number(item.unitPrice) * 100) / 100;
 
+// Clase del renglón: los adicionales van sangrados debajo de su plato
+export const itemClass = (item) =>
+  [item.parentItemId && 'tab-item-extra', item.status === 'cancelled' && 'tab-item-cancelled']
+    .filter(Boolean)
+    .join(' ');
+
+// Los renglones agrupados: cada plato con sus adicionales (vienen ordenados del servidor)
+export const groupWithExtras = (items) => {
+  const ids = new Set(items.map((i) => i.id));
+  const groups = [];
+  const byDish = new Map();
+  for (const item of items) {
+    if (item.parentItemId && ids.has(item.parentItemId)) {
+      byDish.get(item.parentItemId)?.extras.push(item);
+      continue;
+    }
+    const group = { item, extras: [] };
+    byDish.set(item.id, group);
+    groups.push(group);
+  }
+  return groups.map((g) => ({
+    ...g,
+    total: Math.round([g.item, ...g.extras].reduce((s, i) => s + lineTotal(i), 0) * 100) / 100,
+  }));
+};
+
 export const sinceLabel = (date) => {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(date).getTime()) / 60000));
   if (minutes < 60) return `${minutes} min`;

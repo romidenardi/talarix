@@ -135,6 +135,9 @@ export const createPurchase = asyncHandler(async (req, res) => {
             `Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`,
           );
         }
+        if (product.trackStock === false) {
+          throw httpError(`Artículo ${index + 1}: ${product.name} es del menú y no lleva stock: no se compra.`);
+        }
         if (isVariantGroup(product)) {
           throw httpError(`Artículo ${index + 1}: ${product.name} tiene variantes. Elegí cuál (talle, color…).`);
         }

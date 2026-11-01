@@ -1942,6 +1942,43 @@ td .form-message {
   color: var(--color-text-muted);
 }
 
+/* Adicional de un plato: sangrado debajo de su plato */
+.tab-items li.tab-item-extra {
+  padding-left: 22px;
+  font-size: 0.95em;
+}
+
+.kitchen-ticket li.tab-item-extra,
+.ticket-sheet li.tab-item-extra {
+  list-style: none;
+  margin-top: -4px;
+  padding-left: 16px;
+}
+
+.tab-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.tab-extras legend {
+  padding: 0 4px;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.inline-edit-form .menu-extras-pick {
+  flex-basis: 100%;
+}
+
+.menu-settings h2 {
+  margin: 20px 0 8px;
+}
+
 .tab-total {
   margin: 0;
   font-size: 1.1rem;

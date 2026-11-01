@@ -4,7 +4,7 @@ import Spinner from '../../components/common/Spinner.jsx';
 import FormMessage from '../../components/common/FormMessage.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
-import { sinceLabel, timeLabel, formatQty, printTicket } from './tableUtils.js';
+import { sinceLabel, timeLabel, formatQty, printTicket, itemClass } from './tableUtils.js';
 
 const REFRESH_MS = 10000;
 
@@ -58,8 +58,14 @@ export default function Kitchen() {
       </header>
       <ul>
         {ticket.items.map((item) => (
-          <li key={item.id} className={item.status === 'cancelled' ? 'tab-item-cancelled' : ''}>
-            <strong>{formatQty(item.quantity)}</strong> {item.name}
+          <li key={item.id} className={itemClass(item)}>
+            {item.parentItemId ? (
+              `+ ${item.name}`
+            ) : (
+              <>
+                <strong>{formatQty(item.quantity)}</strong> {item.name}
+              </>
+            )}
             {item.note && <em> · {item.note}</em>}
             {item.status === 'cancelled' && <small> · ANULADO</small>}
           </li>

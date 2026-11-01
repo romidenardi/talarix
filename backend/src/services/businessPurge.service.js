@@ -21,6 +21,7 @@ import {
   KitchenTicket,
   TabItem,
   OrderPayment,
+  MenuItemExtra,
 } from '../models/index.js';
 import { audit } from '../utils/audit.js';
 
@@ -52,6 +53,7 @@ export const purgeBusiness = async (businessId) => {
   try {
     await OrderPayment.destroy({ where: { businessId }, force: true, transaction });
     await TabItem.destroy({ where: { businessId }, force: true, transaction });
+    await MenuItemExtra.destroy({ where: { businessId }, force: true, transaction });
     await KitchenTicket.destroy({ where: { businessId }, force: true, transaction });
     await TableTab.destroy({ where: { businessId }, force: true, transaction });
     await DiningTable.destroy({ where: { businessId }, force: true, transaction });

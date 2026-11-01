@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import * as tablesApi from '../../api/tables.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
-import { timeLabel, formatQty } from './tableUtils.js';
+import { timeLabel, formatQty, itemClass } from './tableUtils.js';
 
 // Comanda para imprimir en la cocina (ticket angosto, 80 mm). Se abre en otra pestaña y pide imprimir sola.
 export default function TicketPrint() {
@@ -43,8 +43,14 @@ export default function TicketPrint() {
         <hr />
         <ul>
           {ticket.items.map((item) => (
-            <li key={item.id} className={item.status === 'cancelled' ? 'tab-item-cancelled' : ''}>
-              <strong>{formatQty(item.quantity)}</strong> {item.name}
+            <li key={item.id} className={itemClass(item)}>
+              {item.parentItemId ? (
+                `+ ${item.name}`
+              ) : (
+                <>
+                  <strong>{formatQty(item.quantity)}</strong> {item.name}
+                </>
+              )}
               {item.note && <div className="ticket-note">→ {item.note}</div>}
               {item.status === 'cancelled' && <div>ANULADO</div>}
             </li>
