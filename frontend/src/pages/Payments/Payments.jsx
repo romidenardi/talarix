@@ -123,13 +123,13 @@ const Payments = () => {
       <form onSubmit={handleSubmit(onCreate)} className="payment-form">
         <div className="field">
           <label htmlFor="name">
-            Nombre
+            Forma de pago
             <RequiredMark />
           </label>
           <input
             id="name"
             placeholder="Ej: Tarjeta de crédito"
-            {...register('name', { required: 'El nombre es obligatorio' })}
+            {...register('name', { required: 'El nombre de la forma de pago es obligatorio' })}
           />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -193,7 +193,7 @@ const Payments = () => {
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
+              <th>Forma de pago</th>
               <th>Planes de cuotas</th>
               <th>Estado</th>
               <th>Acciones</th>
@@ -207,13 +207,13 @@ const Payments = () => {
                     <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                       <div className="field">
                         <label htmlFor={`edit-name-${payment.id}`}>
-                          Nombre
+                          Forma de pago
                           <RequiredMark />
                         </label>
                         <input
                           id={`edit-name-${payment.id}`}
                           placeholder="Ej: Tarjeta de crédito"
-                          {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                          {...editForm.register('name', { required: 'El nombre de la forma de pago es obligatorio' })}
                         />
                         {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                       </div>
@@ -291,7 +291,7 @@ const Payments = () => {
                   </td>
                 ) : (
                   <>
-                    <td data-label="Nombre">{payment.name}</td>
+                    <td data-label="Forma de pago">{payment.name}</td>
                     <td data-label="Planes de cuotas">{planSummary(payment)}</td>
                     <td data-label="Estado">{payment.active ? 'Activa' : 'Inactiva'}</td>
                     <td data-label="Acciones">

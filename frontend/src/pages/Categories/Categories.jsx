@@ -92,10 +92,14 @@ const Categories = () => {
       <form onSubmit={handleSubmit(onCreate)} className="category-form">
         <div className="field">
           <label htmlFor="name">
-            Nombre
+            Categoría
             <RequiredMark />
           </label>
-          <input id="name" placeholder="Ej: Bebidas" {...register('name', { required: 'El nombre es obligatorio' })} />
+          <input
+            id="name"
+            placeholder="Ej: Bebidas"
+            {...register('name', { required: 'El nombre de la categoría es obligatorio' })}
+          />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
 
@@ -121,7 +125,7 @@ const Categories = () => {
         <table>
           <thead>
             <tr>
-              <th>Nombre</th>
+              <th>Categoría</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -134,12 +138,12 @@ const Categories = () => {
                       <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                         <div className="field">
                           <label htmlFor={`edit-name-${category.id}`}>
-                            Nombre
+                            Categoría
                             <RequiredMark />
                           </label>
                           <input
                             id={`edit-name-${category.id}`}
-                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                            {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio' })}
                           />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
@@ -167,7 +171,7 @@ const Categories = () => {
                       </form>
                     </td>
                   ) : (
-                    <td data-label="Nombre">{category.name}</td>
+                    <td data-label="Categoría">{category.name}</td>
                   )}
                   <td data-label="Acciones">
                     {editingId !== category.id && (
@@ -186,12 +190,12 @@ const Categories = () => {
                         <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                           <div className="field">
                             <label htmlFor={`edit-name-${sub.id}`}>
-                              Nombre
+                              Subcategoría
                               <RequiredMark />
                             </label>
                             <input
                               id={`edit-name-${sub.id}`}
-                              {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                              {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio' })}
                             />
                             {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                           </div>
@@ -217,7 +221,7 @@ const Categories = () => {
                         </form>
                       </td>
                     ) : (
-                      <td data-label="Nombre">
+                      <td data-label="Categoría">
                         <span className="subcategory-name">↳ {sub.name}</span>
                       </td>
                     )}
