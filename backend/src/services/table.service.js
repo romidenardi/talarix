@@ -23,11 +23,13 @@ import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAl
 
 // Mesas y comandas.
 //   1. Se abre la cuenta de una mesa (TableTab).
-//   2. Cada envío a la cocina es una comanda (KitchenTicket) con sus platos (TabItem). El stock se
-//      descuenta al mandarla; si no alcanza, queda negativo: el plato ya se está preparando.
-//   3. Un administrador o editor puede anular un plato: el stock vuelve.
-//   4. Al cobrar se genera un remito con todos los platos, sin volver a mover el stock. Si se paga en
-//      partes, cada parte queda en order_payments con su forma de pago y su propina.
+//   2. Cada envío a la cocina es una comanda (KitchenTicket) con platos del menú y sus adicionales
+//      (TabItem; el adicional cuelga de su plato con parent_item_id). El menú no lleva stock.
+//   3. Un administrador o editor puede anular un plato: se anulan también sus adicionales.
+//   4. Al cobrar se genera un remito con todos los platos. Si se paga en partes, cada parte queda en
+//      order_payments con su forma de pago y su propina.
+// Las cuentas abiertas antes del menú (migración 004) pueden tener productos comunes: esos siguen
+// moviendo stock al mandar, anular o cancelar (moveTabStock saltea los que no llevan stock).
 // Orden de los bloqueos, siempre el mismo para no trabarse: la cuenta, el comercio, los productos.
 
 const { QueryTypes, Op } = pkg;

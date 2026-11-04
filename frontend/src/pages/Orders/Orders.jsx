@@ -5,6 +5,7 @@ import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { getOrders, createOrder, cancelOrder, approveOrder } from '../../api/orders.api.js';
 import ApprovalDialog from './ApprovalDialog.jsx';
 import { orderNumberLabel } from '../../utils/orderNumber.js';
+import { paymentLabel } from '../../utils/orderPayments.js';
 import { getCustomers, createCustomer } from '../../api/customers.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
@@ -1090,7 +1091,7 @@ const Orders = () => {
                     {displayCustomer(order)}
                     {cancelled && <span className="badge-cancelled">Anulado</span>}
                   </td>
-                  <td data-label="Forma de pago">{order.Payment?.name || '—'}</td>
+                  <td data-label="Forma de pago">{paymentLabel(order)}</td>
                   <td data-label="Total">
                     <span className="amount">${Number(order.totalFinanced || order.total).toFixed(2)}</span>
                   </td>

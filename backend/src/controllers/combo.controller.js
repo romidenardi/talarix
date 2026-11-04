@@ -51,6 +51,9 @@ const readComponents = async (raw, businessId, comboId, transaction) => {
   if (products.length !== quantities.size) throw httpError('Alguno de los productos del combo no existe', 404);
   if (products.some((p) => p.isCombo)) throw httpError('Un combo no puede incluir a otro combo');
   if (products.some((p) => p.menuKind)) throw httpError('Los platos y adicionales del menú no van en combos');
+  // Las cantidades de un combo son enteras: un producto por peso (kg) no encaja
+  const byWeight = products.find((p) => p.unitType === 'weight');
+  if (byWeight) throw httpError(`${byWeight.name} se vende por peso: los combos llevan solo productos por unidad`);
   if (products.some(isVariantGroup))
     throw httpError('En un combo va la variante (talle, color…), no el producto principal');
 

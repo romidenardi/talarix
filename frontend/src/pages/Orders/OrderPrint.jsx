@@ -4,6 +4,7 @@ import { getOrder } from '../../api/orders.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
 import { formatQuantity, perKg } from '../../utils/quantity.js';
 import { orderNumberLabel } from '../../utils/orderNumber.js';
+import { paymentParts } from '../../utils/orderPayments.js';
 
 const OrderPrint = () => {
   const { id } = useParams();
@@ -25,6 +26,7 @@ const OrderPrint = () => {
   const hasDiscount = Number(order.discountPercent) > 0 || Number(order.discountAmount) > 0;
   const totalDiscount = Number(order.grossTotal || 0) - Number(order.total || 0);
   const cancelled = order.status === 'cancelled';
+  const parts = paymentParts(order);
 
   return (
     <div className="print-page">
@@ -140,7 +142,20 @@ const OrderPrint = () => {
           )}
         </div>
 
-        <p className="print-payment">Forma de pago: {order.Payment?.name}</p>
+        {parts.length > 0 ? (
+          <div className="print-payment">
+            <p>Formas de pago:</p>
+            <ul>
+              {parts.map((part) => (
+                <li key={part.id}>
+                  {part.Payment?.name || 'Sin forma de pago'}: ${Number(part.amount).toFixed(2)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="print-payment">Forma de pago: {order.Payment?.name}</p>
+        )}
         {order.notes && <p className="print-notes">Notas: {order.notes}</p>}
       </div>
     </div>

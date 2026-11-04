@@ -51,6 +51,12 @@ app.get('/health', async (req, res) => {
 });
 app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : false }));
 app.use(express.json({ limit: '1mb' }));
+// En Express 5, un pedido sin cuerpo deja req.body en undefined: así los controladores siempre
+// reciben un objeto (si no, leer req.body.algo daba un error 500 en lugar de un mensaje claro)
+app.use((req, res, next) => {
+  if (req.body === undefined || req.body === null) req.body = {};
+  next();
+});
 
 // ---- Límites de intentos ----
 const FIFTEEN_MINUTES = 15 * 60 * 1000;

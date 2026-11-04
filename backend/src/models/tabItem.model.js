@@ -4,7 +4,7 @@ import sequelize from '../config/database.js';
 import { numericGetter } from '../utils/decimalColumn.js';
 
 // Plato pedido en una comanda. El nombre y el precio se guardan al pedir.
-//   active · cancelled (anulado por un administrador o editor: devuelve el stock)
+//   active · cancelled (anulado por un administrador o editor; anular un plato anula sus adicionales)
 const TabItem = sequelize.define(
   'TabItem',
   {

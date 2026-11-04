@@ -165,3 +165,14 @@ describe('Anular una compra', () => {
     assert.equal(res.status, 403);
   });
 });
+
+describe('Total de la compra', () => {
+  it('es la suma de los renglones redondeados a centavos, igual que el detalle', async () => {
+    // 0,125 kg × $0,10 = $0,0125 → $0,01 por renglón; tres renglones = $0,03 (sin redondear daba $0,04)
+    const line = { productId: A.products.queso.id, quantity: 0.125, unitCost: 0.1 };
+    const res = await buy([line, line, line]);
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    const purchase = await models.Purchase.findByPk(res.body.id);
+    assert.equal(Number(purchase.total), 0.03);
+  });
+});

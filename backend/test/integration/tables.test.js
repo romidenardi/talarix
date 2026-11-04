@@ -259,6 +259,16 @@ describe('Mesas', () => {
     assert.equal(order.tableTabId, tab.id);
     assert.equal(await models.OrderItem.count({ where: { orderId: order.id } }), 3);
     assert.equal(await models.OrderPayment.count({ where: { orderId: order.id } }), 2);
+
+    // El remito trae las partes, para imprimirlas
+    const printed = await api('GET', `/api/orders/${order.id}`, { token: admin });
+    assert.deepEqual(printed.body.payments.map((p) => [p.Payment.name, Number(p.amount)]).sort(), [
+      ['Efectivo', 3600],
+      ['Tarjeta', 3600],
+    ]);
+    // La tarjeta solo se usó como una de las partes: igual no se puede borrar
+    const removeCard = await api('DELETE', `/api/payments/${card.id}`, { token: admin });
+    assert.equal(removeCard.status, 409);
     assert.equal((await call('GET', `/tabs/${tab.id}`, admin)).body.status, 'closed');
     assert.equal(
       (
@@ -304,7 +314,9 @@ describe('Mesas', () => {
 
     await menu('PUT', `/dishes/${dishes.mila.id}`, { active: false });
     const table4 = await call('POST', '/', admin, { name: '4' });
-    const opened = await call('POST', `/${table4.body.id}/open`, mozo, {});
+    // Sin cuerpo en el pedido: responde bien, no con un error del servidor
+    const opened = await call('POST', `/${table4.body.id}/open`, mozo);
+    assert.equal(opened.status, 201, JSON.stringify(opened.body));
     const res = await call('POST', `/tabs/${opened.body.id}/tickets`, mozo, {
       requestId: newRequestId(),
       items: [{ productId: dishes.mila.id, quantity: 1 }],
@@ -315,9 +327,10 @@ describe('Mesas', () => {
 });
 
 describe('Rol mozo', () => {
-  it('solo usa mesas, productos y categorías', async () => {
-    assert.equal((await api('GET', '/api/products', { token: mozo })).status, 200);
-    assert.equal((await api('GET', '/api/categories', { token: mozo })).status, 200);
+  it('solo usa mesas: no ve productos (ni sus costos) ni categorías', async () => {
+    assert.equal((await api('GET', '/api/tables/menu', { token: mozo })).status, 200);
+    assert.equal((await api('GET', '/api/products', { token: mozo })).status, 403);
+    assert.equal((await api('GET', '/api/categories', { token: mozo })).status, 403);
     assert.equal((await api('GET', '/api/customers', { token: mozo })).status, 403);
     assert.equal((await api('GET', '/api/orders', { token: mozo })).status, 403);
     assert.equal((await api('POST', '/api/products', { token: mozo, body: {} })).status, 403);

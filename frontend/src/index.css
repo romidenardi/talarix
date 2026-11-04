@@ -689,6 +689,15 @@ td:nth-child(1),
   font-size: 14px;
 }
 
+.print-payment p {
+  margin: 0;
+}
+
+.print-payment ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
 @media print {
   .no-print {
     display: none !important;

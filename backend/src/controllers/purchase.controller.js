@@ -151,7 +151,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
       }
       entry.quantity = round3(entry.quantity + row.quantity);
       entry.amount += row.quantity * row.unitCost;
-      total += row.quantity * row.unitCost;
+      // Cada renglón redondeado a centavos, igual que se muestra: el total cierra con el detalle
+      total = round2(total + round2(row.quantity * row.unitCost));
     }
 
     const purchase = await Purchase.create(

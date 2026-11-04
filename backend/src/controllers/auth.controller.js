@@ -88,6 +88,11 @@ export const activateAccount = asyncHandler(async (req, res) => {
   if (!user || !user.inviteExpiresAt || user.inviteExpiresAt < new Date()) {
     throw httpError('El link de activación es inválido o venció. Solicitá uno nuevo.');
   }
+  // Una cuenta que ya tiene contraseña se cambia con el link de restablecer (/restablecer), que además
+  // cierra las sesiones abiertas. Acá no: el link de activación es solo para cuentas nuevas.
+  if (user.passwordHash) {
+    throw httpError('Esta cuenta ya está activada. Para cambiar la contraseña usá "Olvidé mi contraseña".');
+  }
   checkPassword(password, { email: user.email, name: user.name });
 
   user.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);

@@ -3,6 +3,8 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
 import { startTestServer, createBusiness, tokenFor } from './helpers.js';
+import { hashToken } from '../../src/utils/inviteToken.js';
+import { LEGAL_VERSION } from '../../src/utils/legal.js';
 
 let api;
 let models;
@@ -64,5 +66,59 @@ describe('Administradores', () => {
     const res = await api('PUT', `/api/users/${e.id}`, { token: d.token, body: { role: 'editor' } });
     assert.ok(res.status === 403, `status ${res.status}`);
     assert.equal((await models.User.findByPk(e.id)).role, 'admin');
+  });
+});
+
+describe('Edición de usuarios', () => {
+  it('valida el email, el nombre y el estado, igual que al crear', async () => {
+    const target = await models.User.create({
+      businessId: A.business.id,
+      name: 'Operador Uno',
+      email: 'operador-uno@usuarios-a.test',
+      role: 'operador',
+      passwordHash: await bcrypt.hash('clave-de-prueba-123', 4),
+    });
+    const admin = await models.User.findOne({ where: { businessId: A.business.id, role: 'admin', active: true } });
+    const put = (body) => api('PUT', `/api/users/${target.id}`, { token: tokenFor(admin), body });
+
+    assert.equal((await put({ email: 'sin-arroba' })).status, 400);
+    assert.equal((await put({ name: '   ' })).status, 400);
+    assert.equal((await put({ active: 'no' })).status, 400);
+    assert.equal((await put({ role: 'jefe' })).status, 400);
+    const fresh = await models.User.findByPk(target.id);
+    assert.equal(fresh.email, 'operador-uno@usuarios-a.test');
+    assert.equal(fresh.name, 'Operador Uno');
+
+    const ok = await put({ name: '  Operador Dos ', email: ' Operador-Dos@Usuarios-A.test ' });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(ok.body.name, 'Operador Dos');
+    assert.equal(ok.body.email, 'operador-dos@usuarios-a.test');
+  });
+});
+
+describe('Links de cuenta', () => {
+  it('el link para restablecer no sirve en "activar": la cuenta ya tiene contraseña', async () => {
+    const user = await models.User.create({
+      businessId: A.business.id,
+      name: 'Editora',
+      email: 'editora@usuarios-a.test',
+      role: 'editor',
+      passwordHash: await bcrypt.hash('clave-de-prueba-123', 4),
+      inviteTokenHash: hashToken('token-de-restablecer'),
+      inviteExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    const res = await api('POST', '/api/auth/activate', {
+      body: {
+        token: 'token-de-restablecer',
+        password: 'caballo-verde-azul-42',
+        acceptTerms: true,
+        legalVersion: LEGAL_VERSION,
+      },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /ya está activada/);
+    const fresh = await models.User.findByPk(user.id);
+    assert.equal(fresh.tokenVersion, user.tokenVersion, 'no cambió la contraseña');
+    assert.ok(await bcrypt.compare('clave-de-prueba-123', fresh.passwordHash));
   });
 });

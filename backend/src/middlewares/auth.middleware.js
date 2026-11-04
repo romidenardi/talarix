@@ -6,13 +6,9 @@ const { Op } = pkg;
 
 const CLOSING_MESSAGE = 'Esta cuenta está en proceso de baja. Solo se permite exportar los datos.';
 
-// El mozo solo usa Mesas: la API de mesas (cada ruta revisa además su rol) y la lista de productos
-// y categorías para elegir los platos. Todo lo demás le responde 403.
-const MOZO_ALLOWED = [
-  { method: 'GET', prefix: '/api/products' },
-  { method: 'GET', prefix: '/api/categories' },
-  { method: '*', prefix: '/api/tables' },
-];
+// El mozo solo usa Mesas: la API de mesas (cada ruta revisa además su rol; los platos salen del menú,
+// GET /tables/menu). Todo lo demás le responde 403: por ejemplo, no ve los productos ni sus costos.
+const MOZO_ALLOWED = [{ method: '*', prefix: '/api/tables' }];
 export const mozoCanUse = (method, url) => {
   const path = String(url || '').split('?')[0];
   return MOZO_ALLOWED.some(

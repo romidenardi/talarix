@@ -137,6 +137,22 @@ describe('Quién hizo cada cosa', () => {
     assert.equal(await stockOf(models, A.products.queso), before);
   });
 
+  it('un combo no puede llevar productos por peso', async () => {
+    const res = await api('POST', '/api/combos', {
+      token: A.users.admin.token,
+      body: {
+        internalCode: 'CMB-KG',
+        name: 'Picada',
+        components: [
+          { productId: A.products.queso.id, quantity: 1 },
+          { productId: A.products.yerba.id, quantity: 1 },
+        ],
+      },
+    });
+    assert.equal(res.status, 400);
+    assert.match(res.body.message, /por peso/);
+  });
+
   it('no se puede cargar una compra de un combo', async () => {
     const combo = await models.Product.create({
       businessId: A.business.id,

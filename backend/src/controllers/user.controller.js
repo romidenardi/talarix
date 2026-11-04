@@ -126,9 +126,19 @@ export const createUser = asyncHandler(async (req, res) => {
 
 export const updateUser = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
-  const { name, role, active, password } = req.body;
-  const email = req.body.email !== undefined ? String(req.body.email).trim().toLowerCase() : undefined;
-  if (role && !ROLES.includes(role)) throw httpError('Rol inválido');
+  const { role, active, password } = req.body;
+  const name = req.body.name !== undefined ? String(req.body.name ?? '').trim() : undefined;
+  const email =
+    req.body.email !== undefined
+      ? String(req.body.email ?? '')
+          .trim()
+          .toLowerCase()
+      : undefined;
+  // Las mismas reglas que al crear el usuario
+  if (name !== undefined && !name) throw httpError('El nombre no puede quedar vacío');
+  if (email !== undefined && !EMAIL_REGEX.test(email)) throw httpError('El email no es válido');
+  if (role !== undefined && !ROLES.includes(role)) throw httpError('Rol inválido');
+  if (active !== undefined && typeof active !== 'boolean') throw httpError('El estado no es válido');
 
   const t = await sequelize.transaction();
   let user;

@@ -1,4 +1,4 @@
-import { Order, OrderItem, Product, Customer, Payment } from '../models/index.js';
+import { Order, OrderItem, OrderPayment, Product, Customer, Payment } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import pkg from 'sequelize';
@@ -11,6 +11,13 @@ const { Op } = pkg;
 const orderIncludes = [
   { model: Customer },
   { model: Payment, attributes: ['id', 'name'] },
+  // Cuenta de una mesa cobrada en partes: cada parte con su forma de pago (sin partes, se cobró entero)
+  {
+    model: OrderPayment,
+    as: 'payments',
+    attributes: ['id', 'paymentId', 'amount', 'tip'],
+    include: [{ model: Payment, attributes: ['id', 'name'] }],
+  },
   {
     model: OrderItem,
     as: 'items',
