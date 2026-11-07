@@ -10,6 +10,7 @@ import { inviteEmail } from '../utils/mailTemplates.js';
 import { closureStartedEmail } from '../utils/closureEmails.js';
 import { resetDemoBusiness } from '../services/demo.service.js';
 import { audit } from '../utils/audit.js';
+import { listServiceRequests, resolveServiceRequest } from '../services/serviceRequest.service.js';
 import { KEY_RE, dayKey, addDays } from '../utils/dates.js';
 import { TRIAL_EXPIRED, MANUAL } from '../services/trialExpiry.service.js';
 import { compareWithDummy } from '../utils/password.js';
@@ -553,4 +554,16 @@ export const resetDemo = asyncHandler(async (req, res) => {
     targetId: req.params.id,
   });
   res.json({ message: 'Demo reiniciada' });
+});
+
+// ---- Pedidos de los botones de baja y de arrepentimiento ----
+
+export const getServiceRequests = asyncHandler(async (req, res) => {
+  res.json(await listServiceRequests({ status: req.query.status }));
+});
+
+// { status: 'done' | 'pending', note? }: resolverlo no da de baja ni devuelve nada, solo lo anota.
+// La baja se hace con la acción del comercio (Dar de baja) y la devolución, por fuera del sistema.
+export const updateServiceRequest = asyncHandler(async (req, res) => {
+  res.json(await resolveServiceRequest(req.params.id, req.body, req));
 });

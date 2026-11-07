@@ -7,6 +7,7 @@ import { runMigrations } from './src/db/migrations.js';
 import { startClosureScheduler } from './src/services/closureScheduler.service.js';
 import { startDemoResetJob } from './src/jobs/demoReset.job.js';
 import { startTrialExpiryScheduler } from './src/services/trialExpiry.service.js';
+import { startAuditCleanupScheduler } from './src/services/auditCleanup.service.js';
 import { initMonitoring, captureError, flushMonitoring } from './src/utils/monitoring.js';
 import { dbHostWarning } from './src/utils/dbHost.js';
 
@@ -97,7 +98,12 @@ const start = async () => {
 
     server = app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
 
-    jobs.push(...startClosureScheduler(), ...startTrialExpiryScheduler(), startDemoResetJob());
+    jobs.push(
+      ...startClosureScheduler(),
+      ...startTrialExpiryScheduler(),
+      ...startAuditCleanupScheduler(),
+      startDemoResetJob(),
+    );
   } catch (error) {
     console.error('Error al iniciar:', error);
     captureError(error, { origen: 'arranque' });

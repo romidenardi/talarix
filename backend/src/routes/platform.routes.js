@@ -14,6 +14,8 @@ import {
   cancelClosure,
   reinviteUser,
   resetDemo,
+  getServiceRequests,
+  updateServiceRequest,
 } from '../controllers/platform.controller.js';
 import { platformAuthMiddleware } from '../middlewares/platformAuth.middleware.js';
 
@@ -36,5 +38,8 @@ router.post('/businesses/:id/closure', startClosure);
 router.delete('/businesses/:id/closure', cancelClosure);
 router.post('/businesses/:id/reinvite', reinviteUser);
 router.post('/businesses/:id/reset-demo', resetDemo);
+// Pedidos de los botones de baja y de arrepentimiento
+router.get('/requests', getServiceRequests);
+router.patch('/requests/:id', updateServiceRequest);
 
 export default router;

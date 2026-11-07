@@ -22,6 +22,7 @@ import userRoutes from './routes/user.routes.js';
 import exportRoutes from './routes/export.routes.js';
 import dataRightsRoutes from './routes/dataRights.routes.js';
 import tableRoutes from './routes/table.routes.js';
+import publicRoutes from './routes/public.routes.js';
 import { authMiddleware, authAllowClosing } from './middlewares/auth.middleware.js';
 import { requireRole } from './middlewares/role.middleware.js';
 import { forbidInDemo } from './middlewares/demo.middleware.js';
@@ -121,7 +122,18 @@ const accountLinksLimiter = rateLimit({
 });
 app.use(['/api/auth/activate', '/api/auth/forgot-password', '/api/auth/reset-password'], accountLinksLimiter);
 
+// Botones de baja y de arrepentimiento: públicos, así que con tope por IP (mandan mails)
+const publicRequestsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Recibimos varias solicitudes desde tu conexión. Probá de nuevo en una hora.' },
+});
+app.use('/api/public/requests', publicRequestsLimiter);
+
 app.use('/api/auth', authRoutes);
+app.use('/api/public', publicRoutes);
 app.use('/api/platform', platformRoutes);
 
 app.use('/api/categories', authMiddleware, categoryRoutes);

@@ -16,6 +16,8 @@ export default function LegalPage({ doc }) {
         <nav className="legal-nav">
           <Link to="/terminos">Términos</Link>
           <Link to="/privacidad">Privacidad</Link>
+          <Link to="/baja">Botón de baja</Link>
+          <Link to="/arrepentimiento">Botón de arrepentimiento</Link>
           <Link to="/login">Ingresar</Link>
         </nav>
 

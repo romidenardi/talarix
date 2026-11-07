@@ -39,6 +39,7 @@ En Vercel hay una variable por entorno: una para **Production** y otra para **Pr
 | `/olvide-contrasena` | pública (pide el mail para recuperar la contraseña) |
 | `/restablecer?token=...` | pública (elegir una contraseña nueva desde el link del mail) |
 | `/terminos`, `/privacidad` | públicas |
+| `/baja`, `/arrepentimiento` | públicas: botones de baja y de arrepentimiento (`pages/Public/ServiceRequest.jsx`). Mandan el pedido sin ingresar y muestran el código que también llega por mail. Se enlazan desde el ingreso y los textos legales; el sitio de Talarix tiene que enlazarlos desde su página de inicio |
 | `/plataforma/login`, `/plataforma` | superadmin (token aparte, guardado en `sessionStorage`) |
 | `/`, `/orders`, `/purchases` | usuarios autenticados |
 | `/orders/:id/print` | usuarios autenticados (remito para imprimir) |
@@ -96,6 +97,7 @@ src/
 - **Campos obligatorios:** en los formularios, los campos obligatorios llevan `(*)` y al pie se muestra "(*) Campo obligatorio" en el color de alerta. Se usa `RequiredMark` y `RequiredLegend` de `components/common/Required.jsx`.
 - **Usuarios** (solo `admin`): siempre queda al menos un administrador activo (lo controla el servidor, también si dos se quitan el rol al mismo tiempo). Se pueden crear con contraseña asignada, o enviando una **invitación por mail**. Cada usuario tiene un botón para reenviar la invitación o enviar un link de contraseña. Si el mail no sale, se muestra el link para copiarlo.
 - **Prueba gratis** (`/plataforma`): arriba de la lista aparece un aviso con los comercios cuya prueba vence en los próximos 3 días y los que ya se suspendieron por vencimiento, cada uno con **Renovar**. En la fila de cada cliente está también **Renovar prueba** (o **Poner vencimiento** si no tiene). `pages/Platform/TrialDialog.jsx` permite elegir **hasta una fecha** (vence al terminar ese día) o **sin vencimiento**. Si la prueba ya venció, **Reactivar** abre ese mismo recuadro.
+- **Solicitudes de baja y arrepentimiento** (`/plataforma`): arriba de todo, los pedidos pendientes de los botones públicos, con código, fecha, nombre, email y la cuenta de ese email si existe. **Marcar resuelta** pide una nota opcional. Resolverla solo la anota: la baja se hace con **Dar de baja** del comercio y la devolución del arrepentimiento, por fuera del sistema.
 - **Módulos** (`/plataforma`): cada comercio tiene el botón **Activar mesas** / **Quitar mesas**; la fila muestra «Módulo: mesas» si lo tiene.
 - **Plataforma:** al crear un comercio o reinvitar, se envía el mail con el link y se muestra además para copiarlo y compartirlo por WhatsApp.
 - **Menú en el celular:** se muestra como menú hamburguesa (barra superior con botón, y panel lateral con fondo oscurecido).

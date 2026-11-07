@@ -13,9 +13,13 @@ import {
   resetDemoBusiness,
   startBusinessClosure,
   cancelBusinessClosure,
+  getServiceRequests,
+  resolveServiceRequest,
 } from '../../api/platform.api';
 import AuditLog from './AuditLog';
 import TrialDialog from './TrialDialog';
+
+const KIND_LABELS = { cancellation: 'Baja', withdrawal: 'Arrepentimiento' };
 
 const EMPTY_FORM = { name: '', adminName: '', adminEmail: '', type: 'client', trialDays: '' };
 
@@ -82,11 +86,14 @@ export default function Platform() {
   const [copied, setCopied] = useState(false);
   const [renewing, setRenewing] = useState(null);
   const [savingTrial, setSavingTrial] = useState(false);
+  // Pedidos pendientes de los botones de baja y de arrepentimiento
+  const [requests, setRequests] = useState([]);
 
   const load = useCallback(async () => {
     try {
-      const { data } = await getBusinesses();
+      const [{ data }, pending] = await Promise.all([getBusinesses(), getServiceRequests('pending')]);
       setBusinesses(data);
+      setRequests(pending.data);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
@@ -313,6 +320,24 @@ export default function Platform() {
 
   const alerts = trialAlerts(businesses);
 
+  // La baja se hace después con "Dar de baja" del comercio, y la devolución, por fuera del sistema:
+  // marcarla resuelta solo deja anotado que se atendió
+  const handleResolveRequest = async (request) => {
+    const note = await dialog.prompt({
+      title: `Resolver ${request.code}`,
+      message: 'Anotá qué se hizo (opcional). La solicitud deja de figurar como pendiente.',
+      placeholder: 'Ej: baja iniciada el 10/11',
+      confirmLabel: 'Marcar resuelta',
+    });
+    if (note === null) return;
+    try {
+      await resolveServiceRequest(request.id, note.trim() || undefined);
+      setRequests((prev) => prev.filter((r) => r.id !== request.id));
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  };
+
   return (
     <div className="platform-page">
       <header className="platform-header">
@@ -345,6 +370,29 @@ export default function Platform() {
                 </span>
                 <button type="button" onClick={() => setRenewing(business)}>
                   Renovar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {requests.length > 0 && (
+        <section className="trial-alert service-requests" role="status">
+          <strong>Solicitudes de baja y arrepentimiento</strong>
+          <ul>
+            {requests.map((request) => (
+              <li key={request.id}>
+                <span>
+                  <b>{request.code}</b> · {KIND_LABELS[request.kind]} · {formatDate(request.createdAt, true)} ·{' '}
+                  {request.name} ({request.email}){' · '}
+                  {request.business
+                    ? `Cuenta: ${request.business.name}`
+                    : `Sin cuenta con ese email${request.businessName ? ` (indicó "${request.businessName}")` : ''}`}
+                  {request.reason && <small> · Motivo: {request.reason}</small>}
+                </span>
+                <button type="button" onClick={() => handleResolveRequest(request)}>
+                  Marcar resuelta
                 </button>
               </li>
             ))}

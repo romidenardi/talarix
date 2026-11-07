@@ -38,6 +38,11 @@ const Login = () => {
         <p>
           <Link to="/olvide-contrasena">¿Olvidaste tu contraseña?</Link>
         </p>
+
+        <p className="public-links">
+          <Link to="/terminos">Términos</Link> · <Link to="/privacidad">Privacidad</Link> ·{' '}
+          <Link to="/baja">Botón de baja</Link> · <Link to="/arrepentimiento">Botón de arrepentimiento</Link>
+        </p>
       </form>
     </div>
   );

@@ -492,6 +492,39 @@ td:nth-child(1),
   margin-top: 6px;
 }
 
+/* Botones de baja y de arrepentimiento (páginas públicas) */
+.service-request-page form {
+  width: 380px;
+}
+
+.service-request-page textarea {
+  width: 100%;
+}
+
+.service-request-page small {
+  color: var(--color-text-muted);
+  margin-top: -8px;
+}
+
+.service-request-code {
+  font-size: 1.1rem;
+}
+
+.public-links {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+/* Campo trampa para robots: fuera de la pantalla, sin display:none para que no lo salteen */
+.hp-field {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 /* ---------- Panel de stock ---------- */
 
 .stock-panel {
@@ -954,7 +987,8 @@ td:nth-child(1),
 
 .legal-nav {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
   font-size: 0.9rem;
 }
 
@@ -1348,6 +1382,10 @@ button.report-export:disabled {
   .login-page form {
     width: 100%;
     max-width: 320px;
+  }
+
+  .service-request-page form {
+    max-width: 380px;
   }
 
   .print-page {

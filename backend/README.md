@@ -91,8 +91,10 @@ src/
                    variantes de productos (variant.service.js), mesas y
                    comandas (table.service.js),
                    importación, datos de la cuenta demo, exportación a Excel,
-                   borrado de un comercio, programador de bajas y vencimiento
-                   de pruebas (trialExpiry.service.js)
+                   borrado de un comercio, programador de bajas, vencimiento
+                   de pruebas (trialExpiry.service.js), pedidos de los botones
+                   de baja y arrepentimiento (serviceRequest.service.js) y
+                   limpieza del registro de actividad (auditCleanup.service.js)
   jobs/            tareas programadas (reinicio nocturno de la demo)
   utils/           ayudas: fechas en hora argentina (dates.js), asyncHandler,
                    httpError, números y cantidades
@@ -255,11 +257,17 @@ SUPPORT_EMAIL=hola@talarix.com.ar
 - Si las variables `MAIL_*` faltan o el envío falla, el sistema **no se rompe**: avisa que el mail no salió y muestra el link para copiarlo y pasarlo por otro medio.
 - Para cambiar de proveedor (Resend, Brevo, etc.) alcanza con cambiar las variables.
 - Si el mail cae en spam, revisar SPF y DKIM del dominio (en cPanel: *Email Deliverability*).
-- Plantillas: `src/utils/mailTemplates.js` y `src/utils/closureEmails.js`.
+- Plantillas: `src/utils/mailTemplates.js`, `src/utils/closureEmails.js` y `src/utils/serviceRequestEmails.js` (botones de baja y arrepentimiento).
 
 ## Baja de comercios
 
 La baja la ejecuta el superadmin desde `/plataforma` ("Dar de baja"). Solo aplica a comercios de tipo `client`.
+
+**Botones de baja y de arrepentimiento** (Res. 316/2018 y 424/2020). Las páginas públicas `/baja` y `/arrepentimiento` del frontend (enlazadas desde el ingreso, los textos legales y el sitio) mandan `POST /api/public/requests` con `{ kind: 'cancellation' | 'withdrawal', name, email, businessName?, reason? }`, sin sesión:
+- Se guarda en `service_requests` (migración `005`) con un código (`BAJ-XXXXXXXX` o `ARR-XXXXXXXX`) que se le manda al instante por mail a quien lo pidió, junto con un aviso a `SUPPORT_EMAIL`. La respuesta es la misma exista o no una cuenta con ese email; si existe, el pedido queda vinculado a ese comercio.
+- Tope de 5 pedidos por hora por IP, y un campo oculto que solo completan los robots (`website`).
+- El superadmin los ve arriba de todo en `/plataforma` (`GET /api/platform/requests?status=pending`) y los marca resueltos con una nota (`PATCH /api/platform/requests/:id`). Marcarlo **no** da de baja ni devuelve dinero: la baja se hace con el paso 1 de abajo, y la devolución del arrepentimiento, por fuera del sistema.
+- Los pedidos no se borran con la purga del comercio: son la constancia de que se pidió y se atendió.
 
 1. **Inicio.** `POST /api/platform/businesses/:id/closure` exige escribir el nombre exacto del comercio. Pasa `Business.status` a `closing`, guarda `delete_at` (hoy + 30 días) y avisa por mail a los administradores.
 2. **Período de 30 días.** Solo el administrador puede ingresar, y únicamente para exportar sus datos. El resto de los usuarios no entra. Cualquier otra ruta responde `403` con `{ code: 'ACCOUNT_CLOSING' }`. Mientras dura la baja no se puede suspender ni reactivar el comercio.
@@ -328,9 +336,11 @@ Tabla `audit_logs` (sin claves foráneas: un registro sobrevive aunque se borre 
 Qué se registra:
 - **Superadmin:** ingresos, ingresos fallidos (contraseña o código), activación del segundo factor, uso de códigos de recuperación, alta de comercios, cambios de estado, renovación de pruebas, inicio y cancelación de bajas, reinvitaciones y reinicio de la demo.
 - **Usuarios de los comercios:** exportación de todos los datos, exportación y anonimización de clientes, alta, cambios, baja y envío de links de usuarios, anulación de remitos y compras, y autorizaciones de descuentos (aprobadas y rechazadas).
-- **Sistema:** vencimiento de la prueba de un comercio y eliminación definitiva de un comercio. Al eliminarlo se borran sus registros y queda solo ese último (sin datos personales).
+- **Sistema:** vencimiento de la prueba de un comercio, eliminación definitiva de un comercio (al eliminarlo se borran sus registros y queda solo ese último, sin datos personales) y pedidos de los botones de baja y arrepentimiento (con su código). Resolverlos queda a nombre del superadmin.
 
-No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados. Todavía no hay borrado automático de registros viejos.
+No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados.
+
+**Se conserva 12 meses** (Política de Privacidad): `services/auditCleanup.service.js` borra los registros más viejos todos los días a las 04:15 (hora de Buenos Aires) y una vez 50 segundos después de arrancar. El plazo es `AUDIT_RETENTION_MONTHS` en ese archivo.
 
 ## Cambios en la base de datos
 

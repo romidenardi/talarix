@@ -65,3 +65,9 @@ export const resetDemoBusiness = (id) => platformApi.post(`/platform/businesses/
 export const startBusinessClosure = (id, confirmName) =>
   platformApi.post(`/platform/businesses/${id}/closure`, { confirmName });
 export const cancelBusinessClosure = (id) => platformApi.delete(`/platform/businesses/${id}/closure`);
+
+// Pedidos de los botones de baja y de arrepentimiento. status: 'pending' | 'done' (sin él, todos)
+export const getServiceRequests = (status) =>
+  platformApi.get('/platform/requests', { params: status ? { status } : {} });
+export const resolveServiceRequest = (id, note) =>
+  platformApi.patch(`/platform/requests/${id}`, { status: 'done', note });

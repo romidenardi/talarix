@@ -5,6 +5,7 @@ import ForgotPassword from '../pages/Auth/ForgotPassword.jsx';
 import ResetPassword from '../pages/Auth/ResetPassword.jsx';
 import Terms from '../pages/Legal/Terms.jsx';
 import Privacy from '../pages/Legal/Privacy.jsx';
+import ServiceRequest from '../pages/Public/ServiceRequest.jsx';
 import PlatformLogin from '../pages/Platform/PlatformLogin.jsx';
 import Platform from '../pages/Platform/Platform.jsx';
 import Home from '../pages/Home/Home.jsx';
@@ -35,6 +36,9 @@ const AppRoutes = () => {
       <Route path="/restablecer" element={<ResetPassword />} />
       <Route path="/terminos" element={<Terms />} />
       <Route path="/privacidad" element={<Privacy />} />
+      {/* Botones de baja y de arrepentimiento: públicos, sin ingresar */}
+      <Route path="/baja" element={<ServiceRequest kind="cancellation" />} />
+      <Route path="/arrepentimiento" element={<ServiceRequest kind="withdrawal" />} />
       <Route path="/plataforma/login" element={<PlatformLogin />} />
       <Route path="/plataforma" element={<Platform />} />
 

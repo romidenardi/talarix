@@ -22,6 +22,7 @@ import KitchenTicket from './kitchenTicket.model.js';
 import TabItem from './tabItem.model.js';
 import OrderPayment from './orderPayment.model.js';
 import MenuItemExtra from './menuItemExtra.model.js';
+import ServiceRequest from './serviceRequest.model.js';
 
 // Borrado de registros con historial: las claves de remitos y compras hacia clientes, proveedores,
 // productos y formas de pago son RESTRICT. La base rechaza borrar algo que ya se usó en un remito
@@ -128,4 +129,5 @@ export {
   TabItem,
   OrderPayment,
   MenuItemExtra,
+  ServiceRequest,
 };
