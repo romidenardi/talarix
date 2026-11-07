@@ -8,7 +8,7 @@ const COPY = {
     title: 'Botón de baja',
     intro:
       'Pedí la baja de tu cuenta de Talarix. No tiene costo y no hace falta dar explicaciones. ' +
-      'Al enviarla te llega a tu email un código de la solicitud.',
+      'Al enviarla te llegará a tu email el código de la solicitud.',
     submit: 'Pedir la baja',
     done:
       'Te vamos a escribir para confirmar la baja. Desde ese momento, el administrador de la cuenta tiene ' +
@@ -18,7 +18,7 @@ const COPY = {
     title: 'Botón de arrepentimiento',
     intro:
       'Si contrataste un Plan Pago de Talarix, podés arrepentirte dentro de los 10 días corridos desde la ' +
-      'contratación (artículo 34 de la Ley 24.240). Te devolvemos la totalidad de lo abonado.',
+      'contratación (artículo 34 de la Ley 24.240). Te devolveremos la totalidad de lo abonado.',
     submit: 'Arrepentirme de la contratación',
     done: 'Te vamos a escribir para coordinar la devolución de lo abonado.',
   },

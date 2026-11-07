@@ -18,24 +18,23 @@ const paragraphs = (lines) => ({
 });
 
 // Para quien hizo el pedido
-export const requestReceivedEmail = ({ kind, code, name, businessName }) => {
-  const of = businessName ? ` de "${businessName}"` : '';
+export const requestReceivedEmail = ({ kind, code, name }) => {
   const lines =
     kind === 'withdrawal'
       ? [
-          `Hola ${name},`,
-          `Recibimos tu solicitud de arrepentimiento de la contratación del Plan Pago de Talarix${of}.`,
-          `Código de la solicitud: ${code}`,
-          'Te devolvemos la totalidad de lo abonado. Te vamos a escribir para coordinar la devolución.',
-          `Si no hiciste este pedido, respondé este mail o escribinos a ${supportEmail()}.`,
+          `Hola, ${name}.`,
+          'Recibimos la solicitud de arrepentimiento de la contratación de tu Plan Pago de Talarix.',
+          `El código de la solicitud es ${code}.`,
+          'Te vamos a escribir para coordinar la devolución de lo que hayas abonado.',
+          `Si no hiciste este pedido, escribinos a ${supportEmail()}.`,
         ]
       : [
-          `Hola ${name},`,
-          `Recibimos tu solicitud de baja de la cuenta de Talarix${of}.`,
-          `Código de la solicitud: ${code}`,
+          `Hola, ${name}.`,
+          'Recibimos la solicitud de baja de tu cuenta de Talarix.',
+          `El código de la solicitud es ${code}.`,
           'La baja no tiene costo. Te vamos a escribir para confirmarla. Desde ese momento, el administrador ' +
             'de la cuenta tiene 30 días para descargar los datos; después se eliminan.',
-          `Si no hiciste este pedido, respondé este mail o escribinos a ${supportEmail()}.`,
+          `Si no hiciste este pedido, escribinos a ${supportEmail()}.`,
         ];
   return {
     subject: `Recibimos tu solicitud de ${KIND_LABELS[kind]} · Código ${code}`,
