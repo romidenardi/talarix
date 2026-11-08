@@ -283,8 +283,9 @@ label {
   width: 100%;
 }
 
-.terms-check {
+label.terms-check {
   display: flex;
+  width: 100%;
   gap: 8px;
   align-items: flex-start;
   font-size: 0.85rem;
@@ -292,8 +293,8 @@ label {
   margin: 12px 0;
 }
 
-.terms-check input {
-  margin-top: 3px;
+label.terms-check input {
+  margin-top: 2px;
   flex: none;
 }
 
@@ -483,7 +484,7 @@ td:nth-child(1),
   margin-bottom: 4px;
 }
 
-.login-page input {
+.login-page input:not([type='checkbox']):not([type='radio']) {
   width: 100%;
 }
 
