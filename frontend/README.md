@@ -126,9 +126,13 @@ Casi todo el CSS está en `src/index.css`; algunas pantallas tienen su propio ar
 Si el comercio es de tipo demo, el menú oculta Importar y Usuarios y se muestra un aviso de que no deben cargarse datos reales. La demo no se puede dar de baja.
 
 ## Textos legales
-Se editan en `src/legal/legalContent.js`. Hoy están en borrador (`LEGAL_VERSION = '2026-10-borrador-1'`, `LEGAL_IS_DRAFT = true`) hasta que los valide el abogado. La casilla de contacto es `hola@talarix.com.ar`. Al cambiarlos:
-1. Subir `LEGAL_VERSION`.
-2. Subir también la misma versión en `backend/src/utils/legal.js`. Si no coinciden, la activación de cuentas falla a propósito.
+Se editan en `src/legal/legalContent.js`: Términos y Condiciones de Uso (`/terminos`) y Política de Privacidad (`/privacidad`). Hoy `LEGAL_VERSION = '2026-11'`, con `LEGAL_IS_DRAFT = true` (muestra «Texto en revisión») hasta que los valide el abogado. La casilla de aceptación es `components/legal/TermsCheckbox.jsx`, y su texto tiene que coincidir con la cláusula 17 de los Términos.
+
+**Versión nueva:** `components/legal/TermsGate.jsx` envuelve al sistema (en `Layout.jsx`). Al entrar, si el usuario no aceptó la versión vigente, muestra el aviso con la casilla en lugar de las pantallas, hasta que la acepta. Durante una baja no aparece (solo se exporta).
+
+Al cambiar los textos:
+1. Subir `LEGAL_VERSION` y actualizar `LEGAL_EFFECTIVE_DATE`.
+2. Subir también la misma versión en `backend/src/utils/legal.js`. Si no coinciden, la activación y la aceptación fallan a propósito.
 3. Poner `LEGAL_IS_DRAFT = false` cuando estén validados.
 
 ## Despliegue

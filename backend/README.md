@@ -576,7 +576,10 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 - Clave de `root`: `ALTER USER 'root'@'%' IDENTIFIED BY '<clave>';` y lo mismo para `'root'@'localhost'`, con la misma clave. Enseguida, poner esa clave en `MYSQL_ROOT_PASSWORD` (y en `MYSQLPASSWORD` si no es una referencia) y aplicar los cambios. MySQL se reinicia y la app se corta unos segundos.
 
 ## Textos legales
-La versión vigente de los términos y del aviso de privacidad está en `src/utils/legal.js` y debe coincidir con `LEGAL_VERSION` del frontend. Hoy es un borrador (`2026-10-borrador-1`) pendiente de revisión legal. La casilla de contacto es `hola@talarix.com.ar`.
+La versión vigente de los Términos y Condiciones y de la Política de Privacidad está en `src/utils/legal.js` (hoy `2026-11`, pendiente de la revisión final del abogado) y debe coincidir con `LEGAL_VERSION` del frontend. El contacto que figura en los textos es `soporte@talarix.com.ar`.
+
+- **Al activar la cuenta** (`POST /api/auth/activate`) se exige aceptar la versión vigente y se guarda en el usuario (`terms_version`, `terms_accepted_at`, `terms_accepted_ip`).
+- **Versión nueva:** cada usuario la acepta la próxima vez que entra. `GET /api/auth/terms` (con sesión) responde `{ version, accepted }`, y `POST /api/auth/terms` con `{ acceptTerms: true, legalVersion }` la registra igual que la activación y deja `user.terms_accepted` en el registro de actividad. El mozo también puede usar estas dos rutas.
 
 ---
 Última actualización: 27/10/2026 (migraciones, reportes en la base, vencimiento de pruebas, red privada y permisos mínimos de la base, limpieza de comentarios).

@@ -4,6 +4,7 @@ import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import logo from '../../assets/logo.png';
 import { getTablesSettings } from '../../api/tables.api.js';
+import TermsGate from '../legal/TermsGate.jsx';
 
 const ROLE_LABELS = {
   admin: 'Administrador',
@@ -75,77 +76,81 @@ const Layout = () => {
   const canManageData = role === 'admin' || role === 'editor';
   const isAdmin = role === 'admin';
 
+  // Con una versión nueva de los textos legales, primero hay que aceptarla (salvo durante la baja,
+  // que solo deja exportar)
   return (
-    <div className="app-layout">
-      <header className="mobile-topbar">
-        <button
-          type="button"
-          className="menu-toggle"
-          aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
-          aria-expanded={menuOpen}
-          aria-controls="main-sidebar"
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
-        <img src={logo} alt="Talarix" className="sidebar-logo" />
-      </header>
-
-      {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
-
-      <aside id="main-sidebar" className={`sidebar${menuOpen ? ' open' : ''}`}>
-        <div className="sidebar-brand">
+    <TermsGate skip={isClosing}>
+      <div className="app-layout">
+        <header className="mobile-topbar">
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-label={menuOpen ? 'Cerrar menú' : 'Abrir menú'}
+            aria-expanded={menuOpen}
+            aria-controls="main-sidebar"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
           <img src={logo} alt="Talarix" className="sidebar-logo" />
-        </div>
+        </header>
 
-        {user && (
-          <div className="sidebar-user">
-            <span className="sidebar-user-name">{user.name}</span>
-            <span className="sidebar-user-role">{ROLE_LABELS[role] || role}</span>
+        {menuOpen && <div className="sidebar-overlay" onClick={() => setMenuOpen(false)} />}
+
+        <aside id="main-sidebar" className={`sidebar${menuOpen ? ' open' : ''}`}>
+          <div className="sidebar-brand">
+            <img src={logo} alt="Talarix" className="sidebar-logo" />
           </div>
-        )}
 
-        <nav className="sidebar-nav">
-          {isClosing ? (
-            <NavLink to="/exportar">Exportar mis datos</NavLink>
-          ) : isWaiter ? (
-            <NavLink to="/mesas">Mesas</NavLink>
-          ) : (
-            <>
-              <NavLink to="/" end>
-                Inicio
-              </NavLink>
-              {canManageData && <NavLink to="/reports">Reportes</NavLink>}
-              {canManageData && <NavLink to="/products">Productos</NavLink>}
-              {canManageData && <NavLink to="/categories">Categorías</NavLink>}
-              {canManageData && <NavLink to="/payments">Formas de pago</NavLink>}
-              {canManageData && <NavLink to="/customers">Clientes</NavLink>}
-              {tablesEnabled && <NavLink to="/mesas">Mesas</NavLink>}
-              <NavLink to="/orders">Remitos</NavLink>
-              {canManageData && <NavLink to="/suppliers">Proveedores</NavLink>}
-              <NavLink to="/purchases">Compras</NavLink>
-              {canManageData && !isDemo && <NavLink to="/imports">Importar</NavLink>}
-              {isAdmin && !isDemo && <NavLink to="/users">Usuarios</NavLink>}
-              {isAdmin && !isDemo && <NavLink to="/exportar">Exportar mis datos</NavLink>}
-            </>
+          {user && (
+            <div className="sidebar-user">
+              <span className="sidebar-user-name">{user.name}</span>
+              <span className="sidebar-user-role">{ROLE_LABELS[role] || role}</span>
+            </div>
           )}
-        </nav>
-        <button className="sidebar-logout" onClick={handleLogout}>
-          Cerrar sesión
-        </button>
-      </aside>
-      <main className="app-main">
-        {isDemo && (
-          <div className="demo-banner" role="status">
-            <strong>Cuenta de demostración.</strong> No cargues datos reales: los pueden ver otros visitantes y todo se
-            reinicia cada noche.
-          </div>
-        )}
-        <Outlet />
-      </main>
-    </div>
+
+          <nav className="sidebar-nav">
+            {isClosing ? (
+              <NavLink to="/exportar">Exportar mis datos</NavLink>
+            ) : isWaiter ? (
+              <NavLink to="/mesas">Mesas</NavLink>
+            ) : (
+              <>
+                <NavLink to="/" end>
+                  Inicio
+                </NavLink>
+                {canManageData && <NavLink to="/reports">Reportes</NavLink>}
+                {canManageData && <NavLink to="/products">Productos</NavLink>}
+                {canManageData && <NavLink to="/categories">Categorías</NavLink>}
+                {canManageData && <NavLink to="/payments">Formas de pago</NavLink>}
+                {canManageData && <NavLink to="/customers">Clientes</NavLink>}
+                {tablesEnabled && <NavLink to="/mesas">Mesas</NavLink>}
+                <NavLink to="/orders">Remitos</NavLink>
+                {canManageData && <NavLink to="/suppliers">Proveedores</NavLink>}
+                <NavLink to="/purchases">Compras</NavLink>
+                {canManageData && !isDemo && <NavLink to="/imports">Importar</NavLink>}
+                {isAdmin && !isDemo && <NavLink to="/users">Usuarios</NavLink>}
+                {isAdmin && !isDemo && <NavLink to="/exportar">Exportar mis datos</NavLink>}
+              </>
+            )}
+          </nav>
+          <button className="sidebar-logout" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </aside>
+        <main className="app-main">
+          {isDemo && (
+            <div className="demo-banner" role="status">
+              <strong>Cuenta de demostración.</strong> No cargues datos reales: los pueden ver otros visitantes y todo
+              se reinicia cada noche.
+            </div>
+          )}
+          <Outlet />
+        </main>
+      </div>
+    </TermsGate>
   );
 };
 

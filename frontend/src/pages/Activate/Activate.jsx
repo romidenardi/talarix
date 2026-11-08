@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import TermsCheckbox from '../../components/legal/TermsCheckbox.jsx';
 import { useUrlToken } from '../../hooks/useUrlToken.js';
 import api from '../../api/axios';
 import { LEGAL_VERSION } from '../../legal/legalContent';
@@ -23,7 +24,7 @@ export default function Activate() {
     const problem = passwordProblem(password);
     if (problem) return setError(problem);
     if (password !== confirm) return setError('Las contraseñas no coinciden');
-    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y el Aviso de Privacidad');
+    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad');
 
     setLoading(true);
     try {
@@ -83,21 +84,7 @@ export default function Activate() {
               />
             </div>
 
-            <label className="terms-check">
-              <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
-              <span>
-                Leí y acepto los{' '}
-                <Link to="/terminos" target="_blank" rel="noopener noreferrer">
-                  Términos y Condiciones de la beta
-                </Link>{' '}
-                y el{' '}
-                <Link to="/privacidad" target="_blank" rel="noopener noreferrer">
-                  Aviso de Privacidad
-                </Link>
-                . Entiendo que durante la beta no hay copias de seguridad garantizadas y que mis datos pueden
-                almacenarse en servidores fuera de Argentina.
-              </span>
-            </label>
+            <TermsCheckbox checked={accepted} onChange={setAccepted} />
 
             {error && <p className="auth-error">{error}</p>}
             <button type="submit" disabled={loading}>

@@ -8,7 +8,11 @@ const CLOSING_MESSAGE = 'Esta cuenta está en proceso de baja. Solo se permite e
 
 // El mozo solo usa Mesas: la API de mesas (cada ruta revisa además su rol; los platos salen del menú,
 // GET /tables/menu). Todo lo demás le responde 403: por ejemplo, no ve los productos ni sus costos.
-const MOZO_ALLOWED = [{ method: '*', prefix: '/api/tables' }];
+const MOZO_ALLOWED = [
+  { method: '*', prefix: '/api/tables' },
+  // Aceptar los textos legales cuando cambian (lo pide cualquier usuario al entrar)
+  { method: '*', prefix: '/api/auth/terms' },
+];
 export const mozoCanUse = (method, url) => {
   const path = String(url || '').split('?')[0];
   return MOZO_ALLOWED.some(
@@ -45,7 +49,7 @@ const buildAuthMiddleware =
           active: true,
           passwordHash: { [Op.ne]: null },
         },
-        attributes: ['id', 'businessId', 'role', 'tokenVersion', 'name'],
+        attributes: ['id', 'businessId', 'role', 'tokenVersion', 'name', 'termsVersion'],
         include: [{ model: Business, attributes: ['status', 'type', 'tablesEnabled'] }],
       });
 
@@ -80,6 +84,8 @@ const buildAuthMiddleware =
         businessType: user.Business.type,
         businessStatus: status,
         tablesEnabled: Boolean(user.Business.tablesEnabled),
+        // Versión de los textos legales que aceptó (null si nunca los aceptó)
+        termsVersion: user.termsVersion,
       };
       next();
     } catch (error) {

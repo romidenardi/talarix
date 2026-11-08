@@ -992,6 +992,21 @@ td:nth-child(1),
   font-size: 0.9rem;
 }
 
+/* Aviso de textos legales nuevos (components/legal/TermsGate.jsx) */
+.terms-gate form {
+  width: 420px;
+}
+
+.terms-gate button.link-button {
+  width: auto;
+  align-self: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .legal-version {
   color: var(--color-text-muted);
   font-size: 0.85rem;

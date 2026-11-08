@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { LEGAL_VERSION, LEGAL_IS_DRAFT } from '../../legal/legalContent';
+import { LEGAL_VERSION, LEGAL_EFFECTIVE_DATE, LEGAL_IS_DRAFT } from '../../legal/legalContent';
 
 // Convierte **negrita** en <strong>
 const renderInline = (text) =>
@@ -24,7 +24,9 @@ export default function LegalPage({ doc }) {
         {LEGAL_IS_DRAFT && <p className="legal-draft">Texto en revisión. Puede cambiar antes del lanzamiento.</p>}
 
         <h1>{doc.title}</h1>
-        <p className="legal-version">Talarix · versión {LEGAL_VERSION}</p>
+        <p className="legal-version">
+          Versión {LEGAL_VERSION} · Vigente desde el {LEGAL_EFFECTIVE_DATE}
+        </p>
         <p>{renderInline(doc.intro)}</p>
 
         {doc.sections.map(([heading, body]) => (

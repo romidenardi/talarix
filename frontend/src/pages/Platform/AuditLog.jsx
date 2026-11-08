@@ -14,6 +14,7 @@ const ACTION_LABELS = {
   'business.trial_expired': 'Venció la prueba: comercio suspendido',
   'business.trial_renewed': 'Renovó la prueba',
   'business.modules_changed': 'Cambió los módulos del comercio',
+  'user.terms_accepted': 'Aceptó los textos legales',
   'service_request.cancellation': 'Pedido de baja (botón)',
   'service_request.withdrawal': 'Pedido de arrepentimiento (botón)',
   'service_request.resolved': 'Resolvió una solicitud',
@@ -58,6 +59,8 @@ const describe = (row) => {
       return `${d.to ? `Hasta el ${dateOf(d.to)}` : 'Sin vencimiento'}${d.reactivated ? ', reactivado' : ''}`;
     case 'business.modules_changed':
       return d.tables ? `Mesas: ${d.tables.to ? 'activadas' : 'quitadas'}` : '';
+    case 'user.terms_accepted':
+      return d.version ? `Versión ${d.version}` : '';
     case 'service_request.cancellation':
     case 'service_request.withdrawal':
     case 'service_request.resolved':

@@ -122,3 +122,33 @@ describe('Links de cuenta', () => {
     assert.ok(await bcrypt.compare('clave-de-prueba-123', fresh.passwordHash));
   });
 });
+
+describe('Textos legales vigentes', () => {
+  it('quien no aceptó la versión vigente la acepta al entrar, y queda registrado', async () => {
+    const token = A.users.operador.token;
+    const status = await api('GET', '/api/auth/terms', { token });
+    assert.equal(status.status, 200, JSON.stringify(status.body));
+    assert.deepEqual(status.body, { version: LEGAL_VERSION, accepted: false });
+
+    assert.equal((await api('GET', '/api/auth/terms')).status, 401, 'sin sesión, no');
+    const noTick = await api('POST', '/api/auth/terms', { token, body: { legalVersion: LEGAL_VERSION } });
+    assert.equal(noTick.status, 400);
+    const oldVersion = await api('POST', '/api/auth/terms', {
+      token,
+      body: { acceptTerms: true, legalVersion: 'version-vieja' },
+    });
+    assert.equal(oldVersion.status, 400);
+
+    const ok = await api('POST', '/api/auth/terms', {
+      token,
+      body: { acceptTerms: true, legalVersion: LEGAL_VERSION },
+    });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal((await api('GET', '/api/auth/terms', { token })).body.accepted, true);
+
+    const user = await models.User.findByPk(A.users.operador.id);
+    assert.equal(user.termsVersion, LEGAL_VERSION);
+    assert.ok(user.termsAcceptedAt);
+    assert.equal(await models.AuditLog.count({ where: { action: 'user.terms_accepted', actorId: user.id } }), 1);
+  });
+});

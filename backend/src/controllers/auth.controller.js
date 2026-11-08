@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { hashToken } from '../utils/inviteToken.js';
 import { LEGAL_VERSION } from '../utils/legal.js';
+import { audit } from '../utils/audit.js';
 import { issueAccessLink, wasIssuedRecently } from '../utils/accessLinks.js';
 import { checkPassword, compareWithDummy, BCRYPT_ROUNDS } from '../utils/password.js';
 import { TRIAL_EXPIRED } from '../services/trialExpiry.service.js';
@@ -78,7 +79,7 @@ export const activateAccount = asyncHandler(async (req, res) => {
   checkPassword(password);
 
   if (req.body.acceptTerms !== true) {
-    throw httpError('Tenés que aceptar los Términos y Condiciones y el Aviso de Privacidad para continuar');
+    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar');
   }
   if (req.body.legalVersion !== LEGAL_VERSION) {
     throw httpError('Los términos se actualizaron. Recargá la página e intentá de nuevo.');
@@ -163,4 +164,32 @@ export const resetPassword = asyncHandler(async (req, res) => {
   await user.save();
 
   res.json({ message: 'Contraseña actualizada. Ya podés iniciar sesión.' });
+});
+
+// ---- Textos legales vigentes (para quien ya tiene sesión) ----
+// Cuando se publica una versión nueva de los Términos y la Política (LEGAL_VERSION), cada usuario la
+// acepta la próxima vez que entra: el frontend consulta el estado y no deja seguir hasta aceptar.
+
+export const getTermsStatus = (req, res) => {
+  res.json({ version: LEGAL_VERSION, accepted: req.user.termsVersion === LEGAL_VERSION });
+};
+
+export const acceptTerms = asyncHandler(async (req, res) => {
+  if (req.body.acceptTerms !== true) {
+    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar');
+  }
+  if (req.body.legalVersion !== LEGAL_VERSION) {
+    throw httpError('Los términos se actualizaron. Recargá la página e intentá de nuevo.');
+  }
+  await User.update(
+    { termsVersion: LEGAL_VERSION, termsAcceptedAt: new Date(), termsAcceptedIp: String(req.ip || '').slice(0, 64) },
+    { where: { id: req.user.id, businessId: req.user.businessId } },
+  );
+  await audit(req, {
+    action: 'user.terms_accepted',
+    targetType: 'user',
+    targetId: req.user.id,
+    detail: { version: LEGAL_VERSION },
+  });
+  res.json({ version: LEGAL_VERSION, accepted: true });
 });
