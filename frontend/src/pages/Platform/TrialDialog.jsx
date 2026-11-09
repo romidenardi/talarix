@@ -27,9 +27,9 @@ export default function TrialDialog({ business, saving = false, onClose }) {
   const submit = (e) => {
     e.preventDefault();
     if (mode === 'none') return onClose({ until: null });
-    if (!until) return setError('Elegí la fecha');
-    if (until < today) return setError('La fecha no puede ser anterior a hoy');
-    if (until > maxDate) return setError('La fecha puede ser hasta dentro de 3 años');
+    if (!until) return setError('Elegí la fecha.');
+    if (until < today) return setError('La fecha no puede ser anterior a hoy.');
+    if (until > maxDate) return setError('La fecha puede ser hasta dentro de 3 años.');
     return onClose({ until });
   };
 

@@ -78,7 +78,7 @@ const Categories = () => {
     if (!(await dialog.confirm({ message: '¿Eliminar esta categoría?', confirmLabel: 'Eliminar', danger: true })))
       return;
     const result = await remove(id);
-    if (result.success) msg.success('Categoría eliminada', 'list');
+    if (result.success) msg.success('Categoría eliminada.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -98,7 +98,7 @@ const Categories = () => {
           <input
             id="name"
             placeholder="Ej: Bebidas"
-            {...register('name', { required: 'El nombre de la categoría es obligatorio' })}
+            {...register('name', { required: 'El nombre de la categoría es obligatorio.' })}
           />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -143,7 +143,7 @@ const Categories = () => {
                           </label>
                           <input
                             id={`edit-name-${category.id}`}
-                            {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio' })}
+                            {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio.' })}
                           />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
@@ -195,7 +195,7 @@ const Categories = () => {
                             </label>
                             <input
                               id={`edit-name-${sub.id}`}
-                              {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio' })}
+                              {...editForm.register('name', { required: 'El nombre de la categoría es obligatorio.' })}
                             />
                             {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                           </div>

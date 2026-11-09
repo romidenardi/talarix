@@ -229,10 +229,10 @@ export default function Platform() {
         `Vas a dar de baja "${business.name}".\n\n` +
         `Desde ahora solo su administrador podrá ingresar, para exportar sus datos. ` +
         `A los 30 días se eliminan todos sus datos (productos, clientes, remitos, usuarios, etc.).`,
-      label: 'Para confirmar, escribí el nombre exacto del comercio',
+      label: 'Para confirmar, escribí el nombre exacto del comercio.',
       confirmLabel: 'Dar de baja',
       danger: true,
-      validate: (value) => (value.trim() === business.name ? null : 'El nombre no coincide'),
+      validate: (value) => (value.trim() === business.name ? null : 'El nombre no coincide.'),
     });
     if (typed === null) return;
 

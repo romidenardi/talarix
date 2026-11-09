@@ -59,7 +59,7 @@ const Payments = () => {
     });
     if (result.success) {
       reset({ name: '', hasInstallments: false, installmentPlans: [emptyPlan] });
-      msg.success('Forma de pago agregada', 'create');
+      msg.success('Forma de pago agregada.', 'create');
     } else if (!applyServerFieldErrors(result.error, setError, ['name'])) {
       msg.error(result.message, 'create');
     }
@@ -89,7 +89,7 @@ const Payments = () => {
     if (result.success) {
       const savedId = editingId;
       setEditingId(null);
-      msg.success('Cambios guardados', savedId);
+      msg.success('Cambios guardados.', savedId);
     } else if (!applyServerFieldErrors(result.error, editForm.setError, ['name'])) {
       msg.error(result.message, 'edit');
     }
@@ -99,7 +99,7 @@ const Payments = () => {
     if (!(await dialog.confirm({ message: '¿Eliminar esta forma de pago?', confirmLabel: 'Eliminar', danger: true })))
       return;
     const result = await remove(id);
-    if (result.success) msg.success('Forma de pago eliminada', 'list');
+    if (result.success) msg.success('Forma de pago eliminada.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -129,7 +129,7 @@ const Payments = () => {
           <input
             id="name"
             placeholder="Ej: Tarjeta de crédito"
-            {...register('name', { required: 'El nombre de la forma de pago es obligatorio' })}
+            {...register('name', { required: 'El nombre de la forma de pago es obligatorio.' })}
           />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -213,7 +213,7 @@ const Payments = () => {
                         <input
                           id={`edit-name-${payment.id}`}
                           placeholder="Ej: Tarjeta de crédito"
-                          {...editForm.register('name', { required: 'El nombre de la forma de pago es obligatorio' })}
+                          {...editForm.register('name', { required: 'El nombre de la forma de pago es obligatorio.' })}
                         />
                         {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                       </div>

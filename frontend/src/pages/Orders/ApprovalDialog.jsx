@@ -22,7 +22,7 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password) {
-      setError('Completá el email y la contraseña de quien autoriza');
+      setError('Completá el email y la contraseña de quien autoriza.');
       return;
     }
     setError('');
@@ -91,7 +91,7 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
 
         <div className="approval-actions">
           <button type="submit" disabled={sending}>
-            {sending ? 'Autorizando…' : 'Autorizar y generar remito'}
+            {sending ? 'Autorizando…' : 'Autorizar y generar remito.'}
           </button>
           <button type="button" onClick={onCancel} disabled={sending}>
             Volver al remito

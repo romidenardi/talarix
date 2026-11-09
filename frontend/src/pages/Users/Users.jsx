@@ -97,7 +97,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
     } catch (err) {
       setNotice({
         type: 'error',
-        text: err.response?.data?.message || 'No se pudo crear el usuario',
+        text: err.response?.data?.message || 'No se pudo crear el usuario.',
         where: 'create',
       });
     }
@@ -116,7 +116,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
     } catch (err) {
       setNotice({
         type: 'error',
-        text: err.response?.data?.message || 'No se pudo generar el link',
+        text: err.response?.data?.message || 'No se pudo generar el link.',
         where: user.id,
       });
     }
@@ -167,7 +167,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
     )
       return;
     const result = await remove(id);
-    if (result.success) msg.success('Usuario eliminado', 'list');
+    if (result.success) msg.success('Usuario eliminado.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -192,7 +192,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
           <input
             id="name"
             placeholder="Ej: María Gómez"
-            {...register('name', { required: 'El nombre es obligatorio' })}
+            {...register('name', { required: 'El nombre es obligatorio.' })}
           />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -206,7 +206,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
             id="email"
             type="email"
             placeholder="Ej: maria@micomercio.com"
-            {...register('email', { required: 'El email es obligatorio' })}
+            {...register('email', { required: 'El email es obligatorio.' })}
           />
           {errors.email && <span className="error">{errors.email.message}</span>}
         </div>
@@ -245,7 +245,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
               autoComplete="new-password"
               placeholder="Mínimo 8 caracteres"
               {...register('password', {
-                required: 'La contraseña es obligatoria',
+                required: 'La contraseña es obligatoria.',
                 validate: validatePassword,
               })}
             />
@@ -290,7 +290,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                           </label>
                           <input
                             id={`edit-name-${user.id}`}
-                            {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                            {...editForm.register('name', { required: 'El nombre es obligatorio.' })}
                           />
                           {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                         </div>
@@ -302,7 +302,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                           <input
                             id={`edit-email-${user.id}`}
                             type="email"
-                            {...editForm.register('email', { required: 'El email es obligatorio' })}
+                            {...editForm.register('email', { required: 'El email es obligatorio.' })}
                           />
                           {editErrors.email && <span className="error">{editErrors.email.message}</span>}
                         </div>

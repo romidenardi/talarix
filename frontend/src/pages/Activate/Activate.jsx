@@ -23,8 +23,8 @@ export default function Activate() {
 
     const problem = passwordProblem(password);
     if (problem) return setError(problem);
-    if (password !== confirm) return setError('Las contraseñas no coinciden');
-    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad');
+    if (password !== confirm) return setError('Las contraseñas no coinciden.');
+    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad.');
 
     setLoading(true);
     try {
@@ -37,7 +37,7 @@ export default function Activate() {
       setDone(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
-      setError(err.response?.data?.message || 'No se pudo activar la cuenta');
+      setError(err.response?.data?.message || 'No se pudo activar la cuenta.');
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export default function Activate() {
       <form className="auth-card" onSubmit={handleSubmit}>
         <h1>Activá tu cuenta</h1>
         {done ? (
-          <p>Contraseña creada. Te llevamos al inicio de sesión…</p>
+          <p>Contraseña creada. Te llevaremos al inicio de sesión.</p>
         ) : (
           <>
             <p>Elegí la contraseña con la que vas a ingresar.</p>

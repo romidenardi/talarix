@@ -12,7 +12,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setError('');
 
-    if (!email.trim()) return setError('Ingresá tu email');
+    if (!email.trim()) return setError('Ingresá tu email.');
 
     setLoading(true);
     try {

@@ -156,9 +156,9 @@ const Imports = () => {
       const { data } = await current.fn(file);
       setResult(data);
       if (data.imported) {
-        const parts = [plural(data.created, 'fila importada', 'filas importadas')];
+        const parts = [plural(data.created, 'fila importada.', 'filas importadas.')];
         if (data.skipped.length)
-          parts.push(plural(data.skipped.length, 'salteada (ya existía)', 'salteadas (ya existían)'));
+          parts.push(plural(data.skipped.length, 'salteada (ya existía).', 'salteadas (ya existían).'));
         msg.success(parts.join(', '));
         setFile(null);
         setInputKey((k) => k + 1);
@@ -168,7 +168,7 @@ const Imports = () => {
         );
       }
     } catch (err) {
-      msg.error(serverMessage(err, 'Error al importar el archivo'));
+      msg.error(serverMessage(err, 'Error al importar el archivo.'));
     } finally {
       setUploading(false);
     }
@@ -246,7 +246,7 @@ const Imports = () => {
           {result.errors.length > 0 && (
             <>
               <p className="import-error-title">
-                {plural(result.errors.length, 'fila con errores', 'filas con errores')} (no se importó nada):
+                {plural(result.errors.length, 'fila con errores.', 'filas con errores.')} (no se importó nada):
               </p>
               <RowsTable rows={result.errors} />
             </>
@@ -255,8 +255,8 @@ const Imports = () => {
           {result.skipped.length > 0 && (
             <>
               <p className="import-skipped-title">
-                {plural(result.skipped.length, 'fila salteada', 'filas salteadas')}
-                {result.imported ? '' : ' (se van a saltear también cuando corrijas los errores)'}:
+                {plural(result.skipped.length, 'fila salteada.', 'filas salteadas.')}
+                {result.imported ? '' : ' (se van a saltear también cuando corrijas los errores).'}:
               </p>
               <RowsTable rows={result.skipped} />
             </>

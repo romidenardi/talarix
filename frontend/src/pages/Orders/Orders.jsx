@@ -288,7 +288,7 @@ const Orders = () => {
 
     const line = lineFromLabel(label, product);
     if (line.noPrice || !(line.quantity > 0)) {
-      msg.error(`${product.name} no tiene precio cargado: no se puede calcular la cantidad`, 'scan');
+      msg.error(`${product.name} no tiene precio cargado: no se puede calcular la cantidad.`, 'scan');
       return;
     }
 
@@ -339,7 +339,7 @@ const Orders = () => {
       }
       // Tiene forma de etiqueta de balanza pero no se puede leer: no se ofrece crear un producto
       if (reading.error === 'checkDigit' || reading.error === 'positions') {
-        msg.error(`Etiqueta de balanza ${code}: ${scaleCodeProblem(reading, scaleConfig)}`, 'scan');
+        msg.error(`Etiqueta de balanza ${code}: ${scaleCodeProblem(reading, scaleConfig)}.`, 'scan');
         return;
       }
     }
@@ -364,12 +364,12 @@ const Orders = () => {
     }
 
     if (!canManageData) {
-      msg.error(`No hay ningún producto con el código ${code}`, 'scan');
+      msg.error(`No hay ningún producto con el código ${code}.`, 'scan');
       return;
     }
     if (
       !(await dialog.confirm({
-        title: 'Código no registrado',
+        title: 'Código no registrado.',
         message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
         confirmLabel: 'Crear producto',
       }))
@@ -411,7 +411,7 @@ const Orders = () => {
     // Total que muestra la pantalla al enviar, para compararlo con el que guarda el servidor
     const previewTotal = Math.round(total * 100) / 100;
     if (discountExceedsTotal) {
-      msg.error('El descuento no puede ser mayor al total del remito');
+      msg.error('El descuento no puede ser mayor al total del remito.');
       return;
     }
 
@@ -421,11 +421,11 @@ const Orders = () => {
       if (isNewCustomer) {
         const { businessName, firstName, fiscalCondition } = formData.newCustomer;
         if (!businessName && !firstName) {
-          setError('newCustomer.firstName', { type: 'manual', message: 'Completá el nombre o la razón social' });
+          setError('newCustomer.firstName', { type: 'manual', message: 'Completá el nombre o la razón social.' });
           missing = true;
         }
         if (!fiscalCondition) {
-          setError('newCustomer.fiscalCondition', { type: 'manual', message: 'Elegí la condición fiscal' });
+          setError('newCustomer.fiscalCondition', { type: 'manual', message: 'Elegí la condición fiscal.' });
           missing = true;
         }
       }
@@ -434,19 +434,19 @@ const Orders = () => {
         if (item.productId !== NEW_PRODUCT) return;
         const np = item.newProduct || {};
         if (!np.internalCode) {
-          setError(`items.${i}.newProduct.internalCode`, { type: 'manual', message: 'Cargá el código interno' });
+          setError(`items.${i}.newProduct.internalCode`, { type: 'manual', message: 'Cargá el código interno.' });
           missing = true;
         }
         if (!np.name) {
-          setError(`items.${i}.newProduct.name`, { type: 'manual', message: 'Cargá el nombre del producto' });
+          setError(`items.${i}.newProduct.name`, { type: 'manual', message: 'Cargá el nombre del producto.' });
           missing = true;
         }
         if (np.cost === '' || np.cost === undefined) {
-          setError(`items.${i}.newProduct.cost`, { type: 'manual', message: 'Cargá el costo' });
+          setError(`items.${i}.newProduct.cost`, { type: 'manual', message: 'Cargá el costo.' });
           missing = true;
         }
         if (!(Number(item.unitPrice) > 0)) {
-          setError(`items.${i}.unitPrice`, { type: 'manual', message: 'Cargá el precio del producto nuevo' });
+          setError(`items.${i}.unitPrice`, { type: 'manual', message: 'Cargá el precio.' });
           missing = true;
         }
       });
@@ -608,9 +608,9 @@ const Orders = () => {
     try {
       await cancelOrder(order.id, reason);
       await loadAll();
-      msg.success('Remito anulado, stock devuelto', order.id);
+      msg.success('Remito anulado, stock devuelto.', order.id);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo anular el remito'), order.id);
+      msg.error(serverMessage(err, 'No se pudo anular el remito.'), order.id);
     } finally {
       setCancellingId(null);
     }
@@ -639,7 +639,7 @@ const Orders = () => {
                 title="Buscar cliente"
                 searchPlaceholder="Nombre, razón social o CUIT..."
                 placeholder="Elegí un cliente..."
-                emptyText="No hay clientes que coincidan"
+                emptyText="No hay clientes que coincidan."
                 value={field.value}
                 onChange={field.onChange}
                 options={customerOptions}
@@ -1031,7 +1031,7 @@ const Orders = () => {
           ) : (
             <div>Total: ${total.toFixed(2)}</div>
           )}
-          {discountExceedsTotal && <div className="error">El descuento no puede ser mayor al total</div>}
+          {discountExceedsTotal && <div className="error">El descuento no puede ser mayor al total.</div>}
 
           {selectedPlan && (
             <>

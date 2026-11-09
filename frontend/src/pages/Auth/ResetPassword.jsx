@@ -20,7 +20,7 @@ export default function ResetPassword() {
 
     const problem = passwordProblem(password);
     if (problem) return setError(problem);
-    if (password !== confirm) return setError('Las contraseñas no coinciden');
+    if (password !== confirm) return setError('Las contraseñas no coinciden.');
 
     setLoading(true);
     try {
@@ -28,7 +28,7 @@ export default function ResetPassword() {
       setDone(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
-      setError(err.response?.data?.message || 'No se pudo cambiar la contraseña');
+      setError(err.response?.data?.message || 'No se pudo cambiar la contraseña.');
     } finally {
       setLoading(false);
     }

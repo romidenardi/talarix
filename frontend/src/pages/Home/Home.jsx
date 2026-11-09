@@ -20,7 +20,7 @@ function Dashboard() {
         if (active) setData(res.data);
       })
       .catch((err) => {
-        if (active) setError(err.response?.data?.message || 'No se pudo cargar el panel');
+        if (active) setError(err.response?.data?.message || 'No se pudo cargar el panel.');
       });
     return () => {
       active = false;
@@ -40,8 +40,8 @@ function Dashboard() {
           <strong>{money(data.month.total)}</strong>
           <small>
             {delta === null
-              ? 'Sin ventas en el mismo tramo del mes anterior'
-              : `${delta >= 0 ? '+' : ''}${delta}% vs. el mismo tramo del mes anterior (${money(data.previous.total)})`}
+              ? 'Sin ventas en el mismo tramo del mes anterior.'
+              : `${delta >= 0 ? '+' : ''}${delta}% vs. el mismo tramo del mes anterior (${money(data.previous.total)}).`}
           </small>
         </div>
         <div className="stat-card">

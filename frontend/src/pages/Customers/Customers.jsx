@@ -120,7 +120,7 @@ const Customers = () => {
   const onDelete = async (id) => {
     if (!(await dialog.confirm({ message: '¿Eliminar este cliente?', confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
-    if (result.success) msg.success('Cliente eliminado', 'list');
+    if (result.success) msg.success('Cliente eliminado.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -130,7 +130,7 @@ const Customers = () => {
     try {
       const response = await downloadCustomerData(customer.id);
       saveBlob(response.data, filenameFromResponse(response, 'cliente-datos.xlsx'));
-      msg.success('Datos exportados: revisá tus descargas', customer.id);
+      msg.success('Datos exportados: revisá tus descargas.', customer.id);
     } catch (err) {
       msg.error(await errorMessageFrom(err), customer.id);
     }
@@ -147,7 +147,7 @@ const Customers = () => {
     try {
       const { data } = await anonymizeCustomer(customer.id);
       await reload();
-      msg.success(data.message || 'Cliente anonimizado', 'list');
+      msg.success(data.message || 'Cliente anonimizado.', 'list');
     } catch (err) {
       msg.error(await errorMessageFrom(err), customer.id);
     }
@@ -197,7 +197,7 @@ const Customers = () => {
             <input
               id="businessName"
               placeholder="Ej: Distribuidora del Sur SA"
-              {...register('businessName', { required: 'La razón social es obligatoria' })}
+              {...register('businessName', { required: 'La razón social es obligatoria.' })}
             />
             {errors.businessName && <span className="error">{errors.businessName.message}</span>}
           </div>
@@ -211,7 +211,7 @@ const Customers = () => {
               <input
                 id="firstName"
                 placeholder="Ej: Juan"
-                {...register('firstName', { required: 'El nombre es obligatorio' })}
+                {...register('firstName', { required: 'El nombre es obligatorio.' })}
               />
               {errors.firstName && <span className="error">{errors.firstName.message}</span>}
             </div>
@@ -229,7 +229,7 @@ const Customers = () => {
           </label>
           <select
             id="fiscalCondition"
-            {...register('fiscalCondition', { required: 'La condición fiscal es obligatoria' })}
+            {...register('fiscalCondition', { required: 'La condición fiscal es obligatoria.' })}
           >
             <option value="">Elegí una opción...</option>
             {FISCAL_CONDITIONS.map((fc) => (
@@ -305,7 +305,7 @@ const Customers = () => {
             {visibleCustomers.length === 0 && (
               <tr>
                 <td colSpan={5} className="list-search-empty">
-                  {search ? 'No hay clientes que coincidan con la búsqueda' : 'Todavía no hay clientes'}
+                  {search ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes.'}
                 </td>
               </tr>
             )}

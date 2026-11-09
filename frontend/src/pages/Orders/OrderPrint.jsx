@@ -148,7 +148,7 @@ const OrderPrint = () => {
             <ul>
               {parts.map((part) => (
                 <li key={part.id}>
-                  {part.Payment?.name || 'Sin forma de pago'}: ${Number(part.amount).toFixed(2)}
+                  {part.Payment?.name || 'Sin forma de pago.'}: ${Number(part.amount).toFixed(2)}
                 </li>
               ))}
             </ul>
