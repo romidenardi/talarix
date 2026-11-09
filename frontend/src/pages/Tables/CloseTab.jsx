@@ -56,8 +56,8 @@ export default function CloseTab({ tab, payments, customers, onCancel, onDone })
     const rows = amounts
       .map((amount, i) => ({ paymentId: parts[i].paymentId, amount, tip: Number(parts[i].tip) || 0 }))
       .filter((p) => p.amount > 0 || p.tip > 0);
-    if (rows.some((p) => !p.paymentId)) return msg.error('Elegí la forma de pago de cada parte');
-    if (rows.some((p) => p.tip < 0)) return msg.error('La propina no puede ser negativa');
+    if (rows.some((p) => !p.paymentId)) return msg.error('Elegí la forma de pago de cada parte.');
+    if (rows.some((p) => p.tip < 0)) return msg.error('La propina no puede ser negativa.');
     setSaving(true);
     try {
       const { data } = await tablesApi.closeTab(tab.id, {
@@ -67,7 +67,7 @@ export default function CloseTab({ tab, payments, customers, onCancel, onDone })
       });
       setDone(data.orderId);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo cobrar la mesa'));
+      msg.error(serverMessage(err, 'No se pudo cobrar la mesa.'));
     } finally {
       setSaving(false);
     }

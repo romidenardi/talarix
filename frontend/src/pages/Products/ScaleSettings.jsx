@@ -61,9 +61,9 @@ const ScaleSettings = ({ products }) => {
         decimals: Number(form.decimals),
       });
       setForm(resolveScaleConfig(data));
-      msg.success('Configuración de la balanza guardada');
+      msg.success('Configuración de la balanza guardada.');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo guardar la configuración'));
+      msg.error(serverMessage(err, 'No se pudo guardar la configuración.'));
     } finally {
       setSaving(false);
     }

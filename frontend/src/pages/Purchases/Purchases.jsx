@@ -98,7 +98,7 @@ const Purchases = () => {
       setPurchases(data);
       setRange(nextRange);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron cargar las compras'), 'page');
+      msg.error(serverMessage(err, 'No se pudieron cargar las compras.'), 'page');
     } finally {
       setPurchasesLoading(false);
     }
@@ -135,12 +135,12 @@ const Purchases = () => {
     }
 
     if (!canManageData) {
-      msg.error(`No hay ningún producto con el código ${code}`, 'scan');
+      msg.error(`No hay ningún producto con el código ${code}.`, 'scan');
       return;
     }
     if (
       !(await dialog.confirm({
-        title: 'Código no registrado',
+        title: 'Código no registrado.',
         message: `El código ${code} no está registrado. ¿Crear un producto nuevo con ese código?`,
         confirmLabel: 'Crear producto',
       }))
@@ -182,7 +182,7 @@ const Purchases = () => {
     const created = [];
     const finish = () => {
       requestIdRef.current = newRequestId();
-      msg.success('Compra registrada, stock actualizado');
+      msg.success('Compra registrada, stock actualizado.');
       reset(emptyForm());
       loadAll();
     };
@@ -190,7 +190,7 @@ const Purchases = () => {
       // Datos del proveedor y de los productos nuevos: cada error va debajo de su campo
       let missing = false;
       if (isNewSupplier && !formData.newSupplier.name) {
-        setError('newSupplier.name', { type: 'manual', message: 'Cargá el nombre del proveedor' });
+        setError('newSupplier.name', { type: 'manual', message: 'Cargá el nombre del proveedor.' });
         missing = true;
       }
 
@@ -198,15 +198,15 @@ const Purchases = () => {
         if (item.productId !== NEW_PRODUCT) return;
         const np = item.newProduct || {};
         if (!np.internalCode) {
-          setError(`items.${i}.newProduct.internalCode`, { type: 'manual', message: 'Cargá el código interno' });
+          setError(`items.${i}.newProduct.internalCode`, { type: 'manual', message: 'Cargá el código interno.' });
           missing = true;
         }
         if (!np.name) {
-          setError(`items.${i}.newProduct.name`, { type: 'manual', message: 'Cargá el nombre del producto' });
+          setError(`items.${i}.newProduct.name`, { type: 'manual', message: 'Cargá el nombre del producto.' });
           missing = true;
         }
         if (!(Number(np.price) > 0)) {
-          setError(`items.${i}.newProduct.price`, { type: 'manual', message: 'Cargá el precio de venta' });
+          setError(`items.${i}.newProduct.price`, { type: 'manual', message: 'Cargá el precio de venta.' });
           missing = true;
         }
       });
@@ -283,12 +283,12 @@ const Purchases = () => {
           await createPurchase({ ...payload, confirmDuplicateInvoice: true });
           finish();
         } catch (retryErr) {
-          msg.error(serverMessage(retryErr, 'Error al registrar la compra'));
+          msg.error(serverMessage(retryErr, 'Error al registrar la compra.'));
         }
         return;
       }
       // "Artículo 2: ..." se muestra en ese renglón; el resto, junto al botón
-      const text = serverMessage(err, 'Error al registrar la compra');
+      const text = serverMessage(err, 'Error al registrar la compra.');
       if (created.length) {
         msg.error(
           `${text} La compra no se registró, pero ya quedaron creados ${created.join(' y ')}: ` +
@@ -325,9 +325,9 @@ const Purchases = () => {
     try {
       await cancelPurchase(purchase.id, reason);
       await loadAll();
-      msg.success('Compra anulada, stock descontado', purchase.id);
+      msg.success('Compra anulada, stock descontado.', purchase.id);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo anular la compra'), purchase.id);
+      msg.error(serverMessage(err, 'No se pudo anular la compra.'), purchase.id);
     } finally {
       setCancellingId(null);
     }
@@ -510,7 +510,7 @@ const Purchases = () => {
                     placeholder="Ej: 850"
                     {...register(`items.${index}.unitCost`, {
                       required: 'Cargá el costo',
-                      min: { value: 0, message: 'El costo no puede ser negativo' },
+                      min: { value: 0, message: 'El costo no puede ser negativo.' },
                     })}
                   />
                   {errors.items?.[index]?.unitCost && (

@@ -54,8 +54,7 @@ const readComponents = async (raw, businessId, comboId, transaction) => {
   // Las cantidades de un combo son enteras: un producto por peso (kg) no encaja
   const byWeight = products.find((p) => p.unitType === 'weight');
   if (byWeight) throw httpError(`${byWeight.name} se vende por peso: los combos llevan solo productos por unidad.`);
-  if (products.some(isVariantGroup))
-    throw httpError('En un combo va la variante, no el producto principal.');
+  if (products.some(isVariantGroup)) throw httpError('En un combo va la variante, no el producto principal.');
 
   return products.map((product) => ({ product, quantity: quantities.get(product.id) }));
 };
@@ -148,7 +147,9 @@ export const updateCombo = asyncHandler(async (req, res) => {
     for (const field of ['internalCode', 'name']) {
       if (field in req.body) {
         if (!String(req.body[field] ?? '').trim()) {
-          throw httpError(field === 'name' ? 'El nombre del combo es obligatorio' : 'El código interno es obligatorio.');
+          throw httpError(
+            field === 'name' ? 'El nombre del combo es obligatorio.' : 'El código interno es obligatorio.',
+          );
         }
         changes[field] = String(req.body[field]).trim();
       }

@@ -30,7 +30,7 @@ export default function TablesFloor() {
       const { data } = await tablesApi.getTables();
       setTables(data);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron cargar las mesas'), 'page');
+      msg.error(serverMessage(err, 'No se pudieron cargar las mesas.'), 'page');
     }
   }, [msg]);
 
@@ -47,7 +47,7 @@ export default function TablesFloor() {
         setCustomers(customersRes.data);
         await loadTables();
       } catch (err) {
-        msg.error(serverMessage(err, 'No se pudo cargar la información'), 'page');
+        msg.error(serverMessage(err, 'No se pudo cargar la información.'), 'page');
       } finally {
         setLoading(false);
       }

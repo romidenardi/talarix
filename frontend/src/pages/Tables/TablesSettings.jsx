@@ -22,7 +22,7 @@ export default function TablesSettings() {
       const { data } = await tablesApi.getTables();
       setTables(data);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron cargar las mesas'), 'list');
+      msg.error(serverMessage(err, 'No se pudieron cargar las mesas.'), 'list');
     } finally {
       setLoading(false);
     }
@@ -40,14 +40,14 @@ export default function TablesSettings() {
 
   const create = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) return msg.error('Escribí el número o nombre de la mesa', 'create');
+    if (!form.name.trim()) return msg.error('Escribí el número o nombre de la mesa.', 'create');
     try {
       await tablesApi.createTable(payload(form));
       setForm({ ...EMPTY, area: form.area });
       await load();
-      msg.success('Mesa agregada', 'create');
+      msg.success('Mesa agregada.', 'create');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo agregar la mesa'), 'create');
+      msg.error(serverMessage(err, 'No se pudo agregar la mesa.'), 'create');
     }
     return undefined;
   };
@@ -59,9 +59,9 @@ export default function TablesSettings() {
       const id = editing.id;
       setEditing(null);
       await load();
-      msg.success('Cambios guardados', id);
+      msg.success('Cambios guardados.', id);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo guardar la mesa'), editing.id);
+      msg.error(serverMessage(err, 'No se pudo guardar la mesa.'), editing.id);
     }
   };
 
@@ -74,7 +74,7 @@ export default function TablesSettings() {
       await tablesApi.deleteTable(table.id);
       await load();
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo eliminar la mesa'), table.id);
+      msg.error(serverMessage(err, 'No se pudo eliminar la mesa.'), table.id);
     }
   };
 

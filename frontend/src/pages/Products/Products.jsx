@@ -209,7 +209,7 @@ const Products = () => {
     const message = count ? `¿Eliminar este producto y sus ${count} variantes?` : '¿Eliminar este producto?';
     if (!(await dialog.confirm({ message, confirmLabel: 'Eliminar', danger: true }))) return;
     const result = await remove(id);
-    if (result.success) msg.success('Producto eliminado', 'list');
+    if (result.success) msg.success('Producto eliminado.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -431,8 +431,8 @@ const Products = () => {
             step="0.01"
             placeholder="Ej: 1500"
             {...register('price', {
-              required: 'El precio es obligatorio',
-              min: { value: 0, message: 'El precio no puede ser negativo' },
+              required: 'El precio es obligatorio.',
+              min: { value: 0, message: 'El precio no puede ser negativo.' },
             })}
           />
           {errors.price && <span className="error">{errors.price.message}</span>}
@@ -451,7 +451,7 @@ const Products = () => {
             type="number"
             step="0.01"
             placeholder="Ej: 1350"
-            {...register('promoPrice', { min: { value: 0, message: 'El precio no puede ser negativo' } })}
+            {...register('promoPrice', { min: { value: 0, message: 'El precio no puede ser negativo.' } })}
           />
           {errors.promoPrice && <span className="error">{errors.promoPrice.message}</span>}
         </div>
@@ -467,8 +467,8 @@ const Products = () => {
             step="0.01"
             placeholder="Ej: 900"
             {...register('cost', {
-              required: 'El costo es obligatorio',
-              min: { value: 0, message: 'El costo no puede ser negativo' },
+              required: 'El costo es obligatorio.',
+              min: { value: 0, message: 'El costo no puede ser negativo.' },
             })}
           />
           {errors.cost && <span className="error">{errors.cost.message}</span>}
@@ -535,7 +535,7 @@ const Products = () => {
             {visibleProducts.length === 0 && (
               <tr>
                 <td colSpan={8} className="list-search-empty">
-                  {search ? 'No hay productos que coincidan con la búsqueda' : 'Todavía no hay productos'}
+                  {search ? 'No hay productos que coincidan con la búsqueda.' : 'Todavía no hay productos.'}
                 </td>
               </tr>
             )}
@@ -554,7 +554,7 @@ const Products = () => {
                             </label>
                             <input
                               id={`edit-internalCode-${product.id}`}
-                              {...editForm.register('internalCode', { required: 'El código interno es obligatorio' })}
+                              {...editForm.register('internalCode', { required: 'El código interno es obligatorio.' })}
                             />
                             {editErrors.internalCode && (
                               <span className="error">{editErrors.internalCode.message}</span>
@@ -589,7 +589,7 @@ const Products = () => {
                             </label>
                             <input
                               id={`edit-name-${product.id}`}
-                              {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                              {...editForm.register('name', { required: 'El nombre es obligatorio.' })}
                             />
                             {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                           </div>
@@ -600,7 +600,7 @@ const Products = () => {
                                 <input
                                   id={`edit-attribute-${product.id}-${i}`}
                                   {...editForm.register(`attributes.${i}`, {
-                                    required: 'El atributo necesita un nombre',
+                                    required: 'El atributo necesita un nombre.',
                                   })}
                                 />
                               </div>
@@ -670,8 +670,8 @@ const Products = () => {
                               type="number"
                               step="0.01"
                               {...editForm.register('price', {
-                                required: 'El precio es obligatorio',
-                                min: { value: 0, message: 'El precio no puede ser negativo' },
+                                required: 'El precio es obligatorio.',
+                                min: { value: 0, message: 'El precio no puede ser negativo.' },
                               })}
                             />
                             {editErrors.price && <span className="error">{editErrors.price.message}</span>}
@@ -701,8 +701,8 @@ const Products = () => {
                               type="number"
                               step="0.01"
                               {...editForm.register('cost', {
-                                required: 'El costo es obligatorio',
-                                min: { value: 0, message: 'El costo no puede ser negativo' },
+                                required: 'El costo es obligatorio.',
+                                min: { value: 0, message: 'El costo no puede ser negativo.' },
                               })}
                             />
                             {editErrors.cost && <span className="error">{editErrors.cost.message}</span>}

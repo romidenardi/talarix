@@ -26,7 +26,9 @@ const cleanFiscalCondition = (data) => {
   if (!('fiscalCondition' in data)) return data;
   const value = normalizeFiscalCondition(data.fiscalCondition);
   if (!value)
-    throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}.`);
+    throw httpError(
+      `La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}.`,
+    );
   data.fiscalCondition = value;
   return data;
 };

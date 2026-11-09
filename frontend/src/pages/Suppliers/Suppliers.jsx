@@ -85,7 +85,7 @@ const Suppliers = () => {
     if (!(await dialog.confirm({ message: '¿Eliminar este proveedor?', confirmLabel: 'Eliminar', danger: true })))
       return;
     const result = await remove(id);
-    if (result.success) msg.success('Proveedor eliminado', 'list');
+    if (result.success) msg.success('Proveedor eliminado.', 'list');
     else msg.error(result.message, id);
   };
 
@@ -112,7 +112,7 @@ const Suppliers = () => {
           <input
             id="name"
             placeholder="Ej: Distribuidora Central"
-            {...register('name', { required: 'El nombre es obligatorio' })}
+            {...register('name', { required: 'El nombre es obligatorio.' })}
           />
           {errors.name && <span className="error">{errors.name.message}</span>}
         </div>
@@ -183,7 +183,7 @@ const Suppliers = () => {
             {visibleSuppliers.length === 0 && (
               <tr>
                 <td colSpan={5} className="list-search-empty">
-                  {search ? 'No hay proveedores que coincidan con la búsqueda' : 'Todavía no hay proveedores'}
+                  {search ? 'No hay proveedores que coincidan con la búsqueda.' : 'Todavía no hay proveedores.'}
                 </td>
               </tr>
             )}
@@ -199,7 +199,7 @@ const Suppliers = () => {
                         </label>
                         <input
                           id={`edit-name-${supplier.id}`}
-                          {...editForm.register('name', { required: 'El nombre es obligatorio' })}
+                          {...editForm.register('name', { required: 'El nombre es obligatorio.' })}
                         />
                         {editErrors.name && <span className="error">{editErrors.name.message}</span>}
                       </div>

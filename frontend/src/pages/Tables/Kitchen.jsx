@@ -19,7 +19,7 @@ export default function Kitchen() {
       const { data } = await tablesApi.getKitchen();
       setTickets(data);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron cargar las comandas'));
+      msg.error(serverMessage(err, 'No se pudieron cargar las comandas.'));
     } finally {
       setLoading(false);
     }
@@ -36,7 +36,7 @@ export default function Kitchen() {
       await tablesApi.setTicketReady(ticket.id, ready);
       await load();
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo actualizar la comanda'));
+      msg.error(serverMessage(err, 'No se pudo actualizar la comanda.'));
     }
   };
 

@@ -508,7 +508,7 @@ export default function Reports() {
         if (active) setResult({ tab, data: res.data });
       })
       .catch((err) => {
-        if (active) setError(err.response?.data?.message || 'No se pudo cargar el reporte');
+        if (active) setError(err.response?.data?.message || 'No se pudo cargar el reporte.');
       })
       .finally(() => {
         if (active) setLoading(false);

@@ -20,7 +20,7 @@ export default function TipsReport() {
       setReport(data);
       setRange(next);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudieron cargar las propinas'));
+      msg.error(serverMessage(err, 'No se pudieron cargar las propinas.'));
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ export default function TipsReport() {
               {report.waiters.length === 0 && (
                 <tr>
                   <td colSpan={4} className="list-search-empty">
-                    No hay mesas cobradas en el período
+                    No hay mesas cobradas en el período.
                   </td>
                 </tr>
               )}

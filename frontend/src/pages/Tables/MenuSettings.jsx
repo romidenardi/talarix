@@ -155,16 +155,16 @@ export default function MenuSettings() {
 
   const createDish = async (e) => {
     e.preventDefault();
-    if (!dishForm.internalCode.trim()) return msg.error('Escribí el código del plato', 'dish');
-    if (!dishForm.name.trim()) return msg.error('Escribí el nombre del plato', 'dish');
-    if (dishForm.price === '') return msg.error('Escribí el precio', 'dish');
+    if (!dishForm.internalCode.trim()) return msg.error('Escribí el código del plato.', 'dish');
+    if (!dishForm.name.trim()) return msg.error('Escribí el nombre del plato.', 'dish');
+    if (dishForm.price === '') return msg.error('Escribí el precio.', 'dish');
     try {
       await tablesApi.createDish(dishPayload(dishForm));
       setDishForm({ ...EMPTY_DISH, categoryId: dishForm.categoryId });
       await load();
-      msg.success('Plato agregado', 'dish');
+      msg.success('Plato agregado.', 'dish');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo agregar el plato'), 'dish');
+      msg.error(serverMessage(err, 'No se pudo agregar el plato.'), 'dish');
     }
     return undefined;
   };
@@ -176,9 +176,9 @@ export default function MenuSettings() {
       await tablesApi.updateDish(id, dishPayload(editingDish));
       setEditingDish(null);
       await load();
-      msg.success('Cambios guardados', id);
+      msg.success('Cambios guardados.', id);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo guardar el plato'), id);
+      msg.error(serverMessage(err, 'No se pudo guardar el plato.'), id);
     }
   };
 
@@ -193,7 +193,7 @@ export default function MenuSettings() {
       await tablesApi.deleteDish(dish.id);
       await load();
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo eliminar el plato'), dish.id);
+      msg.error(serverMessage(err, 'No se pudo eliminar el plato.'), dish.id);
     }
   };
 
@@ -201,15 +201,15 @@ export default function MenuSettings() {
 
   const createExtra = async (e) => {
     e.preventDefault();
-    if (!extraForm.name.trim()) return msg.error('Escribí el nombre del adicional', 'extra');
-    if (extraForm.price === '') return msg.error('Escribí el precio (puede ser 0)', 'extra');
+    if (!extraForm.name.trim()) return msg.error('Escribí el nombre del adicional.', 'extra');
+    if (extraForm.price === '') return msg.error('Escribí el precio (puede ser 0).', 'extra');
     try {
       await tablesApi.createExtra({ name: extraForm.name.trim(), price: Number(extraForm.price) });
       setExtraForm(EMPTY_EXTRA);
       await load();
       msg.success('Adicional agregado. Asignalo a los platos que lo lleven.', 'extra');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo agregar el adicional'), 'extra');
+      msg.error(serverMessage(err, 'No se pudo agregar el adicional.'), 'extra');
     }
     return undefined;
   };
@@ -227,7 +227,7 @@ export default function MenuSettings() {
       await load();
       msg.success('Cambios guardados', id);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo guardar el adicional'), id);
+      msg.error(serverMessage(err, 'No se pudo guardar el adicional.'), id);
     }
   };
 
@@ -242,7 +242,7 @@ export default function MenuSettings() {
       await tablesApi.deleteExtra(extra.id);
       await load();
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo eliminar el adicional'), extra.id);
+      msg.error(serverMessage(err, 'No se pudo eliminar el adicional.'), extra.id);
     }
   };
 
@@ -306,7 +306,7 @@ export default function MenuSettings() {
             {dishes.length === 0 && (
               <tr>
                 <td colSpan={8} className="list-search-empty">
-                  {menu.dishes.length ? 'Ningún plato coincide con la búsqueda' : 'Todavía no hay platos'}
+                  {menu.dishes.length ? 'Ningún plato coincide con la búsqueda.' : 'Todavía no hay platos.'}
                 </td>
               </tr>
             )}

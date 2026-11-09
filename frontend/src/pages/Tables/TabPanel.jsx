@@ -47,7 +47,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
       const { data } = await tablesApi.getTab(tabId);
       setTab(data);
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo cargar la mesa'));
+      msg.error(serverMessage(err, 'No se pudo cargar la mesa.'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
     }
   };
 
-  const open = () => run(() => tablesApi.openTab(table.id, guests || null), 'No se pudo abrir la mesa');
+  const open = () => run(() => tablesApi.openTab(table.id, guests || null), 'No se pudo abrir la mesa.');
 
   // Se piden solo los platos activos del menú (Mesas → Menú), con el precio promo si tienen
   const priceOf = (p) => Number(p.promoPrice ?? p.price) || 0;
@@ -100,7 +100,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
     const quantity = Number(pick.quantity);
     if (!dish) return msg.error('Elegí el plato', 'draft');
     if (!(quantity > 0) || !Number.isInteger(quantity)) {
-      return msg.error('La cantidad tiene que ser un número entero mayor a 0', 'draft');
+      return msg.error('La cantidad tiene que ser un número entero mayor a 0.', 'draft');
     }
     const extras = pickExtras.filter((x) => pick.extraIds.includes(x.id));
     return { key: `${Date.now()}-${Math.random()}`, dish, extras, quantity, note: pick.note.trim() };
@@ -126,7 +126,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
       items = [...draft, item];
     }
     if (!items.length) {
-      msg.error('Elegí un plato y tocá Agregar', 'draft');
+      msg.error('Elegí un plato y tocá Agregar.', 'draft');
       return;
     }
     setSending(true);
@@ -147,9 +147,9 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
       if (printOnSend) printTicket(data.ticket.id);
       await load(tab.id);
       await onChanged();
-      msg.success(`Comanda ${data.ticket.number} enviada a la cocina`, 'send');
+      msg.success(`Comanda ${data.ticket.number} enviada a la cocina.`, 'send');
     } catch (err) {
-      msg.error(serverMessage(err, 'No se pudo mandar la comanda'), 'send');
+      msg.error(serverMessage(err, 'No se pudo mandar la comanda.'), 'send');
     } finally {
       setSending(false);
     }
@@ -164,7 +164,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
       danger: true,
     });
     if (reason === null) return;
-    await run(() => tablesApi.cancelTabItem(tab.id, item.id, reason), 'No se pudo anular el plato');
+    await run(() => tablesApi.cancelTabItem(tab.id, item.id, reason), 'No se pudo anular el plato.');
   };
 
   const cancelWholeTab = async () => {
@@ -176,7 +176,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
       danger: true,
     });
     if (reason === null) return;
-    if (await run(() => tablesApi.cancelTab(tab.id, reason), 'No se pudo anular la mesa')) onClose();
+    if (await run(() => tablesApi.cancelTab(tab.id, reason), 'No se pudo anular la mesa.')) onClose();
   };
 
   if (!table.tab && !tab) {
@@ -403,7 +403,7 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
           {tab.status === 'open' && (
             <button
               type="button"
-              onClick={() => run(() => tablesApi.requestBill(tab.id), 'No se pudo pedir la cuenta')}
+              onClick={() => run(() => tablesApi.requestBill(tab.id), 'No se pudo pedir la cuenta.')}
             >
               Pedir la cuenta
             </button>

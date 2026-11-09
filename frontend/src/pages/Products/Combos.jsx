@@ -155,7 +155,7 @@ const ComboForm = ({
           type="number"
           step="0.01"
           min="0"
-          placeholder="Si lo dejás vacío, suma los precios"
+          placeholder="Si lo dejás vacío, suma los precios."
           {...register('specialPrice')}
         />
       </div>
@@ -195,7 +195,7 @@ const ComboForm = ({
                       title="Buscar producto"
                       searchPlaceholder="Nombre, código, marca o modelo..."
                       placeholder="Elegí un producto..."
-                      emptyText="No hay productos que coincidan"
+                      emptyText="No hay productos que coincidan."
                       value={productField.value}
                       onChange={productField.onChange}
                       options={productOptions}
@@ -242,10 +242,10 @@ const ComboForm = ({
         {hasSpecial && <div>Precio especial: {money(specialPrice)}</div>}
         <div>Precio final del combo: {money(finalPrice)}</div>
         {hasSpecial && specialPrice > totals.listPrice && totals.listPrice > 0 && (
-          <div className="error">El precio especial es mayor que la suma de los productos</div>
+          <div className="error">El precio especial es mayor que la suma de los productos.</div>
         )}
         {finalPrice > 0 && finalPrice < totals.cost && (
-          <div className="error">El precio final es menor que el costo</div>
+          <div className="error">El precio final es menor que el costo.</div>
         )}
       </div>
 
@@ -287,11 +287,11 @@ const Combos = ({ products, categories, onChanged }) => {
     }
   };
 
-  const onCreate = (payload) => run(() => createCombo(payload), 'No se pudo crear el combo');
+  const onCreate = (payload) => run(() => createCombo(payload), 'No se pudo crear el combo.');
 
   const onUpdate = async (payload) => {
     const comboId = editingId;
-    const result = await run(() => updateCombo(comboId, payload), 'No se pudo guardar el combo');
+    const result = await run(() => updateCombo(comboId, payload), 'No se pudo guardar el combo.');
     if (result.success) {
       setEditingId(null);
       msg.success('Cambios guardados', comboId);
@@ -308,7 +308,7 @@ const Combos = ({ products, categories, onChanged }) => {
       }))
     )
       return;
-    const result = await run(() => deleteCombo(combo.id), 'No se pudo eliminar el combo');
+    const result = await run(() => deleteCombo(combo.id), 'No se pudo eliminar el combo.');
     if (result.success) msg.success('Combo eliminado', 'list');
     else msg.error(result.message, combo.id);
   };
@@ -381,7 +381,7 @@ const Combos = ({ products, categories, onChanged }) => {
             {visibleCombos.length === 0 && (
               <tr>
                 <td colSpan={8} className="list-search-empty">
-                  {search ? 'No hay combos que coincidan con la búsqueda' : 'Todavía no hay combos'}
+                  {search ? 'No hay combos que coincidan con la búsqueda.' : 'Todavía no hay combos.'}
                 </td>
               </tr>
             )}
