@@ -11,7 +11,7 @@ router.post(
   '/requests',
   asyncHandler(async (req, res) => {
     // Campo trampa: el formulario lo deja vacío y oculto; solo un robot lo completa
-    if (req.body.website) throw httpError('Solicitud inválida');
+    if (req.body.website) throw httpError('Solicitud inválida.');
     res.status(201).json(await createServiceRequest(req.body, req));
   }),
 );

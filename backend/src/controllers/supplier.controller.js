@@ -9,7 +9,7 @@ const SUPPLIER_FIELDS = ['name', 'cuit', 'contactPerson', 'phone', 'email', 'add
 
 const findOwnSupplier = async (id, businessId) => {
   const supplier = await Supplier.findOne({ where: { id, businessId } });
-  if (!supplier) throw httpError('Proveedor no encontrado', 404);
+  if (!supplier) throw httpError('Proveedor no encontrado.', 404);
   return supplier;
 };
 

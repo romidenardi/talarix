@@ -9,7 +9,7 @@ import { computeCombo, withComboData } from '../services/combo.service.js';
 const resolveCategoryId = async (categoryId, businessId, transaction) => {
   if (!categoryId) return null;
   const category = await Category.findOne({ where: { id: categoryId, businessId }, transaction });
-  if (!category) throw httpError('La categoría no existe', 404);
+  if (!category) throw httpError('La categoría no existe.', 404);
   return category.id;
 };
 
@@ -17,7 +17,7 @@ const parseSpecialPrice = (value) => {
   if (value === undefined) return undefined;
   if (value === null || value === '') return null;
   const price = Number(value);
-  if (!Number.isFinite(price) || price < 0) throw httpError('El precio especial no es válido');
+  if (!Number.isFinite(price) || price < 0) throw httpError('El precio especial no es válido.');
   return round2(price);
 };
 
@@ -29,47 +29,47 @@ const cleanBarcode = (value) => {
 
 const readComponents = async (raw, businessId, comboId, transaction) => {
   if (!Array.isArray(raw) || raw.length === 0) {
-    throw httpError('El combo debe tener al menos un producto');
+    throw httpError('El combo debe tener al menos un producto.');
   }
 
   const quantities = new Map();
   raw.forEach((component, index) => {
     const n = index + 1;
-    if (!component || !component.productId) throw httpError(`Producto ${n}: falta elegir el producto`);
+    if (!component || !component.productId) throw httpError(`Producto ${n}: falta elegir el producto.`);
     if (!isPositiveInt(component.quantity)) {
-      throw httpError(`Producto ${n}: la cantidad debe ser un entero mayor a 0`);
+      throw httpError(`Producto ${n}: la cantidad debe ser un entero mayor a 0.`);
     }
     quantities.set(component.productId, (quantities.get(component.productId) || 0) + toNumber(component.quantity));
   });
 
-  if (comboId && quantities.has(comboId)) throw httpError('Un combo no puede incluirse a sí mismo');
+  if (comboId && quantities.has(comboId)) throw httpError('Un combo no puede incluirse a sí mismo.');
 
   const products = await Product.findAll({
     where: { id: [...quantities.keys()], businessId },
     transaction,
   });
-  if (products.length !== quantities.size) throw httpError('Alguno de los productos del combo no existe', 404);
-  if (products.some((p) => p.isCombo)) throw httpError('Un combo no puede incluir a otro combo');
-  if (products.some((p) => p.menuKind)) throw httpError('Los platos y adicionales del menú no van en combos');
+  if (products.length !== quantities.size) throw httpError('Alguno de los productos del combo no existe.', 404);
+  if (products.some((p) => p.isCombo)) throw httpError('Un combo no puede incluir a otro combo.');
+  if (products.some((p) => p.menuKind)) throw httpError('Los platos y adicionales del menú no van en combos.');
   // Las cantidades de un combo son enteras: un producto por peso (kg) no encaja
   const byWeight = products.find((p) => p.unitType === 'weight');
-  if (byWeight) throw httpError(`${byWeight.name} se vende por peso: los combos llevan solo productos por unidad`);
+  if (byWeight) throw httpError(`${byWeight.name} se vende por peso: los combos llevan solo productos por unidad.`);
   if (products.some(isVariantGroup))
-    throw httpError('En un combo va la variante (talle, color…), no el producto principal');
+    throw httpError('En un combo va la variante, no el producto principal.');
 
   return products.map((product) => ({ product, quantity: quantities.get(product.id) }));
 };
 
 const rethrowDuplicate = (err) => {
   if (err?.name === 'SequelizeUniqueConstraintError') {
-    throw httpError('Ese código de barras ya está asignado a otro producto', 409);
+    throw httpError('Ese código de barras ya está asignado a otro producto.', 409);
   }
   throw err;
 };
 
 const loadCombo = async (id, businessId) => {
   const combo = await Product.findOne({ where: { id, businessId, isCombo: true } });
-  if (!combo) throw httpError('Combo no encontrado', 404);
+  if (!combo) throw httpError('Combo no encontrado.', 404);
   return combo;
 };
 
@@ -83,8 +83,8 @@ export const createCombo = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const { internalCode, name, description, brand, model, categoryId } = req.body;
 
-  if (!internalCode || !String(internalCode).trim()) throw httpError('El código interno es obligatorio');
-  if (!name || !String(name).trim()) throw httpError('El nombre del combo es obligatorio');
+  if (!internalCode || !String(internalCode).trim()) throw httpError('El código interno es obligatorio.');
+  if (!name || !String(name).trim()) throw httpError('El nombre del combo es obligatorio.');
 
   const specialPrice = parseSpecialPrice(req.body.specialPrice) ?? null;
   const barcode = cleanBarcode(req.body.barcode) ?? null;
@@ -142,13 +142,13 @@ export const updateCombo = asyncHandler(async (req, res) => {
       transaction: t,
       lock: t.LOCK.UPDATE,
     });
-    if (!combo) throw httpError('Combo no encontrado', 404);
+    if (!combo) throw httpError('Combo no encontrado.', 404);
 
     const changes = {};
     for (const field of ['internalCode', 'name']) {
       if (field in req.body) {
         if (!String(req.body[field] ?? '').trim()) {
-          throw httpError(field === 'name' ? 'El nombre del combo es obligatorio' : 'El código interno es obligatorio');
+          throw httpError(field === 'name' ? 'El nombre del combo es obligatorio' : 'El código interno es obligatorio.');
         }
         changes[field] = String(req.body[field]).trim();
       }

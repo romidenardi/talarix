@@ -19,7 +19,7 @@ export const approveOrder = asyncHandler(async (req, res) => {
   const password = String(req.body.password || '');
   const requestId = cleanRequestId(req.body.requestId);
 
-  if (!email || !password) throw httpError('Completá el email y la contraseña de quien autoriza');
+  if (!email || !password) throw httpError('Completá el email y la contraseña de quien autoriza.');
   if (!requestId) throw httpError('Falta el identificador del remito. Recargá la página.');
 
   const items = Array.isArray(req.body.items) ? req.body.items : [];
@@ -36,7 +36,7 @@ export const approveOrder = asyncHandler(async (req, res) => {
     discountPercent: toNumberOrZero(req.body.discountPercent),
     discountAmount: toNumberOrZero(req.body.discountAmount),
   });
-  if (!summary.needed) throw httpError('Este remito no tiene nada que autorizar');
+  if (!summary.needed) throw httpError('Este remito no tiene nada para autorizar.');
 
   const approver = await User.findOne({ where: { email, businessId } });
   const valid =

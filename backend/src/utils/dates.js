@@ -31,7 +31,7 @@ export const readRange = (query) => {
   const to = query.to || dayKey(new Date());
   const from = query.from || addDays(to, -29);
   if (!KEY_RE.test(from) || !KEY_RE.test(to)) {
-    throw httpError('Las fechas deben tener el formato AAAA-MM-DD');
+    throw httpError('Las fechas deben tener el formato AAAA-MM-DD.');
   }
   const start = startOfDay(from);
   const lastDay = startOfDay(to);
@@ -39,9 +39,9 @@ export const readRange = (query) => {
     throw httpError('Fecha inválida');
   }
   const end = startOfDay(addDays(to, 1));
-  if (end <= start) throw httpError('La fecha "hasta" no puede ser anterior a "desde"');
+  if (end <= start) throw httpError('La fecha "hasta" no puede ser anterior a "desde".');
   if ((end - start) / DAY_MS > MAX_RANGE_DAYS) {
-    throw httpError(`El rango máximo es de ${MAX_RANGE_DAYS} días`);
+    throw httpError(`El rango máximo es de ${MAX_RANGE_DAYS} días.`);
   }
   return { from, to, start, end };
 };

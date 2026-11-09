@@ -67,12 +67,12 @@ export const createUser = asyncHandler(async (req, res) => {
   const sendInvite = req.body.sendInvite === true;
   const { role } = req.body;
 
-  if (!name || !email) throw httpError('Nombre y email son obligatorios');
-  if (!EMAIL_REGEX.test(email)) throw httpError('El email no es válido');
-  if (role && !ROLES.includes(role)) throw httpError('Rol inválido');
+  if (!name || !email) throw httpError('Nombre y email son obligatorios.');
+  if (!EMAIL_REGEX.test(email)) throw httpError('El email no es válido.');
+  if (role && !ROLES.includes(role)) throw httpError('Rol inválido.');
 
   if (!sendInvite) {
-    if (!password) throw httpError('La contraseña es obligatoria');
+    if (!password) throw httpError('La contraseña es obligatoria.');
     checkPassword(password, { email, name });
   }
 
@@ -135,10 +135,10 @@ export const updateUser = asyncHandler(async (req, res) => {
           .toLowerCase()
       : undefined;
   // Las mismas reglas que al crear el usuario
-  if (name !== undefined && !name) throw httpError('El nombre no puede quedar vacío');
-  if (email !== undefined && !EMAIL_REGEX.test(email)) throw httpError('El email no es válido');
-  if (role !== undefined && !ROLES.includes(role)) throw httpError('Rol inválido');
-  if (active !== undefined && typeof active !== 'boolean') throw httpError('El estado no es válido');
+  if (name !== undefined && !name) throw httpError('El nombre no puede quedar vacío.');
+  if (email !== undefined && !EMAIL_REGEX.test(email)) throw httpError('El email no es válido.');
+  if (role !== undefined && !ROLES.includes(role)) throw httpError('Rol inválido.');
+  if (active !== undefined && typeof active !== 'boolean') throw httpError('El estado no es válido.');
 
   const t = await sequelize.transaction();
   let user;
@@ -151,13 +151,13 @@ export const updateUser = asyncHandler(async (req, res) => {
       transaction: t,
       lock: t.LOCK.UPDATE,
     });
-    if (!user) throw httpError('Usuario no encontrado', 404);
+    if (!user) throw httpError('Usuario no encontrado.', 404);
 
     if (user.id === req.user.id && role && role !== 'admin') {
-      throw httpError('No podés quitarte tu propio rol de administrador');
+      throw httpError('No podés quitarte tu propio rol de administrador.');
     }
     if (user.id === req.user.id && active === false) {
-      throw httpError('No podés desactivar tu propio usuario');
+      throw httpError('No podés desactivar tu propio usuario.');
     }
     const losesAdmin =
       user.role === 'admin' && user.active && ((role !== undefined && role !== 'admin') || active === false);
@@ -227,14 +227,14 @@ export const sendAccessLink = asyncHandler(async (req, res) => {
 
 export const deleteUser = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
-  if (req.params.id === req.user.id) throw httpError('No podés eliminar tu propio usuario');
+  if (req.params.id === req.user.id) throw httpError('No podés eliminar tu propio usuario.');
 
   const t = await sequelize.transaction();
   let user;
   try {
     await lockUsersOf(businessId, t);
     user = await User.findOne({ where: { id: req.params.id, businessId }, transaction: t, lock: t.LOCK.UPDATE });
-    if (!user) throw httpError('Usuario no encontrado', 404);
+    if (!user) throw httpError('Usuario no encontrado.', 404);
     if (user.role === 'admin' && user.active) await assertAnotherAdmin(req, user.id, t);
 
     await user.destroy({ transaction: t });

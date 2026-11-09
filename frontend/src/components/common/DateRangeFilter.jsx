@@ -16,8 +16,8 @@ export default function DateRangeFilter({ value, onChange, loading = false, labe
   const [error, setError] = useState('');
 
   const apply = (range) => {
-    if (!range.from || !range.to) return setError('Elegí las dos fechas');
-    if (range.from > range.to) return setError('La fecha "desde" no puede ser posterior a "hasta"');
+    if (!range.from || !range.to) return setError('Elegí las dos fechas.');
+    if (range.from > range.to) return setError('La fecha "desde" no puede ser posterior a "hasta".');
     setError('');
     setFrom(range.from);
     setTo(range.to);

@@ -14,40 +14,40 @@ const MENU_VAT = 21;
 
 const readPrice = (value, label, { optional = false } = {}) => {
   if (optional && (value === undefined || value === null || value === '')) return null;
-  if (!isNonNegative(value) || toNumber(value) > MAX_PRICE) throw httpError(`${label} debe ser un número positivo`);
+  if (!isNonNegative(value) || toNumber(value) > MAX_PRICE) throw httpError(`${label} debe ser un número positivo.`);
   return round2(toNumber(value));
 };
 
 const readText = (value, label, max = 255) => {
   const text = String(value ?? '').trim();
-  if (!text) throw httpError(`${label} es obligatorio`);
-  if (text.length > max) throw httpError(`${label} puede tener hasta ${max} caracteres`);
+  if (!text) throw httpError(`${label} es obligatorio.`);
+  if (text.length > max) throw httpError(`${label} puede tener hasta ${max} caracteres.`);
   return text;
 };
 
 const resolveCategory = async (categoryId, businessId) => {
   if (!categoryId) return null;
   const category = await Category.findOne({ where: { id: categoryId, businessId } });
-  if (!category) throw httpError('La categoría no existe', 404);
+  if (!category) throw httpError('La categoría no existe.', 404);
   return category.id;
 };
 
 const findMenuItem = async (id, businessId, kind, transaction) => {
   const item = await Product.findOne({ where: { id, businessId, menuKind: kind }, transaction });
-  if (!item) throw httpError(kind === 'dish' ? 'Plato no encontrado' : 'Adicional no encontrado', 404);
+  if (!item) throw httpError(kind === 'dish' ? 'Plato no encontrado.' : 'Adicional no encontrado.', 404);
   return item;
 };
 
 // Reemplaza los adicionales de un plato por los de la lista
 const setDishExtras = async (dish, extraIds, transaction) => {
-  if (!Array.isArray(extraIds)) throw httpError('Los adicionales no son válidos');
+  if (!Array.isArray(extraIds)) throw httpError('Los adicionales no son válidos.');
   const ids = [...new Set(extraIds.filter((id) => typeof id === 'string' && id))];
   if (ids.length) {
     const extras = await Product.count({
       where: { id: ids, businessId: dish.businessId, menuKind: 'extra' },
       transaction,
     });
-    if (extras !== ids.length) throw httpError('Alguno de los adicionales no existe', 404);
+    if (extras !== ids.length) throw httpError('Alguno de los adicionales no existe.', 404);
   }
   await MenuItemExtra.destroy({ where: { dishId: dish.id }, transaction });
   if (ids.length) {
@@ -117,7 +117,7 @@ const ensureFreeCode = async (internalCode, businessId, exceptId) => {
   const where = { businessId, menuKind: 'dish', internalCode };
   if (exceptId) where.id = { [Op.ne]: exceptId };
   const other = await Product.findOne({ where, attributes: ['name'] });
-  if (other) throw httpError(`El código ${internalCode} ya es de "${other.name}"`, 409);
+  if (other) throw httpError(`El código ${internalCode} ya es de "${other.name}".`, 409);
 };
 
 export const createDish = async (body, businessId) => {

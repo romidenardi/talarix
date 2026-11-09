@@ -7,22 +7,22 @@ import { requireRole } from '../middlewares/role.middleware.js';
 const router = Router();
 
 const createRules = [
-  body('fiscalCondition').notEmpty().withMessage('La condición fiscal es obligatoria'),
+  body('fiscalCondition').notEmpty().withMessage('La condición fiscal es obligatoria.'),
   body().custom((_, { req }) => {
     if (!req.body.businessName && !req.body.firstName) {
-      throw new Error('Debés completar razón social o nombre y apellido');
+      throw new Error('Debés completar razón social o nombre y apellido.');
     }
     return true;
   }),
 ];
 
 const updateRules = [
-  body('fiscalCondition').optional().trim().notEmpty().withMessage('La condición fiscal no puede quedar vacía'),
-  body('email').optional({ values: 'falsy' }).isEmail().withMessage('El email no es válido'),
+  body('fiscalCondition').optional().trim().notEmpty().withMessage('La condición fiscal no puede quedar vacía.'),
+  body('email').optional({ values: 'falsy' }).isEmail().withMessage('El email no es válido.'),
   body().custom((_, { req }) => {
     const touchesName = 'businessName' in req.body || 'firstName' in req.body;
     if (touchesName && !req.body.businessName && !req.body.firstName) {
-      throw new Error('Debés completar razón social o nombre y apellido');
+      throw new Error('Debés completar razón social o nombre y apellido.');
     }
     return true;
   }),

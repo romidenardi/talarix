@@ -109,7 +109,7 @@ export const platformLoginMfa = asyncHandler(async (req, res) => {
     const remaining = consumeRecoveryCode(admin.recoveryCodes, code);
     if (!remaining) {
       await audit(req, { action: 'platform.mfa_failed', ...who });
-      throw httpError('El código de recuperación no es válido o ya se usó', 401);
+      throw httpError('El código de recuperación no es válido o ya se usó.', 401);
     }
     await admin.update({ recoveryCodes: remaining });
     await audit(req, { action: 'platform.recovery_code_used', detail: { left: remaining.length }, ...who });
@@ -142,7 +142,7 @@ export const platformMfaSetup = asyncHandler(async (req, res) => {
 export const platformMfaEnable = asyncHandler(async (req, res) => {
   const admin = await adminFromMfaToken(req.body.mfaToken, 'setup');
   if (admin.totpEnabled) throw httpError('El segundo factor ya está configurado. Volvé a ingresar.', 409);
-  if (!admin.totpPendingSecret) throw httpError('Primero escaneá el código QR');
+  if (!admin.totpPendingSecret) throw httpError('Primero escaneá el código QR.');
 
   const step = verifyTotp(admin.totpPendingSecret, req.body.code);
   if (step === null) {
@@ -259,21 +259,21 @@ export const createBusiness = asyncHandler(async (req, res) => {
   const type = req.body.type === 'demo' ? 'demo' : 'client';
 
   if (!name || !adminName || !adminEmail) {
-    throw httpError('Nombre del comercio, nombre del administrador y email son obligatorios');
+    throw httpError('Nombre del comercio, nombre del administrador y email son obligatorios.');
   }
-  if (!EMAIL_REGEX.test(adminEmail)) throw httpError('El email no es válido');
+  if (!EMAIL_REGEX.test(adminEmail)) throw httpError('El email no es válido.');
 
   let trialEndsAt = null;
   if (req.body.trialDays !== undefined && req.body.trialDays !== null && req.body.trialDays !== '') {
     const days = Number(req.body.trialDays);
     if (!Number.isInteger(days) || days < 1 || days > 365) {
-      throw httpError('Los días de prueba deben ser un entero entre 1 y 365');
+      throw httpError('Los días de prueba deben ser un entero entre 1 y 365.');
     }
     trialEndsAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
   }
 
   const existing = await User.findOne({ where: { email: adminEmail } });
-  if (existing) throw httpError('Ya existe un usuario con ese email', 409);
+  if (existing) throw httpError('Ya existe un usuario con ese email.', 409);
 
   const { token, hash } = generateInviteToken();
   const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_MS);
@@ -344,7 +344,7 @@ export const setBusinessStatus = asyncHandler(async (req, res) => {
   if (!['active', 'suspended'].includes(status)) throw httpError('Estado inválido');
 
   const business = await Business.findByPk(req.params.id);
-  if (!business) throw httpError('Comercio no encontrado', 404);
+  if (!business) throw httpError('Comercio no encontrado.', 404);
 
   if (business.status === 'closing') {
     throw httpError('El comercio tiene una baja pendiente. Cancelá la baja antes de cambiar su estado.', 409);
@@ -379,7 +379,7 @@ const MAX_TRIAL_DAYS = 3 * 366;
 export const setBusinessTrial = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.params.id);
   if (!business) throw httpError('Comercio no encontrado', 404);
-  if (business.type !== 'client') throw httpError('La cuenta demo no tiene período de prueba');
+  if (business.type !== 'client') throw httpError('La cuenta demo no tiene período de prueba.');
   if (business.status === 'closing') {
     throw httpError('El comercio tiene una baja pendiente. Cancelá la baja antes de renovar la prueba.', 409);
   }
@@ -393,8 +393,8 @@ export const setBusinessTrial = asyncHandler(async (req, res) => {
     trialEndsAt = new Date(`${until}T23:59:59-03:00`);
     if (Number.isNaN(trialEndsAt.getTime()) || dayKey(trialEndsAt) !== until) throw httpError('Fecha inválida');
     const today = dayKey(new Date());
-    if (until < today) throw httpError('La fecha no puede ser anterior a hoy');
-    if (until > addDays(today, MAX_TRIAL_DAYS)) throw httpError('La fecha puede ser hasta dentro de 3 años');
+    if (until < today) throw httpError('La fecha no puede ser anterior a hoy.');
+    if (until > addDays(today, MAX_TRIAL_DAYS)) throw httpError('La fecha puede ser hasta dentro de 3 años.');
   }
 
   const previous = business.trialEndsAt;
@@ -426,7 +426,7 @@ export const setBusinessTrial = asyncHandler(async (req, res) => {
 export const setBusinessModules = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.params.id);
   if (!business) throw httpError('Comercio no encontrado', 404);
-  if (typeof req.body.tables !== 'boolean') throw httpError('Indicá si el comercio tiene el módulo de mesas');
+  if (typeof req.body.tables !== 'boolean') throw httpError('Indicá si el comercio tiene el módulo de mesas.');
 
   const previous = business.tablesEnabled;
   await business.update({ tablesEnabled: req.body.tables });
@@ -444,11 +444,11 @@ export const startClosure = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.params.id);
   if (!business) throw httpError('Comercio no encontrado', 404);
 
-  if (business.type === 'demo') throw httpError('La cuenta demo no se da de baja');
-  if (business.status === 'closing') throw httpError('El comercio ya tiene una baja pendiente', 409);
+  if (business.type === 'demo') throw httpError('La cuenta demo no se da de baja.');
+  if (business.status === 'closing') throw httpError('El comercio ya tiene una baja pendiente.', 409);
 
   if (String(req.body.confirmName || '').trim() !== business.name) {
-    throw httpError('El nombre de confirmación no coincide con el del comercio');
+    throw httpError('El nombre de confirmación no coincide con el del comercio.');
   }
 
   const deleteAt = new Date(Date.now() + CLOSURE_DAYS * 24 * 60 * 60 * 1000);
@@ -491,8 +491,8 @@ export const startClosure = asyncHandler(async (req, res) => {
 
 export const cancelClosure = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.params.id);
-  if (!business) throw httpError('Comercio no encontrado', 404);
-  if (business.status !== 'closing') throw httpError('El comercio no tiene una baja pendiente', 409);
+  if (!business) throw httpError('Comercio no encontrado.', 404);
+  if (business.status !== 'closing') throw httpError('El comercio no tiene una baja pendiente.', 409);
 
   await business.update({ status: 'active', suspendedReason: null, deleteAt: null });
   await audit(req, {
@@ -506,13 +506,13 @@ export const cancelClosure = asyncHandler(async (req, res) => {
 
 export const reinviteUser = asyncHandler(async (req, res) => {
   const business = await Business.findByPk(req.params.id);
-  if (!business) throw httpError('Comercio no encontrado', 404);
+  if (!business) throw httpError('Comercio no encontrado.', 404);
 
   const where = req.body.userId
     ? { id: req.body.userId, businessId: business.id }
     : { businessId: business.id, role: 'admin' };
   const user = await User.findOne({ where, order: [['createdAt', 'ASC']] });
-  if (!user) throw httpError('Usuario no encontrado', 404);
+  if (!user) throw httpError('Usuario no encontrado.', 404);
 
   const { token, hash } = generateInviteToken();
   const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_MS);

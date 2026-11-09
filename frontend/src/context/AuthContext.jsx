@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }) => {
       setUser(data.user);
       return true;
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al iniciar sesión');
+      setError(err.response?.data?.message || 'Error al iniciar sesión.');
       return false;
     } finally {
       setLoading(false);

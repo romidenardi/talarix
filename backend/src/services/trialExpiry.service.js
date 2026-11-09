@@ -35,7 +35,7 @@ export const runTrialExpiry = async (now = new Date()) => {
     );
     if (!count) continue;
     suspended.push(business.id);
-    console.log(`[prueba] Venció la prueba del comercio ${business.id}: suspendido`);
+    console.log(`[prueba] Venció la prueba del comercio ${business.id}: suspendido.`);
     await audit(null, {
       action: 'business.trial_expired',
       actorType: 'system',
@@ -58,13 +58,13 @@ export const startTrialExpiryScheduler = () => {
   const task = cron.schedule(
     '5 * * * *',
     () => {
-      runTrialExpiry().catch(onFailure('Error en la tarea'));
+      runTrialExpiry().catch(onFailure('Error en la tarea.'));
     },
     { timezone: TIMEZONE },
   );
 
   const firstRun = setTimeout(() => {
-    runTrialExpiry().catch(onFailure('Error al iniciar'));
+    runTrialExpiry().catch(onFailure('Error al iniciar.'));
   }, 40 * 1000);
   firstRun.unref();
 

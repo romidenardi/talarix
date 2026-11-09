@@ -32,11 +32,11 @@ export const normalizeScaleConfig = (input) => {
   const source = resolveScaleConfig(input);
 
   const prefix = String(source.prefix ?? '').trim();
-  if (!/^\d{0,4}$/.test(prefix)) throw httpError('El prefijo debe tener solo números (hasta 4)');
+  if (!/^\d{0,4}$/.test(prefix)) throw httpError('El prefijo debe tener solo números (hasta 4).');
 
   const valueType = source.valueType;
   if (!['quantity', 'amount'].includes(valueType)) {
-    throw httpError('El valor del código tiene que ser el peso o el importe');
+    throw httpError('El valor del código tiene que ser el peso o el importe.');
   }
 
   const checkDigit = source.checkDigit !== false;
@@ -54,15 +54,15 @@ export const normalizeScaleConfig = (input) => {
   if (pluEnd > lastDataPosition || valueEnd > lastDataPosition) {
     throw httpError(
       checkDigit
-        ? 'El PLU y el valor tienen que entrar en los primeros 12 dígitos (el 13 es el de control)'
-        : 'El PLU y el valor tienen que entrar en los 13 dígitos del código',
+        ? 'El PLU y el valor tienen que entrar en los primeros 12 dígitos (el 13 es el de control).'
+        : 'El PLU y el valor tienen que entrar en los 13 dígitos del código.',
     );
   }
   if (pluStart <= prefix.length || valueStart <= prefix.length) {
-    throw httpError('El PLU y el valor no pueden pisar el prefijo');
+    throw httpError('El PLU y el valor no pueden pisar el prefijo.');
   }
   if (pluStart <= valueEnd && valueStart <= pluEnd) {
-    throw httpError('El PLU y el valor no pueden superponerse');
+    throw httpError('El PLU y el valor no pueden superponerse.');
   }
 
   return {

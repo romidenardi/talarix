@@ -19,7 +19,7 @@ export const runClosurePurge = async () => {
   for (const business of due) {
     try {
       await purgeBusiness(business.id);
-      console.log(`[baja] Se eliminaron los datos del comercio ${business.id}`);
+      console.log(`[baja] Se eliminaron los datos del comercio ${business.id}.`);
     } catch (error) {
       console.error(`[baja] No se pudo eliminar el comercio ${business.id}:`, error.message);
       // Alerta: la baja prometida en los términos no se cumplió

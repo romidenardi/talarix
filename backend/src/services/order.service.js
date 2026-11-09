@@ -46,7 +46,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
 
   // ---- Validación de entrada ----
   if (!Array.isArray(items) || items.length === 0) {
-    throw httpError('El pedido debe tener al menos un artículo');
+    throw httpError('El pedido debe tener al menos un artículo.');
   }
 
   const rows = items.map((item, index) => {
@@ -54,10 +54,10 @@ export const createOrder = async ({ body, user, options = {} }) => {
     if (!item || typeof item.productId !== 'string' || !item.productId)
       throw httpError(`Artículo ${n}: falta el producto`);
     if (!isPositiveQuantity(item.quantity)) {
-      throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales`);
+      throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales.`);
     }
     if (!isNonNegative(item.unitPrice) || toNumber(item.unitPrice) > MAX_PRICE) {
-      throw httpError(`Artículo ${n}: el precio no es válido`);
+      throw httpError(`Artículo ${n}: el precio no es válido.`);
     }
     return {
       productId: item.productId,
@@ -84,7 +84,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
   let orderId;
   try {
     const customer = await Customer.findOne({ where: { id: customerId, businessId }, transaction: t });
-    if (!customer) throw httpError('Cliente no encontrado', 404);
+    if (!customer) throw httpError('Cliente no encontrado.', 404);
     if (customer.anonymizedAt) {
       throw httpError(
         'Ese cliente fue anonimizado por un pedido de supresión de datos: no se le puede hacer un remito.',
@@ -92,7 +92,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
     }
 
     const payment = await Payment.findOne({ where: { id: paymentId, businessId }, transaction: t });
-    if (!payment) throw httpError('Forma de pago no encontrada', 404);
+    if (!payment) throw httpError('Forma de pago no encontrada.', 404);
     if (!payment.active) throw httpError(`La forma de pago ${payment.name} está inactiva. Elegí otra.`);
 
     let installmentPlan = null;
@@ -101,7 +101,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
         where: { id: installmentPlanId, paymentId: payment.id, active: true },
         transaction: t,
       });
-      if (!installmentPlan) throw httpError('Plan de cuotas no encontrado', 404);
+      if (!installmentPlan) throw httpError('Plan de cuotas no encontrado.', 404);
     }
 
     const rowProducts = await Product.findAll({
@@ -111,7 +111,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
     const rowProductMap = new Map(rowProducts.map((p) => [p.id, p]));
     for (const [index, row] of rows.entries()) {
       const rowProduct = rowProductMap.get(row.productId);
-      if (!rowProduct) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
+      if (!rowProduct) throw httpError(`Producto no encontrado: ${row.productId}.`, 404);
       if (!rowProduct.active && !fromTab) {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} está inactivo. Activalo en Productos o elegí otro.`);
       }
@@ -119,11 +119,11 @@ export const createOrder = async ({ body, user, options = {} }) => {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} es del menú de las mesas: se pide desde Mesas.`);
       }
       if (isVariantGroup(rowProduct)) {
-        throw httpError(`Artículo ${index + 1}: ${rowProduct.name} tiene variantes. Elegí cuál (talle, color…).`);
+        throw httpError(`Artículo ${index + 1}: ${rowProduct.name} tiene variantes. Elegí cuál.`);
       }
       if (!quantityAllowedFor(rowProduct, row.quantity)) {
         throw httpError(
-          `Artículo ${index + 1}: ${rowProduct.name} se vende por unidad, la cantidad debe ser un entero`,
+          `Artículo ${index + 1}: ${rowProduct.name} se vende por unidad, la cantidad debe ser un número entero.`,
         );
       }
     }
@@ -155,7 +155,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
       const rowProduct = rowProductMap.get(row.productId);
       if (rowProduct.isCombo) {
         const components = comboComponents.get(row.productId) || [];
-        if (!components.length) throw httpError(`El combo ${rowProduct.name} no tiene productos cargados`);
+        if (!components.length) throw httpError(`El combo ${rowProduct.name} no tiene productos cargados.`);
         for (const component of components) {
           requested.set(
             component.productId,
@@ -183,7 +183,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
         if (!addStockFor.has(productId)) {
           const forCombo = viaCombo.has(productId) ? ' (necesario para un combo)' : '';
           throw httpError(
-            `Stock insuficiente para ${product.name}${forCombo} (disponible: ${Number(product.stock)}, pedido: ${qty})`,
+            `Stock insuficiente para ${product.name}${forCombo} (disponible: ${Number(product.stock)}, pedido: ${qty}).`,
           );
         }
         if (!ROLES_THAT_CAN_ADD_STOCK.includes(role)) {

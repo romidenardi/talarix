@@ -10,7 +10,7 @@ export const getMovementsByProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
 
   const product = await Product.findOne({ where: { id: productId, businessId } });
-  if (!product) throw httpError('Producto no encontrado', 404);
+  if (!product) throw httpError('Producto no encontrado.', 404);
 
   const movements = await StockMovement.findAll({
     where: { productId, businessId },
@@ -24,29 +24,29 @@ export const createStockMovement = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const reason = req.body.reason ? String(req.body.reason).slice(0, 255) : null;
 
-  if (!['in', 'out', 'adjustment'].includes(type)) throw httpError('Tipo de movimiento inválido');
+  if (!['in', 'out', 'adjustment'].includes(type)) throw httpError('Tipo de movimiento inválido.');
 
   if (type === 'adjustment') {
     if (!isNonNegativeQuantity(newStock)) {
-      throw httpError('El stock nuevo debe ser un número mayor o igual a 0, con hasta 3 decimales');
+      throw httpError('El stock nuevo debe ser un número mayor o igual a 0, con hasta 3 decimales.');
     }
   } else if (!isPositiveQuantity(quantity)) {
-    throw httpError('La cantidad debe ser un número mayor a 0, con hasta 3 decimales');
+    throw httpError('La cantidad debe ser un número mayor a 0, con hasta 3 decimales.');
   }
 
   const t = await sequelize.transaction();
   try {
     const product =
       typeof productId === 'string' ? (await lockProducts([productId], businessId, t)).get(productId) : null;
-    if (!product) throw httpError('Producto no encontrado', 404);
-    if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos');
-    if (product.trackStock === false) throw httpError(`${product.name} es del menú y no lleva stock`);
+    if (!product) throw httpError('Producto no encontrado.', 404);
+    if (product.isCombo) throw httpError('Un combo no tiene stock propio: se calcula con sus productos.');
+    if (product.trackStock === false) throw httpError(`${product.name} es del menú y no lleva stock.`);
     if (isVariantGroup(product))
-      throw httpError('Un producto con variantes no tiene stock propio: se maneja en cada variante');
+      throw httpError('Un producto con variantes no tiene stock propio: se asigna en cada variante.');
 
     const amount = round3(toNumber(type === 'adjustment' ? newStock : quantity));
     if (!quantityAllowedFor(product, amount)) {
-      throw httpError('Este producto se maneja por unidad: usá cantidades enteras');
+      throw httpError('Este producto se maneja por unidad: usá cantidades enteras.');
     }
 
     let delta;

@@ -19,7 +19,7 @@ const ScanBar = ({ onScan }) => {
           id="scan-input"
           value={value}
           autoComplete="off"
-          placeholder="Apuntá el lector acá o escribí el código y Enter"
+          placeholder="Apuntá el lector acá o escribí el código y Enter."
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {

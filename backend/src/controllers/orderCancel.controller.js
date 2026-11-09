@@ -33,7 +33,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
       lock: t.LOCK.UPDATE,
     });
     if (!order) throw httpError('Remito no encontrado', 404);
-    if (order.status === 'cancelled') throw httpError('El remito ya está anulado', 409);
+    if (order.status === 'cancelled') throw httpError('El remito ya está anulado.', 409);
 
     const items = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
     const customer = await Customer.findOne({
@@ -62,7 +62,7 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     const locked = await lockProducts([...quantityByProduct.keys()], businessId, t);
     for (const [productId, quantity] of quantityByProduct) {
       const product = locked.get(productId);
-      if (!product) throw httpError('Un producto del remito ya no existe: no se puede anular', 409);
+      if (!product) throw httpError('Un producto del remito ya no existe: no se puede anular.', 409);
       // Los platos y adicionales del menú no llevan stock
       if (product.trackStock === false) continue;
 

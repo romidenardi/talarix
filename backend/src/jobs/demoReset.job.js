@@ -16,6 +16,6 @@ export const startDemoResetJob = () => {
     },
     { timezone: 'America/Argentina/Buenos_Aires' },
   );
-  console.log('[demo] Reinicio nocturno programado: 03:00 (Buenos Aires)');
+  console.log('[demo] Reinicio nocturno programado: 03:00 (Buenos Aires).');
   return task;
 };

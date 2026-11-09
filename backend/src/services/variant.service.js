@@ -34,26 +34,26 @@ export const inheritedFields = (parent, { withPrice = true } = {}) => {
 
 export const normalizeAttributes = (list) => {
   if (!Array.isArray(list) || list.length < 1 || list.length > MAX_ATTRIBUTES) {
-    throw httpError(`Un producto puede tener de 1 a ${MAX_ATTRIBUTES} atributos (por ejemplo Talle y Color)`);
+    throw httpError(`Un producto puede tener de 1 a ${MAX_ATTRIBUTES} atributos (por ejemplo, Talle y Color.)`);
   }
   const names = list.map((name) => String(name ?? '').trim());
   if (names.some((name) => !name || name.length > MAX_NAME)) {
-    throw httpError(`Cada atributo necesita un nombre de hasta ${MAX_NAME} caracteres`);
+    throw httpError(`Cada atributo necesita un nombre de hasta ${MAX_NAME} caracteres.`);
   }
   if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) {
-    throw httpError('Hay dos atributos con el mismo nombre');
+    throw httpError('Hay dos atributos con el mismo nombre.');
   }
   return names;
 };
 
 export const normalizeValues = (values, attributes) => {
   if (!Array.isArray(values) || values.length !== attributes.length) {
-    throw httpError(`Cada variante necesita un valor para ${attributes.join(', ')}`);
+    throw httpError(`Cada variante necesita un valor para ${attributes.join(', ')}.`);
   }
   return values.map((value, index) => {
     const text = String(value ?? '').trim();
     if (!text || text.length > MAX_VALUE) {
-      throw httpError(`Falta el valor de ${attributes[index]} (hasta ${MAX_VALUE} caracteres)`);
+      throw httpError(`Falta el valor de ${attributes[index]} (hasta ${MAX_VALUE} caracteres).`);
     }
     return text;
   });

@@ -57,7 +57,7 @@ export const runMigrations = async (sequelize, { dir = MIGRATIONS_DIR, log = con
   if (fresh) {
     await sequelize.sync();
     for (const name of files) if (!applied.has(name)) await markApplied(sequelize, name);
-    log(`[migraciones] Base nueva creada desde los modelos (${files.length} migraciones marcadas como aplicadas)`);
+    log(`[migraciones] Base nueva creada desde los modelos (${files.length} migraciones marcadas como aplicadas.)`);
     return { fresh: true, applied: [] };
   }
 
@@ -78,6 +78,6 @@ export const runMigrations = async (sequelize, { dir = MIGRATIONS_DIR, log = con
     }
     await markApplied(sequelize, name);
   }
-  if (!pending.length) log('[migraciones] La base está al día');
+  if (!pending.length) log('[migraciones] La base está al día.');
   return { fresh: false, applied: pending };
 };

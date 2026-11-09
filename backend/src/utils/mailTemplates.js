@@ -67,7 +67,7 @@ export const inviteEmail = ({ name, businessName, url, expiresInMs }) => {
     subject: `Te invitaron a ${BRAND}: creá tu contraseña`,
     html: layout({
       preheader: `Activá tu cuenta de ${businessName}`,
-      heading: `Hola ${name}, te invitaron a ${BRAND}`,
+      heading: `Hola, ${name}: Te invitaron a ${BRAND}.`,
       paragraphs: [
         `Te crearon una cuenta para <strong>${esc(businessName)}</strong>.`,
         'Entrá con el botón de abajo para elegir tu contraseña y empezar a usar el sistema.',
@@ -77,7 +77,7 @@ export const inviteEmail = ({ name, businessName, url, expiresInMs }) => {
       footer: `Este link es personal y vale ${validity}. Si no esperabas esta invitación, ignorá este mail.`,
     }),
     text: [
-      `Hola, ${name},`,
+      `Hola, ${name}:`,
       '',
       `Te crearon una cuenta en ${BRAND} para ${businessName}.`,
       'Elegí tu contraseña desde este link:',
@@ -94,7 +94,7 @@ export const userCreatedEmail = ({ name, businessName, role, creatorName, loginU
     subject: `Tu usuario en ${BRAND} ya está creado`,
     html: layout({
       preheader: `Ya podés ingresar a ${businessName}`,
-      heading: `Hola, ${name}, ya tenés usuario`,
+      heading: `Hola, ${name}: Ya tenés usuario.`,
       paragraphs: [
         `${creatorName ? `<strong>${esc(creatorName)}</strong> te` : 'Te'} creó un usuario en <strong>${esc(businessName)}</strong> con el rol <strong>${esc(roleLabel)}</strong>.`,
         'Pedile la contraseña inicial a quien te dio de alta, o usá "¿Olvidaste tu contraseña?" en la pantalla de ingreso para elegir una nueva.',
@@ -104,7 +104,7 @@ export const userCreatedEmail = ({ name, businessName, role, creatorName, loginU
       footer: 'Por seguridad, este mail no incluye tu contraseña.',
     }),
     text: [
-      `Hola, ${name},`,
+      `Hola, ${name}:`,
       '',
       `Te crearon un usuario en ${BRAND} para ${businessName} con el rol ${roleLabel}.`,
       'Pedile la contraseña inicial a quien te dio de alta, o usá "¿Olvidaste tu contraseña?" en la pantalla de ingreso.',
@@ -122,7 +122,7 @@ export const resetEmail = ({ name, url, expiresInMs }) => {
     subject: `Restablecé tu contraseña de ${BRAND}`,
     html: layout({
       preheader: 'Elegí una contraseña nueva',
-      heading: `Hola, ${name}`,
+      heading: `Hola, ${name}:`,
       paragraphs: [
         'Recibimos un pedido para restablecer tu contraseña.',
         'Tocá el botón para elegir una nueva. Tu contraseña actual sigue siendo válida hasta que completes el cambio.',
@@ -132,7 +132,7 @@ export const resetEmail = ({ name, url, expiresInMs }) => {
       footer: `El link vale ${validity} y se puede usar una sola vez. Si no lo pediste vos, ignorá este mail: tu cuenta sigue segura.`,
     }),
     text: [
-      `Hola, ${name},`,
+      `Hola, ${name}:`,
       '',
       'Recibimos un pedido para restablecer tu contraseña de Talarix.',
       'Elegí una nueva desde este link:',

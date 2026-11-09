@@ -24,13 +24,13 @@ const text = (value, max) => {
 
 export const readRequest = (body) => {
   const kind = String(body.kind || '');
-  if (!KINDS[kind]) throw httpError('Tipo de solicitud inválido');
+  if (!KINDS[kind]) throw httpError('Tipo de solicitud inválido.');
   const name = text(body.name, 255);
-  if (!name) throw httpError('Escribí tu nombre');
+  if (!name) throw httpError('Escribí tu nombre.');
   const email = String(body.email ?? '')
     .trim()
     .toLowerCase();
-  if (!EMAIL_REGEX.test(email)) throw httpError('El email no es válido');
+  if (!EMAIL_REGEX.test(email)) throw httpError('El email no es válido.');
   return {
     kind,
     name,
@@ -103,13 +103,13 @@ export const listServiceRequests = async ({ status } = {}) => {
   const byId = new Map(businesses.map((b) => [b.id, b]));
   return rows.map((r) => ({
     ...r.get({ plain: true }),
-    business: r.businessId ? (byId.get(r.businessId)?.get({ plain: true }) ?? { name: 'Comercio borrado' }) : null,
+    business: r.businessId ? (byId.get(r.businessId)?.get({ plain: true }) ?? { name: 'Comercio borrado.' }) : null,
   }));
 };
 
 export const resolveServiceRequest = async (id, body, req) => {
   const request = await ServiceRequest.findByPk(id);
-  if (!request) throw httpError('Solicitud no encontrada', 404);
+  if (!request) throw httpError('Solicitud no encontrada.', 404);
   const status = body.status === undefined ? 'done' : String(body.status);
   if (!STATUSES.includes(status)) throw httpError('Estado inválido');
 

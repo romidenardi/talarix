@@ -24,7 +24,7 @@ const StockMovementPanel = ({ product, onStockChange }) => {
       const { data } = await getMovementsByProduct(product.id);
       setMovements(data);
     } catch (err) {
-      msg.error('No se pudo cargar el historial', 'history');
+      msg.error('No se pudo cargar el historial.', 'history');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ const StockMovementPanel = ({ product, onStockChange }) => {
       msg.success('Movimiento registrado');
       onStockChange();
     } catch (err) {
-      msg.error(serverMessage(err, 'Error al registrar el movimiento'));
+      msg.error(serverMessage(err, 'Error al registrar el movimiento.'));
     }
   };
 

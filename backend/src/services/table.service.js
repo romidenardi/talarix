@@ -75,12 +75,12 @@ export const sortTabItems = (items) => {
 
 const lockTab = async (tabId, businessId, transaction) => {
   const tab = await TableTab.findOne({ where: { id: tabId, businessId }, transaction, lock: transaction.LOCK.UPDATE });
-  if (!tab) throw httpError('Mesa no encontrada', 404);
+  if (!tab) throw httpError('Mesa no encontrada.', 404);
   return tab;
 };
 
 const assertOpen = (tab) => {
-  if (!OPEN_STATUSES.includes(tab.status)) throw httpError('Esta mesa ya se cerró', 409);
+  if (!OPEN_STATUSES.includes(tab.status)) throw httpError('Esta mesa ya se cerró.', 409);
 };
 
 const tableName = async (tab, transaction) =>
@@ -162,7 +162,7 @@ export const openTab = async ({ tableId, guests, user }) => {
   if (guests !== undefined && guests !== null && guests !== '') {
     people = Number(guests);
     if (!Number.isInteger(people) || people < 1 || people > 99) {
-      throw httpError('La cantidad de personas debe ser un número entre 1 y 99');
+      throw httpError('La cantidad de personas debe ser un número entre 1 y 99.');
     }
   }
   return sequelize.transaction(async (t) => {
@@ -217,13 +217,13 @@ const nextTicketNumber = async (businessId, transaction) => {
 };
 
 const readTicketItems = (items) => {
-  if (!Array.isArray(items) || !items.length) throw httpError('La comanda tiene que tener al menos un plato');
-  if (items.length > MAX_ITEMS) throw httpError(`Una comanda puede tener hasta ${MAX_ITEMS} platos`);
+  if (!Array.isArray(items) || !items.length) throw httpError('La comanda tiene que tener al menos un plato.');
+  if (items.length > MAX_ITEMS) throw httpError(`Una comanda puede tener hasta ${MAX_ITEMS} platos.`);
   return items.map((item, index) => {
     const n = index + 1;
     if (!item || typeof item.productId !== 'string' || !item.productId)
       throw httpError(`Plato ${n}: falta el producto`);
-    if (!isPositiveQuantity(item.quantity)) throw httpError(`Plato ${n}: la cantidad debe ser mayor a 0`);
+    if (!isPositiveQuantity(item.quantity)) throw httpError(`Plato ${n}: la cantidad debe ser mayor a 0.`);
     if (item.extraIds !== undefined && !Array.isArray(item.extraIds)) {
       throw httpError(`Plato ${n}: los adicionales no son válidos`);
     }
@@ -266,20 +266,20 @@ export const sendTicket = async ({ tabId, items, requestId: rawRequestId, user }
     for (const [index, line] of lines.entries()) {
       const n = index + 1;
       const product = byId.get(line.productId);
-      if (!product) throw httpError(`Plato ${n}: no se encontró`, 404);
+      if (!product) throw httpError(`Plato ${n}: no se encontró.`, 404);
       if (product.menuKind !== 'dish') {
         throw httpError(`Plato ${n}: ${product.name} no es un plato del menú. Cargalo en Mesas → Menú.`);
       }
-      if (!product.active) throw httpError(`Plato ${n}: ${product.name} no está disponible`);
+      if (!product.active) throw httpError(`Plato ${n}: ${product.name} no está disponible.`);
       if (!quantityAllowedFor(product, line.quantity)) {
-        throw httpError(`Plato ${n}: ${product.name} se pide por unidad, la cantidad debe ser un entero`);
+        throw httpError(`Plato ${n}: ${product.name} se pide por unidad, la cantidad debe ser un entero.`);
       }
       for (const extraId of line.extraIds) {
         const extra = byId.get(extraId);
         if (!extra || extra.menuKind !== 'extra' || !allowed.has(`${product.id}:${extraId}`)) {
-          throw httpError(`Plato ${n}: ese adicional no corresponde a ${product.name}`);
+          throw httpError(`Plato ${n}: ese adicional no corresponde a ${product.name}.`);
         }
-        if (!extra.active) throw httpError(`Plato ${n}: el adicional ${extra.name} no está disponible`);
+        if (!extra.active) throw httpError(`Plato ${n}: el adicional ${extra.name} no está disponible.`);
       }
     }
 
@@ -397,8 +397,8 @@ export const cancelItem = async ({ tabId, itemId, reason, user }) => {
     const tab = await lockTab(tabId, businessId, t);
     assertOpen(tab);
     const item = await TabItem.findOne({ where: { id: itemId, tabId: tab.id, businessId }, transaction: t });
-    if (!item) throw httpError('Plato no encontrado', 404);
-    if (item.status !== 'active') throw httpError('Ese plato ya estaba anulado', 409);
+    if (!item) throw httpError('Plato no encontrado.', 404);
+    if (item.status !== 'active') throw httpError('Ese plato ya estaba anulado.', 409);
     // Anular un plato anula también sus adicionales
     const extras = await TabItem.findAll({
       where: { tabId: tab.id, businessId, parentItemId: item.id, status: 'active' },
@@ -498,21 +498,21 @@ const defaultCustomer = async (businessId, transaction) => {
 };
 
 const readParts = (parts, total) => {
-  if (!Array.isArray(parts) || !parts.length) throw httpError('Indicá cómo se paga');
-  if (parts.length > MAX_PARTS) throw httpError(`La cuenta se puede dividir en hasta ${MAX_PARTS} partes`);
+  if (!Array.isArray(parts) || !parts.length) throw httpError('Indicá cómo se paga.');
+  if (parts.length > MAX_PARTS) throw httpError(`La cuenta se puede dividir en hasta ${MAX_PARTS} partes.`);
   const rows = parts.map((part, index) => {
     const n = index + 1;
     if (!part || typeof part.paymentId !== 'string' || !part.paymentId) {
-      throw httpError(`Parte ${n}: falta la forma de pago`);
+      throw httpError(`Parte ${n}: falta la forma de pago.`);
     }
-    if (!isNonNegative(part.amount)) throw httpError(`Parte ${n}: el importe no es válido`);
+    if (!isNonNegative(part.amount)) throw httpError(`Parte ${n}: el importe no es válido.`);
     const tip = part.tip === undefined || part.tip === null || part.tip === '' ? 0 : part.tip;
-    if (!isNonNegative(tip)) throw httpError(`Parte ${n}: la propina no es válida`);
+    if (!isNonNegative(tip)) throw httpError(`Parte ${n}: la propina no es válida.`);
     return { paymentId: part.paymentId, amount: round2(toNumber(part.amount)), tip: round2(toNumber(tip)) };
   });
   const sum = round2(rows.reduce((s, r) => s + r.amount, 0));
   if (Math.abs(sum - total) > 0.001) {
-    throw httpError(`Las partes suman $${sum.toFixed(2)} y la cuenta es de $${total.toFixed(2)}`);
+    throw httpError(`Las partes suman $${sum.toFixed(2)} y la cuenta es de $${total.toFixed(2)}.`);
   }
   return rows;
 };
@@ -543,7 +543,7 @@ export const closeTab = async ({ tabId, body, user }) => {
     const paymentById = new Map(payments.map((p) => [p.id, p]));
     for (const part of parts) {
       const payment = paymentById.get(part.paymentId);
-      if (!payment) throw httpError('Forma de pago no encontrada', 404);
+      if (!payment) throw httpError('Forma de pago no encontrada.', 404);
       if (!payment.active) throw httpError(`La forma de pago ${payment.name} está inactiva. Elegí otra.`);
     }
 

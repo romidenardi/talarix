@@ -12,7 +12,7 @@ const exportLimiter = rateLimit({
   keyGenerator: (req) => req.user.id,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { message: 'Hiciste varias exportaciones seguidas. Probá de nuevo en un rato.' },
+  message: { message: 'Hiciste varias exportaciones seguidas. Probá de nuevo en unos minutos.' },
 });
 
 router.use(requireRole('admin'));

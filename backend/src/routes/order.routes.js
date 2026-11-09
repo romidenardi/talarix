@@ -9,9 +9,9 @@ import { requireRole } from '../middlewares/role.middleware.js';
 const router = Router();
 
 const createRules = [
-  body('customerId').notEmpty().withMessage('El cliente es obligatorio'),
-  body('paymentId').notEmpty().withMessage('La forma de pago es obligatoria'),
-  body('items').isArray({ min: 1 }).withMessage('Debés incluir al menos un artículo'),
+  body('customerId').notEmpty().withMessage('El cliente es obligatorio.'),
+  body('paymentId').notEmpty().withMessage('La forma de pago es obligatoria.'),
+  body('items').isArray({ min: 1 }).withMessage('Debés incluir al menos un artículo.'),
 ];
 
 // Autorización de descuentos: 5 intentos fallidos cada 15 minutos por operador, para que no se

@@ -18,7 +18,7 @@ export const login = asyncHandler(async (req, res) => {
     .toLowerCase();
   const password = String(req.body.password || '');
 
-  if (!email || !password) throw httpError('Email y contraseña son obligatorios');
+  if (!email || !password) throw httpError('Email y contraseña son obligatorios.');
 
   const user = await User.findOne({
     where: { email },
@@ -79,7 +79,7 @@ export const activateAccount = asyncHandler(async (req, res) => {
   checkPassword(password);
 
   if (req.body.acceptTerms !== true) {
-    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar');
+    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar.');
   }
   if (req.body.legalVersion !== LEGAL_VERSION) {
     throw httpError('Los términos se actualizaron. Recargá la página e intentá de nuevo.');
@@ -112,7 +112,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     .trim()
     .toLowerCase();
   const generic = {
-    message: 'Si el email corresponde a una cuenta activa, te enviamos un link para continuar.',
+    message: 'Si el email corresponde a una cuenta activa, te enviaremos un link para continuar.',
   };
 
   if (!EMAIL_REGEX.test(email)) return res.json(generic);
@@ -176,7 +176,7 @@ export const getTermsStatus = (req, res) => {
 
 export const acceptTerms = asyncHandler(async (req, res) => {
   if (req.body.acceptTerms !== true) {
-    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar');
+    throw httpError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad para continuar.');
   }
   if (req.body.legalVersion !== LEGAL_VERSION) {
     throw httpError('Los términos se actualizaron. Recargá la página e intentá de nuevo.');

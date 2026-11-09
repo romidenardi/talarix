@@ -50,7 +50,7 @@ export const parseSpreadsheet = (file) => {
   }
 
   const firstSheetName = workbook.SheetNames?.[0];
-  if (!firstSheetName) throw httpError('El archivo no tiene hojas con datos');
+  if (!firstSheetName) throw httpError('El archivo no tiene hojas con datos.');
 
   const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: '' });
   if (rows.length > MAX_IMPORT_ROWS) {

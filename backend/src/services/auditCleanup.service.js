@@ -19,7 +19,7 @@ export const auditCutoff = (now = new Date()) => {
 // Borra los registros más viejos que el plazo. Devuelve cuántos borró.
 export const runAuditCleanup = async (now = new Date()) => {
   const removed = await AuditLog.destroy({ where: { createdAt: { [Op.lt]: auditCutoff(now) } } });
-  if (removed) console.log(`[actividad] Se borraron ${removed} registros de más de ${AUDIT_RETENTION_MONTHS} meses`);
+  if (removed) console.log(`[actividad] Se borraron ${removed} registros de más de ${AUDIT_RETENTION_MONTHS} meses.`);
   return removed;
 };
 
@@ -33,13 +33,13 @@ export const startAuditCleanupScheduler = () => {
   const task = cron.schedule(
     '15 4 * * *',
     () => {
-      runAuditCleanup().catch(onFailure('Error en la tarea diaria'));
+      runAuditCleanup().catch(onFailure('Error en la tarea diaria.'));
     },
     { timezone: TIMEZONE },
   );
 
   const firstRun = setTimeout(() => {
-    runAuditCleanup().catch(onFailure('Error al iniciar'));
+    runAuditCleanup().catch(onFailure('Error al iniciar.'));
   }, 50 * 1000);
   firstRun.unref();
 

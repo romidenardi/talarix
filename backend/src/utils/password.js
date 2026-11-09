@@ -15,10 +15,10 @@ export const BCRYPT_ROUNDS = 12;
 export const checkPassword = (password, context = {}) => {
   const value = String(password ?? '');
   if (value.length < MIN_PASSWORD_LENGTH) {
-    throw httpError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`);
+    throw httpError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
   }
   if (Buffer.byteLength(value, 'utf8') > MAX_PASSWORD_BYTES) {
-    throw httpError('La contraseña es demasiado larga (máximo 72 caracteres, menos si usa tildes o emojis)');
+    throw httpError('La contraseña es demasiado larga (máximo 72 caracteres, menos si usa tildes o emojis).');
   }
   const weak = weakPasswordReason(value, context);
   if (weak) throw httpError(weak);

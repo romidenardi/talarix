@@ -13,7 +13,7 @@ const normalizePlans = (plans) => {
   for (const plan of plans) {
     if (!plan || !plan.installments) continue;
     if (!isPositiveInt(plan.installments)) {
-      throw httpError('La cantidad de cuotas debe ser un entero mayor a 0');
+      throw httpError('La cantidad de cuotas debe ser un entero mayor a 0.');
     }
     const installments = toNumber(plan.installments);
     const interestRate = toNumberOrZero(plan.interestRate);

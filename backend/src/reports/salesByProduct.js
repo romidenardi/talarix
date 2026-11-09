@@ -23,7 +23,7 @@ export const salesByProduct = asyncHandler(async (req, res) => {
       return {
         productId,
         code: product?.internalCode || '',
-        name: product?.name || 'Producto eliminado',
+        name: product?.name || 'Producto eliminado.',
         category: (product?.categoryId && categoryName.get(product.categoryId)) || 'Sin categoría',
         units,
         amount: round2(amount),

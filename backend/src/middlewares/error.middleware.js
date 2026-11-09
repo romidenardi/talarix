@@ -29,9 +29,9 @@ const fieldLabel = (path) => FIELD_LABELS[path] || path;
 const duplicateMessage = (err) => {
   const detail = `${err.original?.sqlMessage || ''} ${err.parent?.sqlMessage || ''} ${err.errors?.[0]?.path || ''}`;
   if (detail.includes('barcode')) {
-    return 'Ese código de barras ya está asignado a otro producto';
+    return 'Ese código de barras ya está asignado a otro producto.';
   }
-  return 'Ya existe un registro con esos datos';
+  return 'Ya existe un registro con esos datos.';
 };
 
 // Errores de la base que son culpa del dato enviado, no del servidor (códigos de MySQL)
@@ -106,13 +106,13 @@ export const errorMiddleware = (err, req, res, next) => {
       LIMIT_FILE_COUNT: 'Subí un solo archivo por vez.',
       LIMIT_UNEXPECTED_FILE: 'Subí un solo archivo por vez.',
     };
-    return res.status(400).json({ message: messages[err.code] || 'No se pudo recibir el archivo' });
+    return res.status(400).json({ message: messages[err.code] || 'No se pudo recibir el archivo.' });
   }
 
   const status = err.status || 500;
   const isInternal = status >= 500 && process.env.NODE_ENV === 'production';
   res.status(status).json({
-    message: isInternal ? 'Error interno del servidor' : err.message || 'Error interno del servidor',
+    message: isInternal ? 'Error interno del servidor' : err.message || 'Error interno del servidor.',
     ...(err.clientCode && !isInternal ? { code: err.clientCode } : {}),
   });
 };

@@ -63,7 +63,7 @@ export const dashboard = asyncHandler(async (req, res) => {
     previous: { total: round2(previous.total), orders: previous.orders },
     topProducts: top.map(({ productId, units, amount }) => ({
       productId,
-      name: topProducts.get(productId)?.name || 'Producto eliminado',
+      name: topProducts.get(productId)?.name || 'Producto eliminado.',
       units,
       amount: round2(amount),
     })),

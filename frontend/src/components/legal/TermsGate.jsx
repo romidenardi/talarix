@@ -24,7 +24,7 @@ export default function TermsGate({ children, skip = false }) {
   const handleAccept = async (e) => {
     e.preventDefault();
     setError('');
-    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad');
+    if (!accepted) return setError('Tenés que aceptar los Términos y Condiciones y la Política de Privacidad.');
     setSending(true);
     try {
       await acceptTerms(LEGAL_VERSION);

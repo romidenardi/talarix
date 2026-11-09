@@ -27,18 +27,18 @@ const buildAuthMiddleware =
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Token no proporcionado' });
+      return res.status(401).json({ message: 'Token no proporcionado.' });
     }
 
     let decoded;
     try {
       decoded = jwt.verify(authHeader.split(' ')[1], process.env.JWT_SECRET, { algorithms: ['HS256'] });
     } catch {
-      return res.status(401).json({ message: 'Token inválido o expirado' });
+      return res.status(401).json({ message: 'Token inválido o expirado.' });
     }
 
     if (!decoded.id || !decoded.businessId) {
-      return res.status(401).json({ message: 'Token inválido' });
+      return res.status(401).json({ message: 'Token inválido.' });
     }
 
     try {
@@ -54,7 +54,7 @@ const buildAuthMiddleware =
       });
 
       if (!user) {
-        return res.status(401).json({ message: 'Sesión inválida' });
+        return res.status(401).json({ message: 'Sesión inválida.' });
       }
 
       // La contraseña cambió después de emitir este token: hay que volver a ingresar
@@ -69,11 +69,11 @@ const buildAuthMiddleware =
           return res.status(403).json({ message: CLOSING_MESSAGE, code: 'ACCOUNT_CLOSING' });
         }
       } else if (status !== 'active') {
-        return res.status(401).json({ message: 'Sesión inválida' });
+        return res.status(401).json({ message: 'Sesión inválida.' });
       }
 
       if (user.role === 'mozo' && !mozoCanUse(req.method, req.originalUrl)) {
-        return res.status(403).json({ message: 'No tenés permisos para realizar esta acción' });
+        return res.status(403).json({ message: 'No tenés permisos para realizar esta acción.' });
       }
 
       req.user = {

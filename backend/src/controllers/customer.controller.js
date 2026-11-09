@@ -26,7 +26,7 @@ const cleanFiscalCondition = (data) => {
   if (!('fiscalCondition' in data)) return data;
   const value = normalizeFiscalCondition(data.fiscalCondition);
   if (!value)
-    throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`);
+    throw httpError(`La condición fiscal tiene que ser ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}.`);
   data.fiscalCondition = value;
   return data;
 };
@@ -49,7 +49,7 @@ const displayName = (c) => c.businessName || [c.firstName, c.lastName].filter(Bo
 
 const findOwnCustomer = async (id, businessId) => {
   const customer = await Customer.findOne({ where: { id, businessId } });
-  if (!customer) throw httpError('Cliente no encontrado', 404);
+  if (!customer) throw httpError('Cliente no encontrado.', 404);
   return customer;
 };
 
@@ -84,7 +84,7 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
   if (orders > 0) {
     throw httpError(
       `${displayName(customer)} tiene ${orders} ${orders === 1 ? 'remito' : 'remitos'} y no se puede eliminar, ` +
-        'porque se perdería el historial de ventas. Si te pidió que borres sus datos, un administrador puede usar "Anonimizar".',
+        'porque se perdería el historial de ventas. Si te pidió que borres sus datos, un administrador puede usar "Anonimizar.".',
       409,
     );
   }

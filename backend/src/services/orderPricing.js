@@ -50,7 +50,7 @@ export const priceOrder = ({
   const amount = Number(discountAmount) || 0;
   const totalDiscount = round2(grossTotal * (percent / 100) + amount);
   if (totalDiscount > grossTotal + 0.005) {
-    throw httpError('El descuento no puede ser mayor al total del remito');
+    throw httpError('El descuento no puede ser mayor al total del remito.');
   }
 
   const total = round2(grossTotal - totalDiscount);

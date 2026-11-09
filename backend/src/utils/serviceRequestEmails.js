@@ -29,7 +29,7 @@ export const requestReceivedEmail = ({ kind, code, name }) => {
           `Si no hiciste este pedido, escribinos a ${supportEmail()}.`,
         ]
       : [
-          `Hola, ${name}.`,
+          `Hola, ${name}:`,
           'Recibimos la solicitud de baja de tu cuenta de Talarix.',
           `El código de la solicitud es ${code}.`,
           'La baja no tiene costo. Te vamos a escribir para confirmarla. Desde ese momento, el administrador ' +

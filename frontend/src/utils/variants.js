@@ -30,18 +30,18 @@ export const combinations = (valuesByAttribute) =>
 // Revisa los atributos que se cargan al crear el producto. Devuelve { error } o { attributes, items }.
 export const buildVariants = (rows) => {
   const filled = rows.filter((r) => r.name.trim() || r.values.trim());
-  if (!filled.length) return { error: 'Cargá al menos un atributo, por ejemplo Talle con S, M, L' };
+  if (!filled.length) return { error: 'Cargá al menos un atributo (por ejemplo, Talle con S, M y L).' };
   const names = filled.map((r) => r.name.trim());
-  if (names.some((n) => !n)) return { error: 'Falta el nombre de un atributo (por ejemplo Talle o Color)' };
+  if (names.some((n) => !n)) return { error: 'Falta el nombre de un atributo (por ejemplo, Talle o Color).' };
   if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) {
-    return { error: 'Hay dos atributos con el mismo nombre' };
+    return { error: 'Hay dos atributos con el mismo nombre.' };
   }
   const values = filled.map((r) => parseValues(r.values));
   const empty = values.findIndex((v) => !v.length);
-  if (empty >= 0) return { error: `Escribí los valores de ${names[empty]}, separados por coma` };
+  if (empty >= 0) return { error: `Escribí los valores de ${names[empty]}, separados por coma.` };
   const items = combinations(values);
   if (items.length > MAX_VARIANTS) {
-    return { error: `Son ${items.length} combinaciones: el máximo es ${MAX_VARIANTS}` };
+    return { error: `Son ${items.length} combinaciones: el máximo es ${MAX_VARIANTS}.` };
   }
   return { attributes: names, items: items.map((v) => ({ values: v })) };
 };

@@ -7,8 +7,8 @@ import { requireRole } from '../middlewares/role.middleware.js';
 const router = Router();
 
 const createRules = [
-  body('supplierId').notEmpty().withMessage('El proveedor es obligatorio'),
-  body('items').isArray({ min: 1 }).withMessage('Debe incluir al menos un artículo'),
+  body('supplierId').notEmpty().withMessage('El proveedor es obligatorio.'),
+  body('items').isArray({ min: 1 }).withMessage('Debe incluir al menos un artículo.'),
 ];
 
 router.get('/', getPurchases);

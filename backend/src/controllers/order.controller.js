@@ -45,7 +45,7 @@ export const getOrder = asyncHandler(async (req, res) => {
     where: { id: req.params.id, businessId: req.user.businessId },
     include: orderIncludes,
   });
-  if (!order) throw httpError('Remito no encontrado', 404);
+  if (!order) throw httpError('Remito no encontrado.', 404);
   res.json(order);
 });
 

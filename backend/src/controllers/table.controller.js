@@ -41,7 +41,7 @@ const readTable = (body, partial = false) => {
   const data = {};
   if (!partial || body.name !== undefined) {
     const name = String(body.name ?? '').trim();
-    if (!name || name.length > 30) throw httpError('La mesa necesita un nombre o número de hasta 30 caracteres');
+    if (!name || name.length > 30) throw httpError('La mesa necesita un nombre o número de hasta 30 caracteres.');
     data.name = name;
   }
   if (body.area !== undefined)
@@ -51,7 +51,7 @@ const readTable = (body, partial = false) => {
         .slice(0, 50) || null;
   if (body.sortOrder !== undefined) {
     const order = Number(body.sortOrder);
-    if (!Number.isInteger(order) || order < 0 || order > 9999) throw httpError('El orden debe ser un número entero');
+    if (!Number.isInteger(order) || order < 0 || order > 9999) throw httpError('El orden debe ser un número entero.');
     data.sortOrder = order;
   }
   if (body.active !== undefined) data.active = Boolean(body.active);
@@ -59,13 +59,13 @@ const readTable = (body, partial = false) => {
 };
 
 const rethrowDuplicateName = (err) => {
-  if (err?.name === 'SequelizeUniqueConstraintError') throw httpError('Ya hay una mesa con ese nombre', 409);
+  if (err?.name === 'SequelizeUniqueConstraintError') throw httpError('Ya hay una mesa con ese nombre.', 409);
   throw err;
 };
 
 const findOwnTable = async (id, businessId) => {
   const table = await DiningTable.findOne({ where: { id, businessId } });
-  if (!table) throw httpError('Mesa no encontrada', 404);
+  if (!table) throw httpError('Mesa no encontrada.', 404);
   return table;
 };
 
@@ -88,7 +88,7 @@ export const updateTable = asyncHandler(async (req, res) => {
   const table = await findOwnTable(req.params.id, req.user.businessId);
   const data = readTable(req.body, true);
   if (data.active === false && (await hasOpenTab(table))) {
-    throw httpError('La mesa está abierta: cobrala o anulala antes de desactivarla', 409);
+    throw httpError('La mesa está abierta: cobrala o anulala antes de desactivarla.', 409);
   }
   try {
     await table.update(data);
@@ -211,7 +211,7 @@ export const getTips = asyncHandler(async (req, res) => {
 // ---- Menú: platos y adicionales (alta y cambios: administrador y editor) ----
 
 const rethrowMenu = (err) => {
-  if (err?.name === 'SequelizeUniqueConstraintError') throw httpError('Ese adicional ya está asignado al plato', 409);
+  if (err?.name === 'SequelizeUniqueConstraintError') throw httpError('Ese adicional ya está asignado al plato.', 409);
   throw err;
 };
 

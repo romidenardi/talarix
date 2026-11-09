@@ -11,10 +11,10 @@ export const MAX_PASSWORD_BYTES = 72;
 export const passwordProblem = (password, context = {}) => {
   const value = String(password ?? '');
   if (value.length < MIN_PASSWORD_LENGTH) {
-    return `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`;
+    return `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`;
   }
   if (new TextEncoder().encode(value).length > MAX_PASSWORD_BYTES) {
-    return 'La contraseña es demasiado larga (máximo 72 caracteres, menos si usa tildes o emojis)';
+    return 'La contraseña es demasiado larga (máximo 72 caracteres, menos si usa tildes o emojis).';
   }
   return weakPasswordReason(value, context);
 };

@@ -60,18 +60,18 @@ export const createPurchase = asyncHandler(async (req, res) => {
   }
 
   if (!Array.isArray(items) || items.length === 0) {
-    throw httpError('La compra debe tener al menos un artículo');
+    throw httpError('La compra debe tener al menos un artículo.');
   }
 
   const rows = items.map((item, index) => {
     const n = index + 1;
     if (!item || typeof item.productId !== 'string' || !item.productId)
-      throw httpError(`Artículo ${n}: falta el producto`);
+      throw httpError(`Artículo ${n}: falta el producto.`);
     if (!isPositiveQuantity(item.quantity)) {
-      throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales`);
+      throw httpError(`Artículo ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales.`);
     }
     if (!isNonNegative(item.unitCost) || toNumber(item.unitCost) > MAX_COST) {
-      throw httpError(`Artículo ${n}: el costo no es válido`);
+      throw httpError(`Artículo ${n}: el costo no es válido.`);
     }
     return {
       productId: item.productId,
@@ -84,10 +84,10 @@ export const createPurchase = asyncHandler(async (req, res) => {
   let purchaseDate = new Date();
   if (date) {
     purchaseDate = new Date(date);
-    if (Number.isNaN(purchaseDate.getTime())) throw httpError('La fecha no es válida');
-    if (purchaseDate.getTime() > Date.now() + DAY_MS) throw httpError('La fecha de la compra no puede ser futura');
+    if (Number.isNaN(purchaseDate.getTime())) throw httpError('La fecha no es válida.');
+    if (purchaseDate.getTime() > Date.now() + DAY_MS) throw httpError('La fecha de la compra no puede ser futura.');
     if (purchaseDate.getTime() < Date.now() - MAX_AGE_DAYS * DAY_MS) {
-      throw httpError('La fecha de la compra es de hace más de un año: revisala');
+      throw httpError('La fecha de la compra es de hace más de un año: revisala.');
     }
   }
 
@@ -129,7 +129,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
       let entry = byProduct.get(row.productId);
       if (!entry) {
         const product = locked.get(row.productId);
-        if (!product) throw httpError(`Producto no encontrado: ${row.productId}`, 404);
+        if (!product) throw httpError(`Producto no encontrado: ${row.productId}.`, 404);
         if (product.isCombo) {
           throw httpError(
             `Artículo ${index + 1}: ${product.name} es un combo. Cargá la compra de los productos que lo forman.`,
@@ -139,14 +139,14 @@ export const createPurchase = asyncHandler(async (req, res) => {
           throw httpError(`Artículo ${index + 1}: ${product.name} es del menú y no lleva stock: no se compra.`);
         }
         if (isVariantGroup(product)) {
-          throw httpError(`Artículo ${index + 1}: ${product.name} tiene variantes. Elegí cuál (talle, color…).`);
+          throw httpError(`Artículo ${index + 1}: ${product.name} tiene variantes. Elegí cuál.`);
         }
         entry = { product, quantity: 0, amount: 0 };
         byProduct.set(row.productId, entry);
       }
       if (!quantityAllowedFor(entry.product, row.quantity)) {
         throw httpError(
-          `Artículo ${index + 1}: ${entry.product.name} se maneja por unidad, la cantidad debe ser un entero`,
+          `Artículo ${index + 1}: ${entry.product.name} se maneja por unidad, la cantidad debe ser un entero.`,
         );
       }
       entry.quantity = round3(entry.quantity + row.quantity);
@@ -234,7 +234,7 @@ export const cancelPurchase = asyncHandler(async (req, res) => {
       lock: t.LOCK.UPDATE,
     });
     if (!purchase) throw httpError('Compra no encontrada', 404);
-    if (purchase.status === 'cancelled') throw httpError('La compra ya está anulada', 409);
+    if (purchase.status === 'cancelled') throw httpError('La compra ya está anulada.', 409);
 
     const items = await PurchaseItem.findAll({ where: { purchaseId: purchase.id }, transaction: t });
     const quantityByProduct = new Map();
@@ -254,7 +254,7 @@ export const cancelPurchase = asyncHandler(async (req, res) => {
     const locked = await lockProducts([...quantityByProduct.keys()], businessId, t);
     for (const [productId, quantity] of quantityByProduct) {
       const product = locked.get(productId);
-      if (!product) throw httpError('Un producto de la compra ya no existe: no se puede anular', 409);
+      if (!product) throw httpError('Un producto de la compra ya no existe: no se puede anular.', 409);
       if (Number(product.stock) < quantity) {
         throw httpError(
           `No se puede anular: de ${product.name} quedan ${Number(product.stock)} y la compra había sumado ${quantity}. ` +

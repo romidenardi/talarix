@@ -14,7 +14,7 @@ const DialogContext = createContext(null);
 
 export const useDialog = () => {
   const context = useContext(DialogContext);
-  if (!context) throw new Error('useDialog tiene que usarse dentro de <DialogProvider>');
+  if (!context) throw new Error('useDialog tiene que usarse dentro de <DialogProvider>.');
   return context;
 };
 

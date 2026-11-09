@@ -42,11 +42,11 @@ const destroyByIds = async (Model, field, ids, transaction) => {
 
 export const purgeBusiness = async (businessId) => {
   const business = await Business.findByPk(businessId);
-  if (!business) throw new Error('Comercio no encontrado');
-  if (business.type === 'demo') throw new Error('La cuenta demo no puede eliminar');
-  if (business.status !== 'closing') throw new Error('El comercio no tiene una baja pendiente');
+  if (!business) throw new Error('Comercio no encontrado.');
+  if (business.type === 'demo') throw new Error('La cuenta demo no puede eliminar.');
+  if (business.status !== 'closing') throw new Error('El comercio no tiene una baja pendiente.');
   if (!business.deleteAt || business.deleteAt > new Date()) {
-    throw new Error('Todavía no venció el plazo de la baja');
+    throw new Error('Todavía no venció el plazo de la baja.');
   }
 
   const transaction = await sequelize.transaction();

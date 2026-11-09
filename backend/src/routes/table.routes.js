@@ -35,7 +35,7 @@ router.get('/settings', getSettings);
 
 // El resto, solo con las mesas activadas
 router.use((req, res, next) => {
-  if (!req.user.tablesEnabled) return next(httpError('Las mesas no están activadas para este comercio', 403));
+  if (!req.user.tablesEnabled) return next(httpError('Las mesas no están activadas para este comercio.', 403));
   next();
 });
 

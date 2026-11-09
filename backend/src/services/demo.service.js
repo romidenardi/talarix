@@ -446,9 +446,9 @@ export const resetDemoBusiness = async (businessId) => {
   if (!business) throw httpError('Comercio no encontrado', 404);
   // Protección: jamás se borran datos de un comercio que no sea demo
   if (business.type !== 'demo') {
-    throw httpError('Solo se puede reiniciar un comercio de tipo demo', 400);
+    throw httpError('Solo se puede reiniciar un comercio de tipo demo.', 400);
   }
-  if (resetting.has(businessId)) throw httpError('La demo ya se está reiniciando', 409);
+  if (resetting.has(businessId)) throw httpError('La demo ya se está reiniciando.', 409);
 
   resetting.add(businessId);
   const t = await sequelize.transaction();
@@ -469,7 +469,7 @@ export const resetAllDemoBusinesses = async () => {
   for (const demo of demos) {
     try {
       await resetDemoBusiness(demo.id);
-      console.log(`[demo] Reiniciada: ${demo.name}`);
+      console.log(`[demo] Reiniciada: ${demo.name}.`);
     } catch (error) {
       console.error(`[demo] Error al reiniciar ${demo.name}:`, error.message);
     }

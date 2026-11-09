@@ -42,7 +42,7 @@ export const runImport = async ({ rows, mapRow, validate, textFields = [], keys 
 
     const tooLong = textFields.find(([field]) => String(data[field] ?? '').length > MAX_TEXT);
     if (tooLong) {
-      result.errors.push({ row, message: `${tooLong[1]} es demasiado largo (máximo ${MAX_TEXT} caracteres)` });
+      result.errors.push({ row, message: `${tooLong[1]} es demasiado largo (máximo ${MAX_TEXT} caracteres).` });
       return;
     }
 

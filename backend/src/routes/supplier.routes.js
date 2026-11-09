@@ -6,12 +6,12 @@ import { requireRole } from '../middlewares/role.middleware.js';
 
 const router = Router();
 
-const createRules = [body('name').notEmpty().withMessage('El nombre es obligatorio')];
+const createRules = [body('name').notEmpty().withMessage('El nombre es obligatorio.')];
 
 const updateRules = [
-  body('name').optional().trim().notEmpty().withMessage('El nombre no puede quedar vacío'),
-  body('email').optional({ values: 'falsy' }).isEmail().withMessage('El email no es válido'),
-  body('active').optional().isBoolean().withMessage('El estado no es válido'),
+  body('name').optional().trim().notEmpty().withMessage('El nombre no puede quedar vacío.'),
+  body('email').optional({ values: 'falsy' }).isEmail().withMessage('El email no es válido.'),
+  body('active').optional().isBoolean().withMessage('El estado no es válido.'),
 ];
 
 router.get('/', getSuppliers);

@@ -251,10 +251,10 @@ export const importCustomers = asyncHandler(async (req, res) => {
       ['email', 'El email'],
     ],
     validate: (d) => {
-      if (!d.businessName && !d.firstName) return 'Falta la razón social o el nombre';
-      if (!d.fiscalRaw) return 'Falta la condición fiscal';
+      if (!d.businessName && !d.firstName) return 'Falta la razón social o el nombre.';
+      if (!d.fiscalRaw) return 'Falta la condición fiscal.';
       if (!d.fiscalCondition) {
-        return `Condición fiscal desconocida ("${d.fiscalRaw}"): usá ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1')}`;
+        return `Condición fiscal desconocida ("${d.fiscalRaw}"): usá ${FISCAL_CONDITIONS.join(', ').replace(/, ([^,]*)$/, ' o $1.')}`;
       }
       return taxIdProblem(d) || emailProblem(d.email);
     },
@@ -330,8 +330,8 @@ export const importSuppliers = asyncHandler(async (req, res) => {
         existing,
         onExisting: 'skip',
         inFile: 'skip',
-        existsMessage: (d, name) => `Ya existe el proveedor "${name}": se dejó como estaba`,
-        repeatMessage: (d, first) => `Es el mismo proveedor de la fila ${first}: se importa una sola vez`,
+        existsMessage: (d, name) => `Ya existe el proveedor "${name}". No se modificó.`,
+        repeatMessage: (d, first) => `Es el mismo proveedor de la fila ${first}: se importa una sola vez.`,
       },
     ],
     create: async (items, transaction) => {

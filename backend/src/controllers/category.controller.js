@@ -5,23 +5,23 @@ import { pick } from '../utils/pick.js';
 
 const findOwnCategory = async (id, businessId) => {
   const category = await Category.findOne({ where: { id, businessId } });
-  if (!category) throw httpError('Categoría no encontrada', 404);
+  if (!category) throw httpError('Categoría no encontrada.', 404);
   return category;
 };
 
 // La categoría padre tiene que ser del mismo comercio y de primer nivel (hay solo dos niveles)
 const resolveParentId = async (parentId, businessId, selfId) => {
   if (!parentId) return null;
-  if (selfId && parentId === selfId) throw httpError('Una categoría no puede ser su propia categoría padre');
+  if (selfId && parentId === selfId) throw httpError('Una categoría no puede ser su propia categoría padre.');
 
   const parent = await Category.findOne({ where: { id: parentId, businessId } });
-  if (!parent) throw httpError('La categoría padre no existe', 404);
-  if (parent.parentId) throw httpError('La categoría padre tiene que ser de primer nivel');
+  if (!parent) throw httpError('La categoría padre no existe.', 404);
+  if (parent.parentId) throw httpError('La categoría padre tiene que ser de primer nivel.');
 
   if (selfId) {
     const children = await Category.count({ where: { parentId: selfId, businessId } });
     if (children > 0) {
-      throw httpError('Esta categoría tiene subcategorías: no puede pasar a ser subcategoría de otra');
+      throw httpError('Esta categoría tiene subcategorías: no puede ser subcategoría de otra.');
     }
   }
   return parent.id;

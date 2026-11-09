@@ -5,5 +5,5 @@ export const paymentParts = (order) => (Array.isArray(order?.payments) ? order.p
 export const paymentLabel = (order) => {
   const parts = paymentParts(order);
   if (!parts.length) return order?.Payment?.name || '—';
-  return [...new Set(parts.map((p) => p.Payment?.name || 'Sin forma de pago'))].join(' + ');
+  return [...new Set(parts.map((p) => p.Payment?.name || 'Sin forma de pago.'))].join(' + ');
 };

@@ -25,7 +25,7 @@ export const exportStatus = asyncHandler(async (req, res) => {
 
 export const exportBusinessData = asyncHandler(async (req, res) => {
   const release = exportGate.tryEnter(req.user.businessId);
-  if (!release) throw httpError('Ya hay una exportación en curso. Probá de nuevo en un minuto.', 429);
+  if (!release) throw httpError('Ya hay una exportación en curso. Probá de nuevo en unos minutos.', 429);
   let result;
   try {
     result = await buildBusinessExport(req.user.businessId);

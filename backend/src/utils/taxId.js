@@ -18,15 +18,15 @@ export const cuitCheckDigit = (first10) => {
 export const normalizeTaxId = (raw) => {
   const text = String(raw ?? '').trim();
   if (!text) return { value: null };
-  if (!/^[\d\s.\-/]+$/.test(text)) return { error: 'El CUIT solo puede tener números (y guiones)' };
+  if (!/^[\d\s.\-/]+$/.test(text)) return { error: 'El CUIT solo puede tener números (y guiones).' };
 
   const digits = text.replace(/\D/g, '');
   if (digits.length === 7 || digits.length === 8) return { value: digits };
-  if (digits.length !== 11) return { error: 'El CUIT tiene que tener 11 números (o el DNI, 7 u 8)' };
+  if (digits.length !== 11) return { error: 'El CUIT tiene que tener 11 números (o el DNI, 7 u 8).' };
 
   const check = cuitCheckDigit(digits.slice(0, 10));
   if (check === null || check !== Number(digits[10])) {
-    return { error: 'El CUIT no es válido: revisá los números (el último es el dígito verificador)' };
+    return { error: 'El CUIT no es válido: revisá los números (el último es el dígito verificador).' };
   }
   return { value: `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits[10]}` };
 };

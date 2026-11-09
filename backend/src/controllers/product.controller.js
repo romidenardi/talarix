@@ -50,7 +50,7 @@ const cleanScalePlu = (value) => {
   if (value === null || String(value).trim() === '') return null;
   const plu = Number(value);
   if (!Number.isInteger(plu) || plu < 1 || plu > 9999) {
-    throw httpError('El PLU de balanza debe ser un número entero entre 1 y 9999');
+    throw httpError('El PLU de balanza debe ser un número entero entre 1 y 9999.');
   }
   return plu;
 };
@@ -61,7 +61,7 @@ const assertScalePluFree = async (businessId, scalePlu, exceptId) => {
   if (exceptId) where.id = { [Op.ne]: exceptId };
   const existing = await Product.findOne({ where });
   if (existing) {
-    throw httpError(`El PLU de balanza ${scalePlu} ya está asignado a "${existing.name}"`, 409);
+    throw httpError(`El PLU de balanza ${scalePlu} ya está asignado a "${existing.name}".`, 409);
   }
 };
 
@@ -69,9 +69,9 @@ const rethrowDuplicate = (err) => {
   if (err?.name === 'SequelizeUniqueConstraintError') {
     const detail = `${err?.parent?.sqlMessage || err?.original?.sqlMessage || ''} ${Object.keys(err?.fields || {}).join(' ')}`;
     if (/scale_plu/i.test(detail)) {
-      throw httpError('Ese PLU de balanza ya está asignado a otro producto', 409);
+      throw httpError('Ese PLU de balanza ya está asignado a otro producto.', 409);
     }
-    throw httpError('Ese código de barras ya está asignado a otro producto', 409);
+    throw httpError('Ese código de barras ya está asignado a otro producto.', 409);
   }
   throw err;
 };
@@ -101,7 +101,7 @@ const PRODUCT_FIELDS = [
 const resolveCategoryId = async (categoryId, businessId) => {
   if (!categoryId) return null;
   const category = await Category.findOne({ where: { id: categoryId, businessId } });
-  if (!category) throw httpError('La categoría no existe', 404);
+  if (!category) throw httpError('La categoría no existe.', 404);
   return category.id;
 };
 
@@ -117,7 +117,7 @@ const normalizeTaxes = (data, currentVat) => {
     const rate = Number(data.vatRate);
     const unchanged = currentVat !== undefined && Number(currentVat) === rate;
     if (!Number.isFinite(rate) || (!ALLOWED_VAT_RATES.includes(rate) && !unchanged)) {
-      throw httpError('El IVA debe ser 21%, 10,5% o 0%');
+      throw httpError('El IVA debe ser 21%, 10,5% o 0%.');
     }
     data.vatRate = rate;
   }
@@ -128,7 +128,7 @@ const normalizeTaxes = (data, currentVat) => {
     } else {
       const internal = Number(data.otherTaxes);
       if (!Number.isFinite(internal) || internal < 0 || internal > 100) {
-        throw httpError('Los impuestos internos deben ser un porcentaje entre 0 y 100');
+        throw httpError('Los impuestos internos deben ser un porcentaje entre 0 y 100.');
       }
       data.otherTaxes = internal;
     }
@@ -138,7 +138,7 @@ const normalizeTaxes = (data, currentVat) => {
 
 const findOwnProduct = async (id, businessId) => {
   const product = await Product.findOne({ where: { id, businessId } });
-  if (!product) throw httpError('Producto no encontrado', 404);
+  if (!product) throw httpError('Producto no encontrado.', 404);
   return product;
 };
 
@@ -165,7 +165,7 @@ export const getProductByBarcode = asyncHandler(async (req, res) => {
 const createVariants = async ({ parent, items, existing = [], businessId, transaction }) => {
   if (!Array.isArray(items) || !items.length) throw httpError('Agregá al menos una variante');
   if (existing.length + items.length > MAX_VARIANTS) {
-    throw httpError(`Un producto puede tener hasta ${MAX_VARIANTS} variantes`);
+    throw httpError(`Un producto puede tener hasta ${MAX_VARIANTS} variantes.`);
   }
   const attributes = parent.variantAttributes;
   const rows = items.map((item) => ({ ...item, values: normalizeValues(item?.values, attributes) }));
@@ -180,13 +180,13 @@ const createVariants = async ({ parent, items, existing = [], businessId, transa
   for (const row of rows) {
     const barcode = cleanBarcode(row.barcode) ?? null;
     if (barcode) {
-      if (barcodes.has(barcode)) throw httpError(`El código de barras ${barcode} está repetido`, 409);
+      if (barcodes.has(barcode)) throw httpError(`El código de barras ${barcode} está repetido.`, 409);
       barcodes.add(barcode);
       await assertBarcodeFree(businessId, barcode);
     }
     const ownPrice = row.price !== undefined && row.price !== null && row.price !== '';
     const price = ownPrice ? Number(row.price) : Number(parent.price);
-    if (!Number.isFinite(price) || price < 0) throw httpError('El precio de la variante debe ser un número positivo');
+    if (!Number.isFinite(price) || price < 0) throw httpError('El precio de la variante debe ser un número positivo.');
     const internalCode = String(row.internalCode ?? '').trim() || `${parent.internalCode}-${next}`;
     next += 1;
     created.push(
@@ -221,7 +221,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   data.categoryId = await resolveCategoryId(data.categoryId, businessId);
 
   if (variants) {
-    if (data.unitType !== 'unit') throw httpError('Las variantes son solo para productos que se venden por unidad');
+    if (data.unitType !== 'unit') throw httpError('Las variantes son solo para productos que se venden por unidad.');
     const attributes = normalizeAttributes(variants.attributes);
     const t = await sequelize.transaction();
     let parent;
@@ -244,7 +244,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   const scalePlu = cleanScalePlu(req.body.scalePlu) ?? null;
   if (scalePlu && req.body.unitType !== 'weight') {
-    throw httpError('El PLU de balanza solo se puede asignar a productos por peso');
+    throw httpError('El PLU de balanza solo se puede asignar a productos por peso.');
   }
   await assertScalePluFree(businessId, scalePlu);
 
@@ -261,7 +261,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 export const addVariants = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const parent = await findOwnProduct(req.params.id, businessId);
-  if (!isVariantGroup(parent)) throw httpError('Este producto no tiene variantes', 400);
+  if (!isVariantGroup(parent)) throw httpError('Este producto no tiene variantes.', 400);
 
   const t = await sequelize.transaction();
   try {
@@ -281,13 +281,13 @@ const updateGroup = async (parent, body, businessId) => {
   delete data.barcode;
   delete data.scalePlu;
   if (data.unitType && data.unitType !== 'unit') {
-    throw httpError('Un producto con variantes se vende por unidad');
+    throw httpError('Un producto con variantes se vende por unidad.');
   }
   if ('categoryId' in data) data.categoryId = await resolveCategoryId(data.categoryId, businessId);
   if (body.variantAttributes !== undefined) {
     const names = normalizeAttributes(body.variantAttributes);
     if (names.length !== parent.variantAttributes.length) {
-      throw httpError('Se pueden cambiar los nombres de los atributos, pero no agregar ni quitar atributos');
+      throw httpError('Se pueden cambiar los nombres de los atributos, pero no agregar ni quitar atributos.');
     }
     data.variantAttributes = names;
   }
@@ -316,7 +316,7 @@ const updateGroup = async (parent, body, businessId) => {
 // Variante: código, código de barras, precio propio, costo, estado y sus valores
 const updateVariant = async (variant, body, businessId) => {
   const parent = await Product.findOne({ where: { id: variant.parentId, businessId } });
-  if (!parent) throw httpError('No se encontró el producto principal de esta variante', 404);
+  if (!parent) throw httpError('No se encontró el producto principal de esta variante.', 404);
 
   const data = cleanPromoPrice(pick(body, VARIANT_FIELDS));
   if ('internalCode' in data) data.internalCode = String(data.internalCode ?? '').trim();
@@ -334,7 +334,7 @@ const updateVariant = async (variant, body, businessId) => {
   }
 
   if (data.active === true && !parent.active) {
-    throw httpError('El producto principal está inactivo: activalo primero');
+    throw httpError('El producto principal está inactivo: activalo primero.');
   }
 
   if (body.variantValues !== undefined) {
@@ -363,8 +363,8 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const product = await findOwnProduct(req.params.id, businessId);
 
-  if (product.isCombo) throw httpError('Los combos se editan desde la pestaña Combos', 400);
-  if (product.menuKind) throw httpError('Los platos y adicionales se editan desde Mesas → Menú', 400);
+  if (product.isCombo) throw httpError('Los combos se editan desde la pestaña Combos.', 400);
+  if (product.menuKind) throw httpError('Los platos y adicionales se editan desde Mesas → Menú.', 400);
   if (isVariantGroup(product)) return res.json(await updateGroup(product, req.body, businessId));
   if (isVariant(product)) return res.json(await updateVariant(product, req.body, businessId));
 
@@ -380,7 +380,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const finalUnitType = data.unitType ?? product.unitType;
   if ('scalePlu' in data) data.scalePlu = cleanScalePlu(data.scalePlu) ?? null;
   if (finalUnitType !== 'weight') {
-    if (data.scalePlu) throw httpError('El PLU de balanza solo se puede asignar a productos por peso');
+    if (data.scalePlu) throw httpError('El PLU de balanza solo se puede asignar a productos por peso.');
     // Si el producto deja de ser por peso, pierde su PLU
     if (product.scalePlu) data.scalePlu = null;
   }
@@ -402,7 +402,7 @@ const deleteBlocker = async (product) => {
   });
   if (usedIn.length) {
     const names = usedIn.map((item) => `"${item.combo?.name}"`).join(', ');
-    return `"${product.name}" forma parte de los combos ${names}`;
+    return `"${product.name}" forma parte de los combos ${names}.`;
   }
 
   // Un producto que ya se vendió, se compró o se pidió en una mesa no se borra: se perdería el historial
@@ -435,8 +435,8 @@ const deleteBlocker = async (product) => {
 export const deleteProduct = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const product = await findOwnProduct(req.params.id, businessId);
-  if (product.isCombo) throw httpError('Los combos se eliminan desde la pestaña Combos', 400);
-  if (product.menuKind) throw httpError('Los platos y adicionales se eliminan desde Mesas → Menú', 400);
+  if (product.isCombo) throw httpError('Los combos se eliminan desde la pestaña Combos.', 400);
+  if (product.menuKind) throw httpError('Los platos y adicionales se eliminan desde Mesas → Menú.', 400);
 
   if (isVariantGroup(product)) {
     const variants = await Product.findAll({ where: { businessId, parentId: product.id } });

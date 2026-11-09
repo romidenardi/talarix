@@ -27,7 +27,7 @@ const findCustomer = async (req) => {
   const customer = await Customer.findOne({
     where: { id: req.params.id, businessId: req.user.businessId },
   });
-  if (!customer) throw httpError('Cliente no encontrado', 404);
+  if (!customer) throw httpError('Cliente no encontrado.', 404);
   return customer;
 };
 
