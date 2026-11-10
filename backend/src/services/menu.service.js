@@ -1,6 +1,7 @@
 import pkg from 'sequelize';
-import { sequelize, Product, Category, MenuItemExtra, TabItem, OrderItem } from '../models/index.js';
+import { sequelize, Product, MenuItemExtra, TabItem, OrderItem } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
+import { resolveProductCategory } from './category.service.js';
 import { isNonNegative, toNumber, round2 } from '../utils/numbers.js';
 
 // Menú de las mesas. Platos (menu_kind = 'dish') y adicionales (menu_kind = 'extra') son productos
@@ -23,13 +24,6 @@ const readText = (value, label, max = 255) => {
   if (!text) throw httpError(`${label} es obligatorio.`);
   if (text.length > max) throw httpError(`${label} puede tener hasta ${max} caracteres.`);
   return text;
-};
-
-const resolveCategory = async (categoryId, businessId) => {
-  if (!categoryId) return null;
-  const category = await Category.findOne({ where: { id: categoryId, businessId } });
-  if (!category) throw httpError('La categoría no existe.', 404);
-  return category.id;
 };
 
 const findMenuItem = async (id, businessId, kind, transaction) => {
@@ -88,14 +82,16 @@ const menuProductFields = (kind) => ({
   stock: 0,
 });
 
-const readDish = async (body, businessId, partial) => {
+const readDish = async (body, businessId, partial, currentCategoryId = null) => {
   const data = {};
   if (!partial || body.internalCode !== undefined) data.internalCode = readText(body.internalCode, 'El código', 50);
   if (!partial || body.name !== undefined) data.name = readText(body.name, 'El nombre');
   if (!partial || body.price !== undefined) data.price = readPrice(body.price, 'El precio');
   if (body.promoPrice !== undefined)
     data.promoPrice = readPrice(body.promoPrice, 'El precio promo', { optional: true });
-  if (body.categoryId !== undefined) data.categoryId = await resolveCategory(body.categoryId, businessId);
+  if (body.categoryId !== undefined) {
+    data.categoryId = await resolveProductCategory(body.categoryId, businessId, { current: currentCategoryId });
+  }
   if (body.active !== undefined) data.active = Boolean(body.active);
   return data;
 };
@@ -131,7 +127,8 @@ export const createDish = async (body, businessId) => {
 };
 
 export const updateDish = async (id, body, businessId) => {
-  const data = await readDish(body, businessId, true);
+  const current = await Product.findOne({ where: { id, businessId, menuKind: 'dish' }, attributes: ['categoryId'] });
+  const data = await readDish(body, businessId, true, current?.categoryId ?? null);
   await ensureFreeCode(data.internalCode, businessId, id);
   return sequelize.transaction(async (t) => {
     const dish = await findMenuItem(id, businessId, 'dish', t);

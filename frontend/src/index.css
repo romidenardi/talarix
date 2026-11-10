@@ -129,6 +129,22 @@ a {
   font-weight: 500;
 }
 
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 14px;
+}
+
+.sidebar-section-title {
+  padding: 0 20px 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
 .sidebar-logout {
   margin: 16px 20px 0;
   background: transparent;
@@ -589,10 +605,17 @@ td:nth-child(1),
 
 .purchase-total {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
   font-family: var(--font-sans);
   font-weight: 500;
-  text-align: right;
   padding: 8px 0;
+}
+
+.purchase-total strong {
+  font-size: 1.05rem;
 }
 
 .inline-customer-form {
@@ -687,6 +710,29 @@ td:nth-child(1),
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 32px;
+}
+
+.print-doc-letter {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 16px;
+  border: 2px solid var(--color-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.print-legend {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .print-header {
@@ -1071,6 +1117,11 @@ td:nth-child(1),
   flex-direction: column;
   font-size: 0.8rem;
   gap: 2px;
+}
+
+.report-subtitle {
+  font-size: 1.05rem;
+  margin: 28px 0 8px;
 }
 
 .report-note {

@@ -5,6 +5,7 @@ import Spinner from '../../components/common/Spinner.jsx';
 import { formatQuantity, perKg } from '../../utils/quantity.js';
 import { orderNumberLabel } from '../../utils/orderNumber.js';
 import { paymentParts } from '../../utils/orderPayments.js';
+import { formatRate } from '../../utils/taxes.js';
 
 const OrderPrint = () => {
   const { id } = useParams();
@@ -47,6 +48,10 @@ const OrderPrint = () => {
             </small>
           </div>
         )}
+
+        <div className="print-doc-letter" aria-label="Documento tipo R">
+          R
+        </div>
 
         <header className="print-header">
           <h1>Remito</h1>
@@ -114,7 +119,17 @@ const OrderPrint = () => {
           {order.discriminatesVat ? (
             <>
               <p>Subtotal: ${Number(order.subtotal).toFixed(2)}</p>
-              <p>IVA: ${Number(order.vatAmount).toFixed(2)}</p>
+              {Array.isArray(order.vatBreakdown) && order.vatBreakdown.some((row) => row.rate > 0) ? (
+                order.vatBreakdown
+                  .filter((row) => row.rate > 0)
+                  .map((row) => (
+                    <p key={row.rate}>
+                      IVA {formatRate(row.rate)}: ${Number(row.vat).toFixed(2)}
+                    </p>
+                  ))
+              ) : (
+                <p>IVA: ${Number(order.vatAmount).toFixed(2)}</p>
+              )}
               {Number(order.internalTaxAmount) > 0 && (
                 <p>Impuestos internos: ${Number(order.internalTaxAmount).toFixed(2)}</p>
               )}
@@ -157,6 +172,8 @@ const OrderPrint = () => {
           <p className="print-payment">Forma de pago: {order.Payment?.name}</p>
         )}
         {order.notes && <p className="print-notes">Notas: {order.notes}</p>}
+
+        <p className="print-legend">Documento no válido como factura</p>
       </div>
     </div>
   );

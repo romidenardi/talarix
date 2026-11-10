@@ -6,3 +6,5 @@ export const getSalesByProduct = (params) => api.get('/reports/sales-by-product'
 export const getSalesByCustomer = (params) => api.get('/reports/sales-by-customer', { params });
 export const getSalesByPayment = (params) => api.get('/reports/sales-by-payment', { params });
 export const getVatReport = (params) => api.get('/reports/vat', { params });
+export const getPurchaseVatReport = (params) => api.get('/reports/purchase-vat', { params });
+export const getVatPosition = (params) => api.get('/reports/vat-position', { params });

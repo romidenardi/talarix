@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as backTaxes from '../../src/utils/taxes.js';
 import * as frontTaxes from '../../../frontend/src/utils/taxes.js';
+import { purchaseTotals as backPurchase } from '../../src/utils/purchaseTotals.js';
+import { purchaseTotals as frontPurchase } from '../../../frontend/src/utils/purchaseTotals.js';
 import { DEFAULT_SCALE_CONFIG as backScale } from '../../src/utils/scaleConfig.js';
 import { DEFAULT_SCALE_CONFIG as frontScale } from '../../../frontend/src/utils/scale.js';
 
@@ -32,6 +34,15 @@ test('splitLineParts reparte igual en el frontend y en el backend', () => {
   front.forEach((part, i) => {
     for (const key of ['total', 'net', 'vat', 'internal']) assert.equal(part[key], back[i][key], `${key} ${i}`);
   });
+});
+
+test('los totales de una compra dan lo mismo en el frontend y en el backend', () => {
+  const lines = [
+    { quantity: 3, unitCost: 10.33, vatRate: 21 },
+    { quantity: 0.333, unitCost: 99.99, vatRate: 10.5 },
+    { quantity: 7, unitCost: 1234.56, vatRate: 0 },
+  ];
+  assert.deepEqual(frontPurchase(lines), backPurchase(lines));
 });
 
 test('la configuración de fábrica de la balanza es la misma en los dos lados', () => {

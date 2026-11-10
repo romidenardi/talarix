@@ -21,6 +21,7 @@ import { RequiredMark, RequiredLegend } from '../../components/common/Required.j
 import VariantBuilder, { EMPTY_VARIANT_ROWS } from './VariantBuilder.jsx';
 import VariantsPanel from './VariantsPanel.jsx';
 import { isVariantGroup, buildVariants } from '../../utils/variants.js';
+import CategoryOptions from '../../components/common/CategoryOptions.jsx';
 
 const api = {
   getAll: productsApi.getProducts,
@@ -352,12 +353,7 @@ const Products = () => {
         <div className="field">
           <label htmlFor="categoryId">Categoría</label>
           <select id="categoryId" {...register('categoryId')}>
-            <option value="">Sin categoría</option>
-            {flatCategories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
+            <CategoryOptions categories={categories} />
           </select>
         </div>
 
@@ -616,12 +612,7 @@ const Products = () => {
                           <div className="field">
                             <label htmlFor={`edit-categoryId-${product.id}`}>Categoría</label>
                             <select id={`edit-categoryId-${product.id}`} {...editForm.register('categoryId')}>
-                              <option value="">Sin categoría</option>
-                              {flatCategories.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                  {c.name}
-                                </option>
-                              ))}
+                              <CategoryOptions categories={categories} current={product.categoryId || ''} />
                             </select>
                           </div>
                           {!group && (

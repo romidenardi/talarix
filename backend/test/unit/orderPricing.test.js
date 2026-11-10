@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { priceOrder, discriminatesVatFor } from '../../src/services/orderPricing.js';
+import { priceOrder, discriminatesVatFor, vatBreakdown } from '../../src/services/orderPricing.js';
 
 test('10,333 × 3: el precio se redondea a 10,33 y el total cierra con el renglón (30,99)', () => {
   const r = priceOrder({ lines: [{ quantity: 3, unitPrice: 10.333, vatRate: 21 }] });
@@ -79,4 +79,74 @@ test('cuotas con interés', () => {
   assert.equal(r.totalFinanced, 1120);
   assert.equal(r.installmentAmount, 373.33);
   assert.equal(r.installmentsCount, 3);
+});
+
+const round = (n) => Math.round(n * 100) / 100;
+
+// Arma el remito con priceOrder y lo desglosa como al imprimirlo
+const breakdownOf = (lines, discount = {}) => {
+  const r = priceOrder({ lines, discriminatesVat: true, ...discount });
+  const rows = vatBreakdown({
+    items: lines,
+    grossTotal: r.grossTotal,
+    total: r.total,
+    subtotal: r.subtotal,
+    vatAmount: r.vatAmount,
+  });
+  return { r, rows };
+};
+
+test('desglose de IVA: un renglón por alícuota y la suma da el IVA del remito', () => {
+  const { r, rows } = breakdownOf([
+    { quantity: 1, unitPrice: 1210, vatRate: 21 },
+    { quantity: 2, unitPrice: 552.5, vatRate: 10.5 },
+  ]);
+  assert.deepEqual(
+    rows.map((x) => x.rate),
+    [21, 10.5],
+  );
+  assert.equal(rows[0].vat, 210);
+  assert.equal(rows[1].vat, 105);
+  assert.equal(rows[0].vat + rows[1].vat, r.vatAmount);
+});
+
+test('desglose de IVA: el combo reparte entre las alícuotas de sus productos', () => {
+  const { r, rows } = breakdownOf([
+    {
+      quantity: 1,
+      unitPrice: 2000,
+      vatRate: null,
+      components: [
+        { price: 1210, quantity: 1, vatRate: 21, otherTaxes: 0 },
+        { price: 1105, quantity: 1, vatRate: 10.5, otherTaxes: 0 },
+      ],
+    },
+  ]);
+  assert.equal(rows.length, 2);
+  assert.equal(round(rows.reduce((s, x) => s + x.vat, 0)), r.vatAmount);
+  assert.equal(round(rows.reduce((s, x) => s + x.net, 0)), r.subtotal);
+});
+
+test('desglose de IVA: con descuento y centavos sueltos, la suma cierra igual', () => {
+  const { r, rows } = breakdownOf(
+    [
+      { quantity: 3, unitPrice: 10.33, vatRate: 21 },
+      { quantity: 7, unitPrice: 3.17, vatRate: 10.5 },
+      { quantity: 1, unitPrice: 99.99, vatRate: 21 },
+    ],
+    { discountPercent: 7 },
+  );
+  assert.equal(round(rows.reduce((s, x) => s + x.vat, 0)), r.vatAmount);
+  assert.equal(round(rows.reduce((s, x) => s + x.net, 0)), r.subtotal);
+});
+
+test('desglose de IVA: remito viejo sin alícuota guardada usa la del producto', () => {
+  const rows = vatBreakdown({
+    items: [{ quantity: 1, unitPrice: 1105, vatRate: null, fallbackVatRate: '10.50' }],
+    grossTotal: 1105,
+    total: 1105,
+    subtotal: 1000,
+    vatAmount: 105,
+  });
+  assert.deepEqual(rows, [{ rate: 10.5, net: 1000, vat: 105 }]);
 });

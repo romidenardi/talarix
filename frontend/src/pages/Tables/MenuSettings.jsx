@@ -9,6 +9,7 @@ import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
 import { money } from '../../utils/reportFormat.js';
 import { matchesSearch } from '../../utils/search.js';
+import CategoryOptions from '../../components/common/CategoryOptions.jsx';
 
 const EMPTY_DISH = {
   internalCode: '',
@@ -66,12 +67,7 @@ function DishFields({ idPrefix, form, setForm, categories, extras, showStatus })
       <div className="field">
         <label htmlFor={`${idPrefix}-categoryId`}>Categoría</label>
         <select {...field('categoryId')}>
-          <option value="">Sin categoría</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
+          <CategoryOptions categories={categories} current={form.categoryId || ''} />
         </select>
       </div>
       <div className="field">

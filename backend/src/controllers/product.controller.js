@@ -1,19 +1,10 @@
 import pkg from 'sequelize';
-import {
-  Product,
-  ComboItem,
-  Category,
-  OrderItem,
-  PurchaseItem,
-  Order,
-  Purchase,
-  TabItem,
-  sequelize,
-} from '../models/index.js';
+import { Product, ComboItem, OrderItem, PurchaseItem, Order, Purchase, TabItem, sequelize } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { withComboData } from '../services/combo.service.js';
 import { pick } from '../utils/pick.js';
+import { resolveProductCategory } from '../services/category.service.js';
 import {
   MAX_VARIANTS,
   isVariantGroup,
@@ -96,14 +87,6 @@ const PRODUCT_FIELDS = [
   'categoryId',
   'active',
 ];
-
-// La categoría tiene que ser del mismo comercio
-const resolveCategoryId = async (categoryId, businessId) => {
-  if (!categoryId) return null;
-  const category = await Category.findOne({ where: { id: categoryId, businessId } });
-  if (!category) throw httpError('La categoría no existe.', 404);
-  return category.id;
-};
 
 const cleanPromoPrice = (data) => {
   if ('promoPrice' in data && (data.promoPrice === '' || data.promoPrice === null)) data.promoPrice = null;
@@ -218,7 +201,7 @@ export const createProduct = asyncHandler(async (req, res) => {
 
   // Los combos se crean desde /combos: acá nunca
   const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS)));
-  data.categoryId = await resolveCategoryId(data.categoryId, businessId);
+  data.categoryId = await resolveProductCategory(data.categoryId, businessId);
 
   if (variants) {
     if (data.unitType !== 'unit') throw httpError('Las variantes son solo para productos que se venden por unidad.');
@@ -283,7 +266,9 @@ const updateGroup = async (parent, body, businessId) => {
   if (data.unitType && data.unitType !== 'unit') {
     throw httpError('Un producto con variantes se vende por unidad.');
   }
-  if ('categoryId' in data) data.categoryId = await resolveCategoryId(data.categoryId, businessId);
+  if ('categoryId' in data) {
+    data.categoryId = await resolveProductCategory(data.categoryId, businessId, { current: parent.categoryId });
+  }
   if (body.variantAttributes !== undefined) {
     const names = normalizeAttributes(body.variantAttributes);
     if (names.length !== parent.variantAttributes.length) {
@@ -370,7 +355,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   // Solo los campos editables: nunca el comercio, el id ni el stock
   const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS), product.vatRate));
-  if ('categoryId' in data) data.categoryId = await resolveCategoryId(data.categoryId, businessId);
+  if ('categoryId' in data) {
+    data.categoryId = await resolveProductCategory(data.categoryId, businessId, { current: product.categoryId });
+  }
 
   if ('barcode' in data) {
     data.barcode = cleanBarcode(data.barcode) ?? null;

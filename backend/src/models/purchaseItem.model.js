@@ -31,6 +31,13 @@ const PurchaseItem = sequelize.define(
       allowNull: false,
       field: 'unit_cost',
     },
+    // Alícuota de IVA del renglón (el costo unitario es sin IVA). NULL: compra anterior a esta columna.
+    vatRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: 'vat_rate',
+      get: numericGetter('vatRate'),
+    },
   },
   {
     tableName: 'purchase_items',

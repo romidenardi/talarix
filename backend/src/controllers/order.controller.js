@@ -5,6 +5,7 @@ import pkg from 'sequelize';
 import { audit } from '../utils/audit.js';
 import { readRange } from '../utils/dates.js';
 import { createOrder as createOrderService } from '../services/order.service.js';
+import { vatBreakdown } from '../services/orderPricing.js';
 
 const { Op } = pkg;
 
@@ -21,7 +22,7 @@ const orderIncludes = [
   {
     model: OrderItem,
     as: 'items',
-    include: [{ model: Product, attributes: ['id', 'name', 'internalCode', 'unitType'] }],
+    include: [{ model: Product, attributes: ['id', 'name', 'internalCode', 'unitType', 'vatRate', 'otherTaxes'] }],
   },
 ];
 
@@ -46,7 +47,25 @@ export const getOrder = asyncHandler(async (req, res) => {
     include: orderIncludes,
   });
   if (!order) throw httpError('Remito no encontrado.', 404);
-  res.json(order);
+  // Remito con IVA discriminado: va también el IVA abierto por alícuota, para imprimirlo
+  const breakdown = order.discriminatesVat
+    ? vatBreakdown({
+        items: order.items.map((item) => ({
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          vatRate: item.vatRate,
+          otherTaxes: item.otherTaxes,
+          components: item.components,
+          fallbackVatRate: item.Product?.vatRate,
+          fallbackOtherTaxes: item.Product?.otherTaxes,
+        })),
+        grossTotal: order.grossTotal,
+        total: order.total,
+        subtotal: order.subtotal,
+        vatAmount: order.vatAmount,
+      })
+    : null;
+  res.json({ ...order.toJSON(), vatBreakdown: breakdown });
 });
 
 // Toda la lógica está en services/order.service.js: acá solo se arma la respuesta

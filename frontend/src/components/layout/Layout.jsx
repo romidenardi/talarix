@@ -76,6 +76,36 @@ const Layout = () => {
   const canManageData = role === 'admin' || role === 'editor';
   const isAdmin = role === 'admin';
 
+  // Menú agrupado por secciones: cada una muestra solo lo que el rol puede usar, y si no queda
+  // nada (por ejemplo, Gastronomía sin el módulo de mesas) no aparece
+  const sections = [
+    {
+      title: 'Mi comercio',
+      links: [
+        canManageData && ['/products', 'Productos'],
+        canManageData && ['/categories', 'Categorías'],
+        canManageData && ['/payments', 'Formas de pago'],
+      ],
+    },
+    { title: 'Gastronomía', links: [tablesEnabled && ['/mesas', 'Mesas']] },
+    {
+      title: 'Ventas',
+      links: [canManageData && ['/customers', 'Clientes'], ['/orders', 'Remitos']],
+    },
+    {
+      title: 'Compras',
+      links: [canManageData && ['/suppliers', 'Proveedores'], ['/purchases', 'Compras']],
+    },
+    {
+      title: 'Utilidades',
+      links: [
+        isAdmin && !isDemo && ['/users', 'Usuarios'],
+        canManageData && !isDemo && ['/imports', 'Importar'],
+        isAdmin && !isDemo && ['/exportar', 'Exportar'],
+      ],
+    },
+  ].map((section) => ({ ...section, links: section.links.filter(Boolean) }));
+
   // Con una versión nueva de los textos legales, primero hay que aceptarla (salvo durante la baja,
   // que solo deja exportar)
   return (
@@ -122,17 +152,19 @@ const Layout = () => {
                   Inicio
                 </NavLink>
                 {canManageData && <NavLink to="/reports">Reportes</NavLink>}
-                {canManageData && <NavLink to="/products">Productos</NavLink>}
-                {canManageData && <NavLink to="/categories">Categorías</NavLink>}
-                {canManageData && <NavLink to="/payments">Formas de pago</NavLink>}
-                {canManageData && <NavLink to="/customers">Clientes</NavLink>}
-                {tablesEnabled && <NavLink to="/mesas">Mesas</NavLink>}
-                <NavLink to="/orders">Remitos</NavLink>
-                {canManageData && <NavLink to="/suppliers">Proveedores</NavLink>}
-                <NavLink to="/purchases">Compras</NavLink>
-                {canManageData && !isDemo && <NavLink to="/imports">Importar</NavLink>}
-                {isAdmin && !isDemo && <NavLink to="/users">Usuarios</NavLink>}
-                {isAdmin && !isDemo && <NavLink to="/exportar">Exportar mis datos</NavLink>}
+                {sections.map(
+                  (section) =>
+                    section.links.length > 0 && (
+                      <div key={section.title} className="sidebar-section">
+                        <span className="sidebar-section-title">{section.title}</span>
+                        {section.links.map(([to, label]) => (
+                          <NavLink key={to} to={to}>
+                            {label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    ),
+                )}
               </>
             )}
           </nav>

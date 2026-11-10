@@ -21,7 +21,7 @@ import {
   MenuItemExtra,
 } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
-import { round2 } from '../utils/numbers.js';
+import { purchaseTotals } from '../utils/purchaseTotals.js';
 import { moveStock, actorFields } from './stock.service.js';
 import { priceOrder, discriminatesVatFor } from './orderPricing.js';
 import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
@@ -160,18 +160,33 @@ const seedOrder = async ({
 };
 
 const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, lines, products }) => {
-  const resolved = lines.map(([code, quantity, unitCost]) => ({ product: products[code], quantity, unitCost }));
-  const total = round2(resolved.reduce((sum, l) => sum + l.quantity * l.unitCost, 0));
+  // Costos sin IVA, con la alícuota de cada producto (igual que al cargar una compra)
+  const resolved = lines.map(([code, quantity, unitCost]) => ({
+    product: products[code],
+    quantity,
+    unitCost,
+    vatRate: Number(products[code].vatRate) || 0,
+  }));
+  const { subtotal, vatAmount, total } = purchaseTotals(resolved);
   const date = daysAgoDate(daysAgo);
 
   const purchase = await Purchase.create(
-    { businessId, supplierId: supplier.id, invoiceNumber, date, total, ...actorFields(DEMO_ACTOR) },
+    {
+      businessId,
+      supplierId: supplier.id,
+      invoiceNumber,
+      date,
+      subtotal,
+      vatAmount,
+      total,
+      ...actorFields(DEMO_ACTOR),
+    },
     { transaction: t },
   );
 
-  for (const { product, quantity, unitCost } of resolved) {
+  for (const { product, quantity, unitCost, vatRate } of resolved) {
     await PurchaseItem.create(
-      { purchaseId: purchase.id, productId: product.id, quantity, unitCost },
+      { purchaseId: purchase.id, productId: product.id, quantity, unitCost, vatRate },
       { transaction: t },
     );
     product.cost = unitCost;

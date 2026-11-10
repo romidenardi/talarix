@@ -5,6 +5,8 @@ import {
   salesByCustomer,
   salesByPayment,
   vatReport,
+  purchaseVatReport,
+  vatPositionReport,
   dashboard,
 } from '../controllers/report.controller.js';
 
@@ -16,5 +18,7 @@ router.get('/sales-by-product', salesByProduct);
 router.get('/sales-by-customer', salesByCustomer);
 router.get('/sales-by-payment', salesByPayment);
 router.get('/vat', vatReport);
+router.get('/purchase-vat', purchaseVatReport);
+router.get('/vat-position', vatPositionReport);
 
 export default router;

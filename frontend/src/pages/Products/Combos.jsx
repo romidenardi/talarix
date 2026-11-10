@@ -10,6 +10,7 @@ import SearchInput from '../../components/common/SearchInput.jsx';
 import { matchesSearch } from '../../utils/search.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { isVariantGroup } from '../../utils/variants.js';
+import CategoryOptions from '../../components/common/CategoryOptions.jsx';
 
 const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
 
@@ -137,12 +138,7 @@ const ComboForm = ({
       <div className="field">
         <label htmlFor={`${idPrefix}-categoryId`}>Categoría</label>
         <select id={`${idPrefix}-categoryId`} {...register('categoryId')}>
-          <option value="">Sin categoría</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
+          <CategoryOptions categories={categories} current={defaultValues.categoryId || ''} />
         </select>
       </div>
 

@@ -78,3 +78,56 @@ export const priceOrder = ({
   }
   return result;
 };
+
+const parseComponents = (value) => {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+// Desglose del IVA por alícuota de un remito ya guardado (para imprimirlo). Reparte igual que
+// priceOrder: cada renglón con su alícuota (los combos, cada producto con la suya) y escalado por
+// los descuentos. La diferencia de centavos por redondeo va a la alícuota con más IVA, así la suma
+// da exactamente el IVA y el subtotal guardados en el remito.
+// items: [{ quantity, unitPrice, vatRate, otherTaxes, components }] (vatRate null = remito anterior
+// a esa columna: se usa fallbackVatRate / fallbackOtherTaxes, los actuales del producto)
+export const vatBreakdown = ({ items, grossTotal, total, subtotal, vatAmount }) => {
+  const byRate = new Map();
+  let sumGross = 0;
+  for (const item of items) {
+    const lineTotal = round2(Number(item.quantity) * round2(Number(item.unitPrice) || 0));
+    sumGross += lineTotal;
+    const components = parseComponents(item.components);
+    const vatRate = item.vatRate ?? item.fallbackVatRate;
+    const otherTaxes = item.vatRate != null ? item.otherTaxes : item.fallbackOtherTaxes;
+    const parts =
+      Array.isArray(components) && components.length
+        ? splitLineParts(lineTotal, components)
+        : [{ vatRate: Number(vatRate) || 0, ...splitPrice(lineTotal, vatRate, otherTaxes) }];
+    for (const part of parts) {
+      const row = byRate.get(part.vatRate) || { rate: part.vatRate, net: 0, vat: 0 };
+      row.net += part.net;
+      row.vat += part.vat;
+      byRate.set(part.vatRate, row);
+    }
+  }
+
+  const gross = Number(grossTotal) > 0 ? Number(grossTotal) : sumGross;
+  const scale = gross > 0 ? Number(total) / gross : 1;
+  const rows = [...byRate.values()]
+    .map((r) => ({ rate: r.rate, net: round2(r.net * scale), vat: round2(r.vat * scale) }))
+    .sort((a, b) => b.rate - a.rate);
+  if (!rows.length) return rows;
+
+  const biggest = rows.reduce((max, r) => (r.vat > max.vat ? r : max), rows[0]);
+  if (vatAmount != null) {
+    biggest.vat = round2(biggest.vat + Number(vatAmount) - rows.reduce((sum, r) => sum + r.vat, 0));
+  }
+  if (subtotal != null) {
+    biggest.net = round2(biggest.net + Number(subtotal) - rows.reduce((sum, r) => sum + r.net, 0));
+  }
+  return rows;
+};

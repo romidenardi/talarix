@@ -5,7 +5,10 @@ import {
   getSalesByCustomer,
   getSalesByPayment,
   getVatReport,
+  getPurchaseVatReport,
+  getVatPosition,
 } from '../../api/reports.api';
+import { formatRate } from '../../utils/taxes.js';
 import { money, int, presetRange, periodLabel, formatDay, downloadCsv } from '../../utils/reportFormat';
 
 const TABS = [
@@ -13,7 +16,9 @@ const TABS = [
   ['products', 'Por producto'],
   ['customers', 'Por cliente'],
   ['payments', 'Por forma de pago'],
-  ['vat', 'IVA'],
+  ['vat', 'IVA ventas'],
+  ['purchaseVat', 'IVA compras'],
+  ['vatPosition', 'Posición de IVA'],
   ['internal', 'Impuestos internos'],
   ['taxes', 'IVA + internos'],
 ];
@@ -34,6 +39,8 @@ const FETCHERS = {
   customers: getSalesByCustomer,
   payments: getSalesByPayment,
   vat: getVatReport,
+  purchaseVat: getPurchaseVatReport,
+  vatPosition: getVatPosition,
   internal: getVatReport,
   taxes: getVatReport,
 };
@@ -290,7 +297,7 @@ function VatView({ data, range }) {
     <>
       <p className="report-note">
         Es un apoyo para tu contador, no un libro de IVA oficial. Solo se discrimina el IVA en los remitos a
-        Responsables Inscriptos; el desglose por alícuota usa la alícuota actual de cada producto.
+        Responsables Inscriptos; el desglose usa la alícuota que tenía cada producto al vender.
       </p>
       <div className="stat-cards">
         <div className="stat-card">
@@ -353,7 +360,7 @@ function InternalTaxView({ data, range }) {
     <>
       <p className="report-note">
         Es un apoyo para tu contador. Solo se discriminan en los remitos a Responsables Inscriptos; el desglose usa el
-        porcentaje actual de cada producto.
+        porcentaje que tenía cada producto al vender.
       </p>
       <div className="stat-cards">
         <div className="stat-card">
@@ -419,7 +426,7 @@ function TaxesView({ data, range }) {
     <>
       <p className="report-note">
         Suma el IVA y los impuestos internos de los remitos a Responsables Inscriptos. Es un apoyo para tu contador; el
-        desglose por alícuota usa la alícuota actual de cada producto.
+        desglose usa la alícuota que tenía cada producto al vender.
       </p>
       <div className="stat-cards">
         <div className="stat-card">
@@ -476,12 +483,190 @@ function TaxesView({ data, range }) {
   );
 }
 
+// Compras sin IVA cargado (registradas antes de que las compras tuvieran IVA): no entran en el cálculo
+function WithoutVatNote({ info }) {
+  if (!info?.purchases) return null;
+  return (
+    <p className="report-note">
+      {info.purchases === 1 ? 'Hay 1 compra' : `Hay ${int(info.purchases)} compras`} del período sin IVA cargado (por{' '}
+      {money(info.total)} en total), registradas antes de que las compras tuvieran IVA. No se incluyen en el cálculo.
+    </p>
+  );
+}
+
+function PurchaseVatView({ data, range }) {
+  const rates = [...new Set(data.purchases.flatMap((p) => p.byRate.map((r) => r.rate)))].sort((a, b) => b - a);
+  const vatOf = (purchase, rate) => purchase.byRate.find((r) => r.rate === rate)?.vat || 0;
+  const exportCsv = () =>
+    downloadCsv(
+      `iva-compras_${range.from}_${range.to}.csv`,
+      ['Fecha', 'Proveedor', 'Factura', 'Neto', ...rates.map((rate) => `IVA ${formatRate(rate)}`), 'IVA', 'Total'],
+      data.purchases.map((p) => [
+        new Date(p.date).toLocaleDateString('es-AR'),
+        p.supplier,
+        p.invoiceNumber,
+        p.net,
+        ...rates.map((rate) => vatOf(p, rate)),
+        p.vat,
+        p.total,
+      ]),
+    );
+  return (
+    <>
+      <p className="report-note">
+        Es un apoyo para tu contador, no un libro de IVA oficial. Toma el IVA cargado en cada compra (crédito fiscal);
+        las compras anuladas no cuentan.
+      </p>
+      <div className="stat-cards">
+        <div className="stat-card">
+          <span>Compras</span>
+          <strong>{int(data.totals.purchases)}</strong>
+          <small>Total: {money(data.totals.total)}</small>
+        </div>
+        <div className="stat-card">
+          <span>Neto</span>
+          <strong>{money(data.totals.net)}</strong>
+        </div>
+        <div className="stat-card">
+          <span>IVA de compras</span>
+          <strong>{money(data.totals.vat)}</strong>
+        </div>
+      </div>
+      <WithoutVatNote info={data.withoutVat} />
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th className="num">Alícuota</th>
+            <th className="num">Neto</th>
+            <th className="num">IVA</th>
+            <th className="num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.byRate.map((r) => (
+            <tr key={r.rate}>
+              <td className="num">{formatRate(r.rate)}</td>
+              <td className="num">{money(r.net)}</td>
+              <td className="num">{money(r.vat)}</td>
+              <td className="num">{money(r.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h2 className="report-subtitle">Detalle por factura</h2>
+      <div className="report-actions">
+        <ExportButton onClick={exportCsv} disabled={!data.purchases.length} />
+      </div>
+      {data.purchases.length ? (
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Factura</th>
+              <th className="num">Neto</th>
+              {rates.map((rate) => (
+                <th key={rate} className="num">
+                  IVA {formatRate(rate)}
+                </th>
+              ))}
+              <th className="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.purchases.map((p) => (
+              <tr key={p.id}>
+                <td>{new Date(p.date).toLocaleDateString('es-AR')}</td>
+                <td>{p.supplier}</td>
+                <td>{p.invoiceNumber || '—'}</td>
+                <td className="num">{money(p.net)}</td>
+                {rates.map((rate) => (
+                  <td key={rate} className="num">
+                    {money(vatOf(p, rate))}
+                  </td>
+                ))}
+                <td className="num">{money(p.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="report-note">No hay compras con IVA cargado en este período.</p>
+      )}
+    </>
+  );
+}
+
+function VatPositionView({ data, range }) {
+  const toPay = data.balance > 0;
+  const exportCsv = () =>
+    downloadCsv(
+      `posicion-iva_${range.from}_${range.to}.csv`,
+      ['Alícuota %', 'Neto ventas', 'Débito fiscal', 'Neto compras', 'Crédito fiscal', 'Saldo'],
+      data.byRate.map((r) => [r.rate, r.salesNet, r.debit, r.purchasesNet, r.credit, r.balance]),
+    );
+  return (
+    <>
+      <p className="report-note">
+        Compara el IVA de las ventas (débito fiscal) con el de las compras (crédito fiscal). El débito incluye el IVA
+        contenido en todas las ventas, también en los remitos a consumidores finales y monotributistas. Es una
+        estimación para charlar con tu contador: no incluye retenciones, percepciones ni saldos de períodos anteriores.
+      </p>
+      <div className="stat-cards">
+        <div className="stat-card">
+          <span>Débito fiscal (ventas)</span>
+          <strong>{money(data.debit)}</strong>
+        </div>
+        <div className="stat-card">
+          <span>Crédito fiscal (compras)</span>
+          <strong>{money(data.credit)}</strong>
+        </div>
+        <div className="stat-card">
+          <span>{toPay ? 'Saldo a pagar' : 'Saldo a favor'}</span>
+          <strong>{money(Math.abs(data.balance))}</strong>
+        </div>
+      </div>
+      <WithoutVatNote info={data.purchasesWithoutVat} />
+      <div className="report-actions">
+        <ExportButton onClick={exportCsv} disabled={!data.byRate.length} />
+      </div>
+      <table className="report-table">
+        <thead>
+          <tr>
+            <th className="num">Alícuota</th>
+            <th className="num">Neto ventas</th>
+            <th className="num">Débito</th>
+            <th className="num">Neto compras</th>
+            <th className="num">Crédito</th>
+            <th className="num">Saldo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.byRate.map((r) => (
+            <tr key={r.rate}>
+              <td className="num">{formatRate(r.rate)}</td>
+              <td className="num">{money(r.salesNet)}</td>
+              <td className="num">{money(r.debit)}</td>
+              <td className="num">{money(r.purchasesNet)}</td>
+              <td className="num">{money(r.credit)}</td>
+              <td className="num">{money(r.balance)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 const VIEWS = {
   summary: SummaryView,
   products: ProductsView,
   customers: CustomersView,
   payments: PaymentsView,
   vat: VatView,
+  purchaseVat: PurchaseVatView,
+  vatPosition: VatPositionView,
   internal: InternalTaxView,
   taxes: TaxesView,
 };
@@ -601,7 +786,7 @@ export default function Reports() {
       {loading && <p className="report-note">Cargando…</p>}
       {error && <p className="report-error">{error}</p>}
       {data && !loading && <View data={data} range={{ from, to }} />}
-      {data && !loading && !error && (
+      {data && !loading && !error && tab !== 'purchaseVat' && (
         <p className="report-note">Los remitos anulados no se incluyen en los reportes.</p>
       )}
     </div>

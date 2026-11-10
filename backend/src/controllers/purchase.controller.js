@@ -7,6 +7,7 @@ import { httpError } from '../utils/httpError.js';
 import pkg from 'sequelize';
 import { audit } from '../utils/audit.js';
 import { readRange } from '../utils/dates.js';
+import { purchaseTotals } from '../utils/purchaseTotals.js';
 
 const { Op } = pkg;
 import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
@@ -14,6 +15,9 @@ import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAl
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_COST = 99999999;
 const MAX_AGE_DAYS = 366;
+// Las mismas alícuotas que en los productos. Se acepta además la que ya tiene el producto, aunque
+// no esté en la lista (productos cargados antes de que se limitara).
+const PURCHASE_VAT_RATES = [0, 10.5, 21];
 
 const purchaseIncludes = [
   { model: Supplier, attributes: ['id', 'name'] },
@@ -73,10 +77,16 @@ export const createPurchase = asyncHandler(async (req, res) => {
     if (!isNonNegative(item.unitCost) || toNumber(item.unitCost) > MAX_COST) {
       throw httpError(`Artículo ${n}: el costo no es válido.`);
     }
+    const hasVat = item.vatRate !== undefined && item.vatRate !== null && item.vatRate !== '';
+    if (hasVat && !Number.isFinite(toNumber(item.vatRate))) {
+      throw httpError(`Artículo ${n}: el IVA no es válido.`);
+    }
     return {
       productId: item.productId,
       quantity: round3(toNumber(item.quantity)),
       unitCost: round2(toNumber(item.unitCost)),
+      // Sin alícuota: se usa la del producto (se completa al leerlo)
+      vatRate: hasVat ? toNumber(item.vatRate) : null,
     };
   });
 
@@ -124,7 +134,6 @@ export const createPurchase = asyncHandler(async (req, res) => {
       t,
     );
     const byProduct = new Map();
-    let total = 0;
     for (const [index, row] of rows.entries()) {
       let entry = byProduct.get(row.productId);
       if (!entry) {
@@ -149,18 +158,25 @@ export const createPurchase = asyncHandler(async (req, res) => {
           `Artículo ${index + 1}: ${entry.product.name} se maneja por unidad, la cantidad debe ser un entero.`,
         );
       }
+      const productVat = Number(entry.product.vatRate) || 0;
+      if (row.vatRate === null) row.vatRate = productVat;
+      else if (!PURCHASE_VAT_RATES.includes(row.vatRate) && row.vatRate !== productVat) {
+        throw httpError(`Artículo ${index + 1}: el IVA debe ser 21%, 10,5% o 0%.`);
+      }
       entry.quantity = round3(entry.quantity + row.quantity);
       entry.amount += row.quantity * row.unitCost;
-      // Cada renglón redondeado a centavos, igual que se muestra: el total cierra con el detalle
-      total = round2(total + round2(row.quantity * row.unitCost));
     }
+    // Neto, IVA y total como en la factura: renglones redondeados a centavos e IVA por alícuota
+    const totals = purchaseTotals(rows);
 
     const purchase = await Purchase.create(
       {
         supplierId: supplier.id,
         invoiceNumber,
         date: purchaseDate,
-        total: round2(total),
+        subtotal: totals.subtotal,
+        vatAmount: totals.vatAmount,
+        total: totals.total,
         requestId,
         businessId,
         ...actorFields(req.user),
@@ -175,6 +191,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
         productId: row.productId,
         quantity: row.quantity,
         unitCost: row.unitCost,
+        vatRate: row.vatRate,
       })),
       { transaction: t },
     );

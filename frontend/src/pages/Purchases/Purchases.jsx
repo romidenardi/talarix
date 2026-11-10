@@ -14,7 +14,8 @@ import { presetRange } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
-import { toPercentOrNull } from '../../utils/taxes.js';
+import { toPercentOrNull, vatToFormValue, formatRate } from '../../utils/taxes.js';
+import { purchaseTotals } from '../../utils/purchaseTotals.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { formatQuantity, quantityStep, quantityMin, toKg } from '../../utils/quantity.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
@@ -28,6 +29,7 @@ const emptyItem = () => ({
   quantity: 1,
   qtyUnit: 'kg',
   unitCost: 0,
+  vatRate: '21',
   newProduct: { internalCode: '', barcode: '', name: '', price: '', vatRate: '21', otherTaxes: '', unitType: 'unit' },
 });
 
@@ -104,9 +106,14 @@ const Purchases = () => {
     }
   };
 
-  const total = (watchedItems || []).reduce(
-    (sum, item) => sum + Math.round(toKg(item.quantity, item.qtyUnit) * (Number(item.unitCost) || 0) * 100) / 100,
-    0,
+  // IVA del renglón: el elegido en la fila o, si el producto es nuevo, el que se le carga al producto
+  const rowVat = (item) => (item.productId === NEW_PRODUCT ? item.newProduct?.vatRate : item.vatRate);
+  const totals = purchaseTotals(
+    (watchedItems || []).map((item) => ({
+      quantity: toKg(item.quantity, item.qtyUnit),
+      unitCost: Number(item.unitCost) || 0,
+      vatRate: Number(rowVat(item)) || 0,
+    })),
   );
 
   // Código leído con el lector USB o con la cámara
@@ -127,8 +134,14 @@ const Purchases = () => {
       } else if (emptyIndex >= 0) {
         setValue(`items.${emptyIndex}.productId`, product.id);
         setValue(`items.${emptyIndex}.unitCost`, Number(product.cost) || 0);
+        setValue(`items.${emptyIndex}.vatRate`, vatToFormValue(product.vatRate));
       } else {
-        append({ ...emptyItem(), productId: product.id, unitCost: Number(product.cost) || 0 });
+        append({
+          ...emptyItem(),
+          productId: product.id,
+          unitCost: Number(product.cost) || 0,
+          vatRate: vatToFormValue(product.vatRate),
+        });
       }
       msg.success(`${product.name} agregado`, 'scan');
       return;
@@ -254,6 +267,7 @@ const Purchases = () => {
           productId,
           quantity: toKg(item.quantity, item.qtyUnit),
           unitCost: Number(item.unitCost),
+          vatRate: Number(rowVat(item)) || 0,
         });
       }
 
@@ -455,7 +469,12 @@ const Purchases = () => {
                         placeholder="Producto..."
                         emptyText="No hay productos que coincidan"
                         value={field.value}
-                        onChange={field.onChange}
+                        onChange={(value) => {
+                          field.onChange(value);
+                          // El IVA de la fila arranca con el del producto (se puede cambiar)
+                          const chosen = products.find((p) => p.id === value);
+                          if (chosen) setValue(`items.${index}.vatRate`, vatToFormValue(chosen.vatRate));
+                        }}
                         options={productOptions}
                         extraOptions={canManageData ? [{ value: NEW_PRODUCT, label: '+ Nuevo producto...' }] : []}
                         hasError={Boolean(errors.items?.[index]?.productId)}
@@ -500,7 +519,7 @@ const Purchases = () => {
                 </div>
                 <div className="field">
                   <label htmlFor={`item-unitCost-${index}`}>
-                    {rowUnitType === 'weight' ? 'Costo por kg' : 'Costo unitario'}
+                    {rowUnitType === 'weight' ? 'Costo por kg sin IVA' : 'Costo unitario sin IVA'}
                     <RequiredMark />
                   </label>
                   <input
@@ -517,6 +536,16 @@ const Purchases = () => {
                     <span className="error">{errors.items?.[index]?.unitCost.message}</span>
                   )}
                 </div>
+                {!isNewProduct && (
+                  <div className="field">
+                    <label htmlFor={`item-vat-${index}`}>IVA</label>
+                    <VatSelect
+                      id={`item-vat-${index}`}
+                      registration={register(`items.${index}.vatRate`)}
+                      legacyValue={rowProduct?.vatRate}
+                    />
+                  </div>
+                )}
                 <div className="field item-remove-field">
                   <label aria-hidden="true">&nbsp;</label>
                   <button
@@ -618,8 +647,9 @@ const Purchases = () => {
                     </div>
                     <div className="field field-full stock-warning">
                       <span>
-                        El costo del producto será el "Costo unitario" de esta fila. Se crea con stock 0 y la compra le
-                        suma {formatQuantity(rowQuantity, rowUnitType)}.
+                        El costo del producto será el "Costo unitario sin IVA" de esta fila y el IVA de la compra, el
+                        que elijas acá. Se crea con stock 0 y la compra le suma{' '}
+                        {formatQuantity(rowQuantity, rowUnitType)}.
                       </span>
                     </div>
                   </div>
@@ -639,7 +669,17 @@ const Purchases = () => {
           + Agregar producto
         </button>
 
-        <div className="purchase-total">Total: ${total.toFixed(2)}</div>
+        <div className="purchase-total">
+          <span>Neto: ${totals.subtotal.toFixed(2)}</span>
+          {totals.byRate
+            .filter((r) => r.rate > 0)
+            .map((r) => (
+              <span key={r.rate}>
+                IVA {formatRate(r.rate)}: ${r.vat.toFixed(2)}
+              </span>
+            ))}
+          <strong>Total: ${totals.total.toFixed(2)}</strong>
+        </div>
 
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Registrando compra…' : 'Registrar compra'}
@@ -692,6 +732,9 @@ const Purchases = () => {
                   </td>
                   <td data-label="Total">
                     <span className="amount">${Number(purchase.total).toFixed(2)}</span>
+                    {purchase.vatAmount != null && Number(purchase.vatAmount) > 0 && (
+                      <small className="row-author">IVA ${Number(purchase.vatAmount).toFixed(2)}</small>
+                    )}
                   </td>
                   {canManageData && (
                     <td data-label="Acciones">

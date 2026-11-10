@@ -30,6 +30,17 @@ const Purchase = sequelize.define(
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    // Neto (suma de los renglones sin IVA) e IVA de la factura. NULL: compra anterior a estas
+    // columnas, sin IVA cargado. El total es neto + IVA.
+    subtotal: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+    },
+    vatAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      field: 'vat_amount',
+    },
     total: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
