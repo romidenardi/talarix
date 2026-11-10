@@ -83,7 +83,8 @@ describe('Reportes de IVA compras y posición de IVA', () => {
   before(async () => {
     // Una compra vieja, sin IVA cargado, y una anulada: ninguna suma crédito fiscal
     const old = await buy([{ productId: A.products.yerba.id, quantity: 1, unitCost: 999 }]);
-    await models.Purchase.update({ subtotal: null, vatAmount: null }, { where: { id: old.body.id } });
+    // Como quedaban antes: el total era la suma de los costos, sin IVA
+    await models.Purchase.update({ subtotal: null, vatAmount: null, total: 999 }, { where: { id: old.body.id } });
     await models.PurchaseItem.update({ vatRate: null }, { where: { purchaseId: old.body.id } });
     const cancelled = await buy([{ productId: harina.id, quantity: 1, unitCost: 1000 }]);
     const cancel = await api('POST', `/api/purchases/${cancelled.body.id}/cancel`, {
