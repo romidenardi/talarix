@@ -6,7 +6,8 @@ import { createServiceRequest } from '../services/serviceRequest.service.js';
 // Rutas públicas, sin sesión. app.js les pone un límite de pedidos por IP.
 const router = Router();
 
-// Botones de baja y de arrepentimiento: { kind, name, email, businessName?, reason? }
+// Botones de baja y de arrepentimiento, y el formulario de demo del sitio web:
+// { kind: cancellation | withdrawal | demo, name, email, businessName?, reason? }
 router.post(
   '/requests',
   asyncHandler(async (req, res) => {

@@ -17,6 +17,7 @@ const ACTION_LABELS = {
   'user.terms_accepted': 'Aceptó los textos legales',
   'service_request.cancellation': 'Pedido de baja (botón)',
   'service_request.withdrawal': 'Pedido de arrepentimiento (botón)',
+  'service_request.demo': 'Pedido de demo (sitio web)',
   'service_request.resolved': 'Resolvió una solicitud',
   'service_request.reopened': 'Reabrió una solicitud',
   'tables.settings_changed': 'Activó o desactivó las mesas',
@@ -66,6 +67,7 @@ const describe = (row) => {
       return d.version ? `Versión ${d.version}` : '';
     case 'service_request.cancellation':
     case 'service_request.withdrawal':
+    case 'service_request.demo':
     case 'service_request.resolved':
     case 'service_request.reopened':
       return d.code ? `Código ${d.code}` : '';

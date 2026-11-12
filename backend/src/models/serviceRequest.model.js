@@ -2,9 +2,10 @@ import pkg from 'sequelize';
 const { DataTypes } = pkg;
 import sequelize from '../config/database.js';
 
-// Pedidos de baja y de arrepentimiento hechos desde los botones públicos (/baja y /arrepentimiento).
-// Los atiende el superadmin. Sin clave foránea al comercio: la constancia queda aunque se borre.
-//   kind:   cancellation (baja) · withdrawal (arrepentimiento del Plan Pago)
+// Pedidos hechos desde formularios públicos: los botones de baja y de arrepentimiento (/baja y
+// /arrepentimiento de la app) y el formulario «Agendá una demo» del sitio web. Los atiende el
+// superadmin. Sin clave foránea al comercio: la constancia queda aunque se borre.
+//   kind:   cancellation (baja) · withdrawal (arrepentimiento del Plan Pago) · demo (pedido de demo)
 //   status: pending · done
 const ServiceRequest = sequelize.define(
   'ServiceRequest',
@@ -15,7 +16,7 @@ const ServiceRequest = sequelize.define(
     kind: {
       type: DataTypes.STRING(20),
       allowNull: false,
-      validate: { isIn: [['cancellation', 'withdrawal']] },
+      validate: { isIn: [['cancellation', 'withdrawal', 'demo']] },
     },
     name: { type: DataTypes.STRING(255), allowNull: false },
     email: { type: DataTypes.STRING(255), allowNull: false },

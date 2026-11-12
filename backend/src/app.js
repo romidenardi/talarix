@@ -123,7 +123,8 @@ const accountLinksLimiter = rateLimit({
 });
 app.use(['/api/auth/activate', '/api/auth/forgot-password', '/api/auth/reset-password'], accountLinksLimiter);
 
-// Botones de baja y de arrepentimiento: públicos, así que con tope por IP (mandan mails)
+// Botones de baja y de arrepentimiento y pedido de demo del sitio: públicos, así que con tope por
+// IP (mandan mails)
 const publicRequestsLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   limit: 5,

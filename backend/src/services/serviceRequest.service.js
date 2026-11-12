@@ -7,7 +7,8 @@ import { requestReceivedEmail, requestNoticeEmail, supportEmail } from '../utils
 
 // Botones de baja (Res. 316/2018) y de arrepentimiento (Res. 424/2020): cualquiera los usa sin
 // ingresar, y recibe al instante un código por mail. El superadmin los atiende desde su panel.
-export const KINDS = { cancellation: 'BAJ', withdrawal: 'ARR' };
+// También el formulario «Agendá una demo» del sitio web (kind demo): mismo circuito, otro mail.
+export const KINDS = { cancellation: 'BAJ', withdrawal: 'ARR', demo: 'DEM' };
 export const STATUSES = ['pending', 'done'];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,7 +37,8 @@ export const readRequest = (body) => {
     name,
     email,
     businessName: text(body.businessName, 255),
-    reason: kind === 'cancellation' ? text(body.reason, 2000) : null,
+    // Baja: el motivo. Demo: los comentarios del formulario.
+    reason: kind === 'cancellation' || kind === 'demo' ? text(body.reason, 2000) : null,
   };
 };
 

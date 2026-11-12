@@ -19,7 +19,7 @@ import {
 import AuditLog from './AuditLog';
 import TrialDialog from './TrialDialog';
 
-const KIND_LABELS = { cancellation: 'Baja', withdrawal: 'Arrepentimiento' };
+const KIND_LABELS = { cancellation: 'Baja', withdrawal: 'Arrepentimiento', demo: 'Pedido de demo' };
 
 const EMPTY_FORM = { name: '', adminName: '', adminEmail: '', type: 'client', trialDays: '' };
 
@@ -86,7 +86,7 @@ export default function Platform() {
   const [copied, setCopied] = useState(false);
   const [renewing, setRenewing] = useState(null);
   const [savingTrial, setSavingTrial] = useState(false);
-  // Pedidos pendientes de los botones de baja y de arrepentimiento
+  // Pedidos pendientes de los botones de baja y de arrepentimiento, y de demos del sitio web
   const [requests, setRequests] = useState([]);
 
   const load = useCallback(async () => {
@@ -379,7 +379,7 @@ export default function Platform() {
 
       {requests.length > 0 && (
         <section className="trial-alert service-requests" role="status">
-          <strong>Solicitudes de baja y arrepentimiento</strong>
+          <strong>Solicitudes: baja, arrepentimiento y demos</strong>
           <ul>
             {requests.map((request) => (
               <li key={request.id}>
@@ -389,7 +389,12 @@ export default function Platform() {
                   {request.business
                     ? `Cuenta: ${request.business.name}`
                     : `Sin cuenta con ese email${request.businessName ? ` (indicó "${request.businessName}")` : ''}`}
-                  {request.reason && <small> · Motivo: {request.reason}</small>}
+                  {request.reason && (
+                    <small>
+                      {' · '}
+                      {request.kind === 'demo' ? 'Comentarios' : 'Motivo'}: {request.reason}
+                    </small>
+                  )}
                 </span>
                 <button type="button" onClick={() => handleResolveRequest(request)}>
                   Marcar resuelta
