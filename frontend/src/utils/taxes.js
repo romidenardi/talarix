@@ -4,6 +4,9 @@ export const VAT_OPTIONS = [
   { value: '0', label: '0%' },
 ];
 
+// Facturas de compra: además, el 27 % (servicios públicos y otros servicios)
+export const PURCHASE_VAT_OPTIONS = [{ value: '27', label: '27%' }, ...VAT_OPTIONS];
+
 export const formatRate = (rate) => `${String(Number(rate)).replace('.', ',')}%`;
 
 export const vatToFormValue = (rate) =>

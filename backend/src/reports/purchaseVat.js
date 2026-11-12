@@ -1,5 +1,5 @@
 import pkg from 'sequelize';
-import { Purchase, PurchaseItem, Supplier } from '../models/index.js';
+import { Purchase, PurchaseItem, PurchaseExpense, Supplier } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { round2 } from '../utils/numbers.js';
 import { readRange } from '../utils/dates.js';
@@ -8,9 +8,10 @@ import { salesVatByRate } from './vat.js';
 
 const { Op } = pkg;
 
-// IVA de las compras de un período (crédito fiscal). Cada compra se calcula como su factura, con
-// purchaseTotals (el mismo cálculo que al cargarla), y se suma por alícuota. Las compras anuladas
-// no cuentan. Las cargadas antes de que las compras tuvieran IVA quedan aparte, sin desglose.
+// IVA de las compras de un período (crédito fiscal), con productos, insumos y servicios. Cada compra
+// se calcula como su factura, con purchaseTotals (el mismo cálculo que al cargarla), y se suma por
+// alícuota. Las compras anuladas no cuentan. Las cargadas antes de que las compras tuvieran IVA
+// quedan aparte, sin desglose.
 export const purchaseVatByRate = async ({ businessId, start, end }) => {
   const purchases = await Purchase.findAll({
     where: { businessId, status: 'active', date: { [Op.gte]: start, [Op.lt]: end } },
@@ -18,6 +19,7 @@ export const purchaseVatByRate = async ({ businessId, start, end }) => {
     include: [
       { model: Supplier, attributes: ['id', 'name'] },
       { model: PurchaseItem, as: 'items', attributes: ['quantity', 'unitCost', 'vatRate'] },
+      { model: PurchaseExpense, as: 'expenses', attributes: ['quantity', 'unitCost', 'vatRate'] },
     ],
     order: [['date', 'ASC']],
   });
@@ -31,7 +33,8 @@ export const purchaseVatByRate = async ({ businessId, start, end }) => {
       withoutVat.total += Number(purchase.total);
       continue;
     }
-    const totals = purchaseTotals(purchase.items);
+    // Productos, insumos y servicios de la factura
+    const totals = purchaseTotals([...purchase.items, ...purchase.expenses]);
     for (const part of totals.byRate) {
       const row = byRate.get(part.rate) || { rate: part.rate, net: 0, vat: 0, total: 0 };
       row.net += part.net;

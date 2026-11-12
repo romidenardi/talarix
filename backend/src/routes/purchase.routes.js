@@ -8,7 +8,9 @@ const router = Router();
 
 const createRules = [
   body('supplierId').notEmpty().withMessage('El proveedor es obligatorio.'),
-  body('items').isArray({ min: 1 }).withMessage('Debe incluir al menos un artículo.'),
+  // Al menos un artículo o un servicio: lo controla createPurchase
+  body('items').optional().isArray().withMessage('Los artículos no son válidos.'),
+  body('expenses').optional().isArray().withMessage('Los servicios no son válidos.'),
 ];
 
 router.get('/', getPurchases);

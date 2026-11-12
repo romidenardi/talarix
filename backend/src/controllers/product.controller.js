@@ -128,10 +128,15 @@ const findOwnProduct = async (id, businessId) => {
 // Lo que se puede cambiar en una variante: lo demás lo toma del producto principal
 const VARIANT_FIELDS = ['internalCode', 'barcode', 'price', 'promoPrice', 'cost', 'active'];
 
+// ?kind=supply: solo los insumos (pantalla Insumos). ?kind=all: productos e insumos (compras).
+// Sin kind: solo los productos que se venden. Los platos y adicionales del menú se cargan desde
+// Mesas → Menú: no se listan nunca acá.
 export const getProducts = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
-  // Los platos y adicionales del menú se cargan desde Mesas → Menú: no se listan acá
-  const products = await Product.findAll({ where: { businessId, menuKind: null } });
+  const where = { businessId, menuKind: null };
+  if (req.query.kind === 'supply') where.isSupply = true;
+  else if (req.query.kind !== 'all') where.isSupply = false;
+  const products = await Product.findAll({ where });
   res.json(await withComboData(products, businessId));
 });
 
@@ -202,6 +207,15 @@ export const createProduct = asyncHandler(async (req, res) => {
   // Los combos se crean desde /combos: acá nunca
   const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS)));
   data.categoryId = await resolveProductCategory(data.categoryId, businessId);
+
+  // Insumo: se marca solo al crearlo. No se vende, así que no lleva precio, variantes ni PLU.
+  if (req.body.isSupply === true) {
+    if (variants) throw httpError('Los insumos no llevan variantes.');
+    data.isSupply = true;
+    data.price = 0;
+    data.promoPrice = null;
+    delete req.body.scalePlu;
+  }
 
   if (variants) {
     if (data.unitType !== 'unit') throw httpError('Las variantes son solo para productos que se venden por unidad.');
@@ -355,6 +369,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
 
   // Solo los campos editables: nunca el comercio, el id ni el stock
   const data = cleanPromoPrice(normalizeTaxes(pick(req.body, PRODUCT_FIELDS), product.vatRate));
+  // Un insumo no se vende: sin precio ni PLU de balanza
+  if (product.isSupply) {
+    delete data.price;
+    delete data.promoPrice;
+    delete data.scalePlu;
+  }
   if ('categoryId' in data) {
     data.categoryId = await resolveProductCategory(data.categoryId, businessId, { current: product.categoryId });
   }

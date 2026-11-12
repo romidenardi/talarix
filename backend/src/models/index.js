@@ -10,6 +10,7 @@ import Customer from './customer.model.js';
 import Supplier from './supplier.model.js';
 import Purchase from './purchase.model.js';
 import PurchaseItem from './purchaseItem.model.js';
+import PurchaseExpense from './purchaseExpense.model.js';
 import Order from './order.model.js';
 import OrderItem from './orderItem.model.js';
 import ComboItem from './comboItem.model.js';
@@ -68,6 +69,9 @@ Purchase.belongsTo(Supplier, { foreignKey: 'supplierId', onDelete: 'RESTRICT', o
 Purchase.hasMany(PurchaseItem, { as: 'items', foreignKey: 'purchaseId' });
 PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchaseId' });
 
+Purchase.hasMany(PurchaseExpense, { as: 'expenses', foreignKey: 'purchaseId', constraints: false });
+PurchaseExpense.belongsTo(Purchase, { foreignKey: 'purchaseId', constraints: false });
+
 Product.hasMany(PurchaseItem, { foreignKey: 'productId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 PurchaseItem.belongsTo(Product, { foreignKey: 'productId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 
@@ -117,6 +121,7 @@ export {
   Supplier,
   Purchase,
   PurchaseItem,
+  PurchaseExpense,
   Order,
   OrderItem,
   ComboItem,

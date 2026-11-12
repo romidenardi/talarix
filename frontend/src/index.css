@@ -603,6 +603,18 @@ td:nth-child(1),
   flex: 1 1 160px;
 }
 
+.purchase-section-title {
+  font-size: 1rem;
+  margin: 8px 0 0;
+}
+
+.purchase-add-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+}
+
 .purchase-total {
   width: 100%;
   display: flex;

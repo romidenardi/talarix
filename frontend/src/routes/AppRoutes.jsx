@@ -16,6 +16,7 @@ import Customers from '../pages/Customers/Customers.jsx';
 import Products from '../pages/Products/Products.jsx';
 import Suppliers from '../pages/Suppliers/Suppliers.jsx';
 import Purchases from '../pages/Purchases/Purchases.jsx';
+import Supplies from '../pages/Supplies/Supplies.jsx';
 import Orders from '../pages/Orders/Orders.jsx';
 import OrderPrint from '../pages/Orders/OrderPrint.jsx';
 import Imports from '../pages/Imports/Imports.jsx';
@@ -64,6 +65,7 @@ const AppRoutes = () => {
             <Route path="/customers" element={<Customers />} />
             <Route path="/products" element={<Products />} />
             <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/insumos" element={<Supplies />} />
             <Route path="/imports" element={<Imports />} />
           </Route>
 

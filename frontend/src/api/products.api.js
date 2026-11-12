@@ -1,6 +1,7 @@
 import api from './axios.js';
 
-export const getProducts = () => api.get('/products');
+// kind: sin valor, los productos que se venden; 'supply', los insumos; 'all', los dos (compras)
+export const getProducts = (kind) => api.get('/products', { params: kind ? { kind } : undefined });
 export const createProduct = (data) => api.post('/products', data);
 export const updateProduct = (id, data) => api.put(`/products/${id}`, data);
 export const deleteProduct = (id) => api.delete(`/products/${id}`);

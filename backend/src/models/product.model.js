@@ -103,6 +103,13 @@ const Product = sequelize.define(
       defaultValue: false,
       field: 'is_combo',
     },
+    // Insumo: se compra y lleva stock, pero no se vende (no va en remitos, combos ni Productos)
+    isSupply: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      field: 'is_supply',
+    },
     specialPrice: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,

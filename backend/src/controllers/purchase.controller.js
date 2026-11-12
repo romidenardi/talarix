@@ -1,4 +1,4 @@
-import { Purchase, PurchaseItem, Product, Supplier, sequelize } from '../models/index.js';
+import { Purchase, PurchaseItem, PurchaseExpense, Product, Supplier, sequelize } from '../models/index.js';
 import { isVariantGroup } from '../services/variant.service.js';
 import { lockProducts, moveStock, actorFields } from '../services/stock.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
@@ -15,17 +15,21 @@ import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAl
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_COST = 99999999;
 const MAX_AGE_DAYS = 366;
-// Las mismas alícuotas que en los productos. Se acepta además la que ya tiene el producto, aunque
+// Alícuotas de las facturas de compra: las de los productos más el 27 % (servicios públicos y
+// otros servicios). En un renglón de producto se acepta además la que ya tiene el producto, aunque
 // no esté en la lista (productos cargados antes de que se limitara).
-const PURCHASE_VAT_RATES = [0, 10.5, 21];
+const PURCHASE_VAT_RATES = [0, 10.5, 21, 27];
+const VAT_MESSAGE = 'el IVA debe ser 27%, 21%, 10,5% o 0%.';
+const MAX_DESCRIPTION = 150;
 
 const purchaseIncludes = [
   { model: Supplier, attributes: ['id', 'name'] },
   {
     model: PurchaseItem,
     as: 'items',
-    include: [{ model: Product, attributes: ['id', 'name', 'internalCode', 'unitType'] }],
+    include: [{ model: Product, attributes: ['id', 'name', 'internalCode', 'unitType', 'isSupply'] }],
   },
+  { model: PurchaseExpense, as: 'expenses' },
 ];
 
 const arDate = (date) => new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
@@ -48,7 +52,10 @@ export const getPurchases = asyncHandler(async (req, res) => {
 });
 
 export const createPurchase = asyncHandler(async (req, res) => {
-  const { supplierId, date, items } = req.body;
+  const { supplierId, date } = req.body;
+  // items: productos e insumos (suman stock). expenses: servicios y gastos (concepto libre, sin stock).
+  const items = Array.isArray(req.body.items) ? req.body.items : [];
+  const expenses = Array.isArray(req.body.expenses) ? req.body.expenses : [];
   const { businessId } = req.user;
   const requestId = cleanRequestId(req.body.requestId);
   const invoiceNumber = req.body.invoiceNumber ? String(req.body.invoiceNumber).trim().slice(0, 255) || null : null;
@@ -63,8 +70,8 @@ export const createPurchase = asyncHandler(async (req, res) => {
     if (previous) return sendExisting(previous.id);
   }
 
-  if (!Array.isArray(items) || items.length === 0) {
-    throw httpError('La compra debe tener al menos un artículo.');
+  if (items.length === 0 && expenses.length === 0) {
+    throw httpError('La compra debe tener al menos un artículo o un servicio.');
   }
 
   const rows = items.map((item, index) => {
@@ -87,6 +94,29 @@ export const createPurchase = asyncHandler(async (req, res) => {
       unitCost: round2(toNumber(item.unitCost)),
       // Sin alícuota: se usa la del producto (se completa al leerlo)
       vatRate: hasVat ? toNumber(item.vatRate) : null,
+    };
+  });
+
+  const expenseRows = expenses.map((expense, index) => {
+    const n = index + 1;
+    const description = String(expense?.description ?? '').trim();
+    if (!description) throw httpError(`Servicio ${n}: falta el concepto.`);
+    if (description.length > MAX_DESCRIPTION) {
+      throw httpError(`Servicio ${n}: el concepto puede tener hasta ${MAX_DESCRIPTION} caracteres.`);
+    }
+    if (!isPositiveQuantity(expense.quantity)) {
+      throw httpError(`Servicio ${n}: la cantidad debe ser un número mayor a 0, con hasta 3 decimales.`);
+    }
+    if (!isNonNegative(expense.unitCost) || toNumber(expense.unitCost) > MAX_COST) {
+      throw httpError(`Servicio ${n}: el importe no es válido.`);
+    }
+    const vatRate = toNumber(expense.vatRate ?? 21);
+    if (!PURCHASE_VAT_RATES.includes(vatRate)) throw httpError(`Servicio ${n}: ${VAT_MESSAGE}`);
+    return {
+      description,
+      quantity: round3(toNumber(expense.quantity)),
+      unitCost: round2(toNumber(expense.unitCost)),
+      vatRate,
     };
   });
 
@@ -161,13 +191,13 @@ export const createPurchase = asyncHandler(async (req, res) => {
       const productVat = Number(entry.product.vatRate) || 0;
       if (row.vatRate === null) row.vatRate = productVat;
       else if (!PURCHASE_VAT_RATES.includes(row.vatRate) && row.vatRate !== productVat) {
-        throw httpError(`Artículo ${index + 1}: el IVA debe ser 21%, 10,5% o 0%.`);
+        throw httpError(`Artículo ${index + 1}: ${VAT_MESSAGE}`);
       }
       entry.quantity = round3(entry.quantity + row.quantity);
       entry.amount += row.quantity * row.unitCost;
     }
     // Neto, IVA y total como en la factura: renglones redondeados a centavos e IVA por alícuota
-    const totals = purchaseTotals(rows);
+    const totals = purchaseTotals([...rows, ...expenseRows]);
 
     const purchase = await Purchase.create(
       {
@@ -195,6 +225,12 @@ export const createPurchase = asyncHandler(async (req, res) => {
       })),
       { transaction: t },
     );
+    if (expenseRows.length) {
+      await PurchaseExpense.bulkCreate(
+        expenseRows.map((row) => ({ ...row, purchaseId: purchase.id })),
+        { transaction: t },
+      );
+    }
 
     for (const { product, quantity, amount } of byProduct.values()) {
       // Costo del producto: el promedio de esta compra (si el mismo producto vino en dos renglones

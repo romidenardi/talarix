@@ -115,6 +115,9 @@ export const createOrder = async ({ body, user, options = {} }) => {
       if (!rowProduct.active && !fromTab) {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} está inactivo. Activalo en Productos o elegí otro.`);
       }
+      if (rowProduct.isSupply) {
+        throw httpError(`Artículo ${index + 1}: ${rowProduct.name} es un insumo: no se vende.`);
+      }
       if (rowProduct.menuKind && !fromTab) {
         throw httpError(`Artículo ${index + 1}: ${rowProduct.name} es del menú de las mesas: se pide desde Mesas.`);
       }

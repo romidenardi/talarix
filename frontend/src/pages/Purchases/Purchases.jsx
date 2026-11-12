@@ -14,7 +14,7 @@ import { presetRange } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
-import { toPercentOrNull, vatToFormValue, formatRate } from '../../utils/taxes.js';
+import { toPercentOrNull, vatToFormValue, formatRate, PURCHASE_VAT_OPTIONS } from '../../utils/taxes.js';
 import { purchaseTotals } from '../../utils/purchaseTotals.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { formatQuantity, quantityStep, quantityMin, toKg } from '../../utils/quantity.js';
@@ -23,6 +23,9 @@ import { isVariantGroup } from '../../utils/variants.js';
 
 const NEW_SUPPLIER = '__new_supplier__';
 const NEW_PRODUCT = '__new_product__';
+const NEW_SUPPLY = '__new_supply__';
+// Renglón con un producto o un insumo que se crea junto con la compra
+const isNewRow = (productId) => productId === NEW_PRODUCT || productId === NEW_SUPPLY;
 
 const emptyItem = () => ({
   productId: '',
@@ -33,11 +36,15 @@ const emptyItem = () => ({
   newProduct: { internalCode: '', barcode: '', name: '', price: '', vatRate: '21', otherTaxes: '', unitType: 'unit' },
 });
 
+// Servicio o gasto (alquiler, luz, flete): concepto libre, sin producto ni stock
+const emptyExpense = () => ({ description: '', quantity: 1, unitCost: '', vatRate: '21' });
+
 const emptyForm = () => ({
   supplierId: '',
   invoiceNumber: '',
   newSupplier: { name: '', cuit: '', phone: '', email: '' },
   items: [emptyItem()],
+  expenses: [],
 });
 
 const Purchases = () => {
@@ -67,7 +74,11 @@ const Purchases = () => {
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+  const expenseArray = useFieldArray({ control, name: 'expenses' });
   const watchedItems = watch('items');
+  const watchedExpenses = watch('expenses');
+  // Tiene que quedar al menos un renglón: de producto o de servicio
+  const totalRows = fields.length + expenseArray.fields.length;
   const selectedSupplierId = watch('supplierId');
   const isNewSupplier = selectedSupplierId === NEW_SUPPLIER;
 
@@ -77,7 +88,7 @@ const Purchases = () => {
       const [purchasesRes, suppliersRes, productsRes] = await Promise.all([
         getPurchases(range),
         getSuppliers(),
-        getProducts(),
+        getProducts('all'),
       ]);
       setPurchases(purchasesRes.data);
       setSuppliers(suppliersRes.data);
@@ -107,14 +118,19 @@ const Purchases = () => {
   };
 
   // IVA del renglón: el elegido en la fila o, si el producto es nuevo, el que se le carga al producto
-  const rowVat = (item) => (item.productId === NEW_PRODUCT ? item.newProduct?.vatRate : item.vatRate);
-  const totals = purchaseTotals(
-    (watchedItems || []).map((item) => ({
+  const rowVat = (item) => (isNewRow(item.productId) ? item.newProduct?.vatRate : item.vatRate);
+  const totals = purchaseTotals([
+    ...(watchedItems || []).map((item) => ({
       quantity: toKg(item.quantity, item.qtyUnit),
       unitCost: Number(item.unitCost) || 0,
       vatRate: Number(rowVat(item)) || 0,
     })),
-  );
+    ...(watchedExpenses || []).map((expense) => ({
+      quantity: Number(expense.quantity) || 0,
+      unitCost: Number(expense.unitCost) || 0,
+      vatRate: Number(expense.vatRate) || 0,
+    })),
+  ]);
 
   // Código leído con el lector USB o con la cámara
   const handleScan = async (rawCode) => {
@@ -195,7 +211,7 @@ const Purchases = () => {
     const created = [];
     const finish = () => {
       requestIdRef.current = newRequestId();
-      msg.success('Compra registrada, stock actualizado.');
+      msg.success(formData.items?.length ? 'Compra registrada, stock actualizado.' : 'Compra registrada.');
       reset(emptyForm());
       loadAll();
     };
@@ -208,17 +224,21 @@ const Purchases = () => {
       }
 
       formData.items.forEach((item, i) => {
-        if (item.productId !== NEW_PRODUCT) return;
+        if (!isNewRow(item.productId)) return;
+        const supply = item.productId === NEW_SUPPLY;
         const np = item.newProduct || {};
         if (!np.internalCode) {
           setError(`items.${i}.newProduct.internalCode`, { type: 'manual', message: 'Cargá el código interno.' });
           missing = true;
         }
         if (!np.name) {
-          setError(`items.${i}.newProduct.name`, { type: 'manual', message: 'Cargá el nombre del producto.' });
+          setError(`items.${i}.newProduct.name`, {
+            type: 'manual',
+            message: supply ? 'Cargá el nombre del insumo.' : 'Cargá el nombre del producto.',
+          });
           missing = true;
         }
-        if (!(Number(np.price) > 0)) {
+        if (!supply && !(Number(np.price) > 0)) {
           setError(`items.${i}.newProduct.price`, { type: 'manual', message: 'Cargá el precio de venta.' });
           missing = true;
         }
@@ -245,20 +265,23 @@ const Purchases = () => {
         const item = formData.items[i];
         let productId = item.productId;
 
-        if (productId === NEW_PRODUCT) {
+        if (isNewRow(productId)) {
           const np = item.newProduct;
+          const supply = productId === NEW_SUPPLY;
+          // Un insumo se crea sin precio de venta ni impuestos internos (no se vende)
           const { data: createdProduct } = await createProduct({
             internalCode: np.internalCode,
             barcode: np.barcode || null,
             name: np.name,
-            price: Number(np.price),
+            price: supply ? 0 : Number(np.price),
             cost: Number(item.unitCost) || 0,
             vatRate: np.vatRate === '' || np.vatRate === undefined ? 21 : Number(np.vatRate),
-            otherTaxes: toPercentOrNull(np.otherTaxes),
+            otherTaxes: supply ? null : toPercentOrNull(np.otherTaxes),
             unitType: np.unitType || 'unit',
+            ...(supply ? { isSupply: true } : {}),
           });
           productId = createdProduct.id;
-          created.push(`el producto ${createdProduct.name}`);
+          created.push(`${supply ? 'el insumo' : 'el producto'} ${createdProduct.name}`);
           setProducts((prev) => [...prev, createdProduct]);
           setValue(`items.${i}.productId`, createdProduct.id);
         }
@@ -275,6 +298,12 @@ const Purchases = () => {
         supplierId,
         invoiceNumber: formData.invoiceNumber || null,
         items: payloadItems,
+        expenses: (formData.expenses || []).map((expense) => ({
+          description: expense.description.trim(),
+          quantity: Number(expense.quantity),
+          unitCost: Number(expense.unitCost),
+          vatRate: Number(expense.vatRate),
+        })),
         requestId: requestIdRef.current,
       };
       await createPurchase(payload);
@@ -360,7 +389,7 @@ const Purchases = () => {
     .filter((p) => !p.isCombo && !isVariantGroup(p))
     .map((p) => ({
       value: p.id,
-      label: p.name,
+      label: p.isSupply ? `${p.name} (insumo)` : p.name,
       detail: [p.internalCode && `Cód. ${p.internalCode}`, `Stock: ${formatQuantity(p.stock, p.unitType)}`]
         .filter(Boolean)
         .join(' · '),
@@ -443,7 +472,8 @@ const Purchases = () => {
         <div className="purchase-items">
           {fields.map((field, index) => {
             const rowProductId = watchedItems?.[index]?.productId;
-            const isNewProduct = rowProductId === NEW_PRODUCT;
+            const isNewProduct = isNewRow(rowProductId);
+            const isNewSupply = rowProductId === NEW_SUPPLY;
             const rowProduct = products.find((p) => p.id === rowProductId);
             const rowUnitType = isNewProduct ? watchedItems?.[index]?.newProduct?.unitType : rowProduct?.unitType;
             const rowQtyUnit = rowUnitType === 'weight' ? watchedItems?.[index]?.qtyUnit || 'kg' : 'kg';
@@ -476,7 +506,14 @@ const Purchases = () => {
                           if (chosen) setValue(`items.${index}.vatRate`, vatToFormValue(chosen.vatRate));
                         }}
                         options={productOptions}
-                        extraOptions={canManageData ? [{ value: NEW_PRODUCT, label: '+ Nuevo producto...' }] : []}
+                        extraOptions={
+                          canManageData
+                            ? [
+                                { value: NEW_PRODUCT, label: '+ Nuevo producto...' },
+                                { value: NEW_SUPPLY, label: '+ Nuevo insumo...' },
+                              ]
+                            : []
+                        }
                         hasError={Boolean(errors.items?.[index]?.productId)}
                       />
                     )}
@@ -543,6 +580,7 @@ const Purchases = () => {
                       id={`item-vat-${index}`}
                       registration={register(`items.${index}.vatRate`)}
                       legacyValue={rowProduct?.vatRate}
+                      options={PURCHASE_VAT_OPTIONS}
                     />
                   </div>
                 )}
@@ -551,8 +589,8 @@ const Purchases = () => {
                   <button
                     type="button"
                     onClick={() => remove(index)}
-                    disabled={fields.length === 1}
-                    style={{ visibility: fields.length === 1 ? 'hidden' : 'visible' }}
+                    disabled={totalRows === 1}
+                    style={{ visibility: totalRows === 1 ? 'hidden' : 'visible' }}
                   >
                     Quitar
                   </button>
@@ -589,34 +627,36 @@ const Purchases = () => {
                     </div>
                     <div className="field">
                       <label htmlFor={`new-product-name-${index}`}>
-                        Producto
+                        {isNewSupply ? 'Insumo' : 'Producto'}
                         <RequiredMark />
                       </label>
                       <input
                         id={`new-product-name-${index}`}
-                        placeholder="Ej: Cerveza IPA 500ml"
+                        placeholder={isNewSupply ? 'Ej: Bolsas camiseta 40x50' : 'Ej: Cerveza IPA 500ml'}
                         {...register(`items.${index}.newProduct.name`)}
                       />
                       {errors.items?.[index]?.newProduct?.name && (
                         <span className="error">{errors.items?.[index]?.newProduct?.name.message}</span>
                       )}
                     </div>
-                    <div className="field">
-                      <label htmlFor={`new-product-price-${index}`}>
-                        {rowUnitType === 'weight' ? 'Precio de venta por kg' : 'Precio de venta'}
-                        <RequiredMark />
-                      </label>
-                      <input
-                        id={`new-product-price-${index}`}
-                        type="number"
-                        step="0.01"
-                        placeholder="Ej: 1500"
-                        {...register(`items.${index}.newProduct.price`)}
-                      />
-                      {errors.items?.[index]?.newProduct?.price && (
-                        <span className="error">{errors.items?.[index]?.newProduct?.price.message}</span>
-                      )}
-                    </div>
+                    {!isNewSupply && (
+                      <div className="field">
+                        <label htmlFor={`new-product-price-${index}`}>
+                          {rowUnitType === 'weight' ? 'Precio de venta por kg' : 'Precio de venta'}
+                          <RequiredMark />
+                        </label>
+                        <input
+                          id={`new-product-price-${index}`}
+                          type="number"
+                          step="0.01"
+                          placeholder="Ej: 1500"
+                          {...register(`items.${index}.newProduct.price`)}
+                        />
+                        {errors.items?.[index]?.newProduct?.price && (
+                          <span className="error">{errors.items?.[index]?.newProduct?.price.message}</span>
+                        )}
+                      </div>
+                    )}
                     <div className="field">
                       <label htmlFor={`new-product-vat-${index}`}>IVA</label>
                       <VatSelect
@@ -624,22 +664,26 @@ const Purchases = () => {
                         registration={register(`items.${index}.newProduct.vatRate`)}
                       />
                     </div>
+                    {!isNewSupply && (
+                      <div className="field">
+                        <label htmlFor={`new-product-internal-${index}`}>
+                          Impuestos internos (%) <small>(opcional)</small>
+                        </label>
+                        <input
+                          id={`new-product-internal-${index}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="100"
+                          placeholder="Ej: 8"
+                          {...register(`items.${index}.newProduct.otherTaxes`)}
+                        />
+                      </div>
+                    )}
                     <div className="field">
-                      <label htmlFor={`new-product-internal-${index}`}>
-                        Impuestos internos (%) <small>(opcional)</small>
+                      <label htmlFor={`new-product-unit-${index}`}>
+                        {isNewSupply ? 'Se maneja por' : 'Unidad de comercialización'}
                       </label>
-                      <input
-                        id={`new-product-internal-${index}`}
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        placeholder="Ej: 8"
-                        {...register(`items.${index}.newProduct.otherTaxes`)}
-                      />
-                    </div>
-                    <div className="field">
-                      <label htmlFor={`new-product-unit-${index}`}>Unidad de comercialización</label>
                       <select id={`new-product-unit-${index}`} {...register(`items.${index}.newProduct.unitType`)}>
                         <option value="unit">Por unidad</option>
                         <option value="weight">Por peso</option>
@@ -647,8 +691,9 @@ const Purchases = () => {
                     </div>
                     <div className="field field-full stock-warning">
                       <span>
-                        El costo del producto será el "Costo unitario sin IVA" de esta fila y el IVA de la compra, el
-                        que elijas acá. Se crea con stock 0 y la compra le suma{' '}
+                        {isNewSupply ? 'Se crea en Insumos (no se vende). ' : ''}
+                        El costo {isNewSupply ? 'del insumo' : 'del producto'} será el "Costo unitario sin IVA" de esta
+                        fila y el IVA de la compra, el que elijas acá. Se crea con stock 0 y la compra le suma{' '}
                         {formatQuantity(rowQuantity, rowUnitType)}.
                       </span>
                     </div>
@@ -665,9 +710,97 @@ const Purchases = () => {
           })}
         </div>
 
-        <button type="button" onClick={() => append(emptyItem())}>
-          + Agregar producto
-        </button>
+        {expenseArray.fields.length > 0 && (
+          <div className="purchase-items purchase-expenses">
+            <h3 className="purchase-section-title">Servicios y gastos</h3>
+            {expenseArray.fields.map((field, index) => (
+              <div key={field.id} className="purchase-item-row">
+                <div className="field">
+                  <label htmlFor={`expense-description-${index}`}>
+                    Concepto
+                    <RequiredMark />
+                  </label>
+                  <input
+                    id={`expense-description-${index}`}
+                    maxLength={150}
+                    placeholder="Ej: Alquiler de noviembre, flete, luz"
+                    {...register(`expenses.${index}.description`, {
+                      validate: (value) => Boolean(value?.trim()) || 'Cargá el concepto',
+                    })}
+                  />
+                  {errors.expenses?.[index]?.description && (
+                    <span className="error">{errors.expenses[index].description.message}</span>
+                  )}
+                </div>
+                <div className="field">
+                  <label htmlFor={`expense-quantity-${index}`}>
+                    Cantidad
+                    <RequiredMark />
+                  </label>
+                  <input
+                    id={`expense-quantity-${index}`}
+                    type="number"
+                    step="0.001"
+                    {...register(`expenses.${index}.quantity`, {
+                      required: 'Cargá la cantidad',
+                      min: { value: 0.001, message: 'La cantidad tiene que ser mayor a 0' },
+                    })}
+                  />
+                  {errors.expenses?.[index]?.quantity && (
+                    <span className="error">{errors.expenses[index].quantity.message}</span>
+                  )}
+                </div>
+                <div className="field">
+                  <label htmlFor={`expense-cost-${index}`}>
+                    Importe sin IVA
+                    <RequiredMark />
+                  </label>
+                  <input
+                    id={`expense-cost-${index}`}
+                    type="number"
+                    step="0.01"
+                    placeholder="Ej: 150000"
+                    {...register(`expenses.${index}.unitCost`, {
+                      required: 'Cargá el importe',
+                      min: { value: 0, message: 'El importe no puede ser negativo.' },
+                    })}
+                  />
+                  {errors.expenses?.[index]?.unitCost && (
+                    <span className="error">{errors.expenses[index].unitCost.message}</span>
+                  )}
+                </div>
+                <div className="field">
+                  <label htmlFor={`expense-vat-${index}`}>IVA</label>
+                  <VatSelect
+                    id={`expense-vat-${index}`}
+                    registration={register(`expenses.${index}.vatRate`)}
+                    options={PURCHASE_VAT_OPTIONS}
+                  />
+                </div>
+                <div className="field item-remove-field">
+                  <label aria-hidden="true">&nbsp;</label>
+                  <button
+                    type="button"
+                    onClick={() => expenseArray.remove(index)}
+                    disabled={totalRows === 1}
+                    style={{ visibility: totalRows === 1 ? 'hidden' : 'visible' }}
+                  >
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="purchase-add-buttons">
+          <button type="button" onClick={() => append(emptyItem())}>
+            + Agregar producto o insumo
+          </button>
+          <button type="button" onClick={() => expenseArray.append(emptyExpense())}>
+            + Agregar servicio o gasto
+          </button>
+        </div>
 
         <div className="purchase-total">
           <span>Neto: ${totals.subtotal.toFixed(2)}</span>
@@ -726,9 +859,14 @@ const Purchases = () => {
                   </td>
                   <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
                   <td data-label="Artículos">
-                    {purchase.items
-                      ?.map((i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`)
-                      .join(', ')}
+                    {[
+                      ...(purchase.items || []).map(
+                        (i) => `${i.Product?.name} x${formatQuantity(i.quantity, i.Product?.unitType)}`,
+                      ),
+                      ...(purchase.expenses || []).map((e) =>
+                        Number(e.quantity) === 1 ? e.description : `${e.description} x${Number(e.quantity)}`,
+                      ),
+                    ].join(', ')}
                   </td>
                   <td data-label="Total">
                     <span className="amount">${Number(purchase.total).toFixed(2)}</span>

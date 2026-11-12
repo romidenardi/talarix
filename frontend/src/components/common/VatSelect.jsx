@@ -1,16 +1,17 @@
 import { VAT_OPTIONS, formatRate } from '../../utils/taxes.js';
 
-const VatSelect = ({ id, registration, legacyValue }) => {
+// options: las alícuotas para elegir (por defecto, las de los productos)
+const VatSelect = ({ id, registration, legacyValue, options = VAT_OPTIONS }) => {
   const hasLegacy =
     legacyValue !== undefined &&
     legacyValue !== null &&
     legacyValue !== '' &&
-    !VAT_OPTIONS.some((option) => Number(option.value) === Number(legacyValue));
+    !options.some((option) => Number(option.value) === Number(legacyValue));
 
   return (
     <>
       <select id={id} {...registration}>
-        {VAT_OPTIONS.map((option) => (
+        {options.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
