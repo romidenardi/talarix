@@ -10,6 +10,7 @@ import {
   Supplier,
   Purchase,
   PurchaseItem,
+  PurchaseExpense,
   Order,
   OrderItem,
   sequelize,
@@ -45,8 +46,10 @@ const wipeBusinessData = async (businessId, t) => {
   await Order.destroy({ where: { businessId }, transaction: t });
 
   const purchaseIds = await idsOf(Purchase);
-  if (purchaseIds.length)
+  if (purchaseIds.length) {
     await PurchaseItem.destroy({ where: { purchaseId: { [Op.in]: purchaseIds } }, transaction: t });
+    await PurchaseExpense.destroy({ where: { purchaseId: { [Op.in]: purchaseIds } }, transaction: t });
+  }
   await Purchase.destroy({ where: { businessId }, transaction: t });
 
   await StockMovement.destroy({ where: { businessId }, transaction: t });
@@ -78,6 +81,15 @@ const PRODUCTS = [
   ['LIM-002', '7790000000103', 'Detergente 750 ml', 'Brillo Plus', 'Limpieza', 2400, 1600, 21, 22],
   ['GOL-001', '7790000000110', 'Alfajor triple', 'Dulce Sur', 'Golosinas', 1200, 780, 21, 80],
   ['GOL-002', '7790000000127', 'Chocolate con leche 100 g', 'Cacao Sur', 'Golosinas', 2300, 1500, 21, 35],
+];
+
+// Insumos: se compran y se usan, no se venden
+const SUPPLIES = [
+  // [código, nombre, unidad, costo sin IVA, IVA]
+  ['INS-001', 'Bolsas camiseta 40x50', 'unit', 45, 21],
+  ['INS-002', 'Rollo de papel térmico 57 mm', 'unit', 900, 21],
+  ['INS-003', 'Film stretch', 'weight', 5200, 21],
+  ['INS-004', 'Detergente industrial 5 L', 'unit', 6800, 21],
 ];
 
 // Los datos de ejemplo usan el mismo cálculo, la misma numeración y el mismo movimiento de stock
@@ -159,7 +171,18 @@ const seedOrder = async ({
   }
 };
 
-const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, lines, products }) => {
+// lines: productos o insumos [código, cantidad, costo sin IVA]
+// expenses: servicios y gastos [concepto, cantidad, importe sin IVA, IVA]
+const seedPurchase = async ({
+  t,
+  businessId,
+  supplier,
+  invoiceNumber,
+  daysAgo,
+  lines = [],
+  expenses = [],
+  products,
+}) => {
   // Costos sin IVA, con la alícuota de cada producto (igual que al cargar una compra)
   const resolved = lines.map(([code, quantity, unitCost]) => ({
     product: products[code],
@@ -167,7 +190,13 @@ const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, l
     unitCost,
     vatRate: Number(products[code].vatRate) || 0,
   }));
-  const { subtotal, vatAmount, total } = purchaseTotals(resolved);
+  const services = expenses.map(([description, quantity, unitCost, vatRate]) => ({
+    description,
+    quantity,
+    unitCost,
+    vatRate,
+  }));
+  const { subtotal, vatAmount, total } = purchaseTotals([...resolved, ...services]);
   const date = daysAgoDate(daysAgo);
 
   const purchase = await Purchase.create(
@@ -184,6 +213,9 @@ const seedPurchase = async ({ t, businessId, supplier, invoiceNumber, daysAgo, l
     { transaction: t },
   );
 
+  for (const service of services) {
+    await PurchaseExpense.create({ purchaseId: purchase.id, ...service }, { transaction: t });
+  }
   for (const { product, quantity, unitCost, vatRate } of resolved) {
     await PurchaseItem.create(
       { purchaseId: purchase.id, productId: product.id, quantity, unitCost, vatRate },
@@ -244,6 +276,14 @@ const seedDemoData = async (businessId, t) => {
         date: daysAgoDate(20),
       },
       t,
+    );
+  }
+
+  // Insumos: arrancan sin stock; entran con la compra a la papelera
+  for (const [code, name, unitType, cost, vatRate] of SUPPLIES) {
+    products[code] = await Product.create(
+      { businessId, internalCode: code, name, unitType, price: 0, cost, vatRate, stock: 0, isSupply: true },
+      { transaction: t },
     );
   }
 
@@ -322,6 +362,24 @@ const seedDemoData = async (businessId, t) => {
       },
       { transaction: t },
     ),
+    papelera: await Supplier.create(
+      {
+        businessId,
+        name: 'Papelera Demo S.R.L.',
+        cuit: '30000000006',
+        city: 'Rafaela',
+        province: 'Santa Fe',
+      },
+      { transaction: t },
+    ),
+    energia: await Supplier.create(
+      { businessId, name: 'Energía Demo S.A.', cuit: '30000000007', province: 'Santa Fe' },
+      { transaction: t },
+    ),
+    inmobiliaria: await Supplier.create(
+      { businessId, name: 'Inmobiliaria Demo', cuit: '30000000008', city: 'Rafaela', province: 'Santa Fe' },
+      { transaction: t },
+    ),
   };
 
   // Formas de pago y planes de cuotas
@@ -366,7 +424,61 @@ const seedDemoData = async (businessId, t) => {
       ['BEB-002', 36, 850],
       ['BEB-003', 24, 1300],
     ],
+    expenses: [['Flete Santa Fe - Rafaela', 1, 18000, 21]],
   });
+  // Insumos: entran al stock como cualquier compra
+  await seedPurchase({
+    t,
+    businessId,
+    products,
+    supplier: suppliers.papelera,
+    invoiceNumber: 'A-0002-00004410',
+    daysAgo: 15,
+    lines: [
+      ['INS-001', 500, 45],
+      ['INS-002', 20, 900],
+      ['INS-003', 3.5, 5200],
+      ['INS-004', 2, 6800],
+    ],
+  });
+  // Servicios y gastos: sin productos ni stock
+  await seedPurchase({
+    t,
+    businessId,
+    products,
+    supplier: suppliers.inmobiliaria,
+    invoiceNumber: 'A-0001-00000318',
+    daysAgo: 10,
+    expenses: [['Alquiler del local', 1, 650000, 21]],
+  });
+  await seedPurchase({
+    t,
+    businessId,
+    products,
+    supplier: suppliers.energia,
+    invoiceNumber: 'A-0045-01987654',
+    daysAgo: 7,
+    expenses: [['Energía eléctrica, período anterior', 1, 92000, 27]],
+  });
+
+  // Lo que se usó de los insumos (egresos de stock)
+  for (const [code, quantity, daysAgo] of [
+    ['INS-001', 140, 4],
+    ['INS-002', 6, 3],
+    ['INS-003', 1.2, 2],
+  ]) {
+    await moveStock(
+      {
+        product: products[code],
+        type: 'out',
+        delta: -quantity,
+        reason: 'Uso en el local',
+        actor: DEMO_ACTOR,
+        date: daysAgoDate(daysAgo),
+      },
+      t,
+    );
+  }
 
   // Historial de remitos
   await seedOrder({
