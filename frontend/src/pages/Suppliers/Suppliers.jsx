@@ -67,11 +67,13 @@ const Suppliers = () => {
       city: supplier.city || '',
       province: supplier.province || '',
       active: String(supplier.active ?? true),
+      openingBalance: Number(supplier.openingBalance) || '',
     });
   };
 
   const onUpdate = async (formData) => {
-    const result = await update(editingId, formData);
+    // Saldo inicial vacío = 0
+    const result = await update(editingId, { ...formData, openingBalance: Number(formData.openingBalance) || 0 });
     if (result.success) {
       const savedId = editingId;
       setEditingId(null);
@@ -242,6 +244,17 @@ const Suppliers = () => {
                           <option value="true">Activo</option>
                           <option value="false">Inactivo (no aparece en Compras)</option>
                         </select>
+                      </div>
+                      <div className="field">
+                        <label htmlFor={`edit-openingBalance-${supplier.id}`}>Saldo inicial de cuenta corriente</label>
+                        <input
+                          id={`edit-openingBalance-${supplier.id}`}
+                          type="number"
+                          step="0.01"
+                          placeholder="Ej: 150000"
+                          {...editForm.register('openingBalance')}
+                        />
+                        <small>Lo que le debías al empezar a usar Talarix. Negativo si tenías saldo a favor.</small>
                       </div>
                       <div className="inline-edit-actions">
                         <button type="submit">Guardar</button>

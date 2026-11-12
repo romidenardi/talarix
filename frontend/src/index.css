@@ -608,6 +608,39 @@ td:nth-child(1),
   margin: 8px 0 0;
 }
 
+.supplier-payment-form .form-title {
+  width: 100%;
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.supplier-payment-form .field small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-muted, #5b6573);
+}
+
+.amount-debt {
+  color: var(--color-danger, #b42318);
+}
+
+.row-selected td {
+  background: var(--color-surface-alt, rgba(0, 0, 0, 0.03));
+}
+
+.statement-subtotal td {
+  font-weight: 600;
+  background: var(--color-surface-alt, rgba(0, 0, 0, 0.03));
+}
+
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .purchase-add-buttons {
   display: flex;
   flex-wrap: wrap;

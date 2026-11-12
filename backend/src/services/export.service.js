@@ -12,6 +12,7 @@ import {
   Purchase,
   PurchaseItem,
   PurchaseExpense,
+  SupplierPayment,
   Order,
   OrderItem,
   ComboItem,
@@ -121,6 +122,7 @@ export const buildBusinessExport = async (businessId) => {
     purchases,
     purchaseItems,
     purchaseExpenses,
+    supplierPayments,
     orders,
     orderItems,
     payments,
@@ -142,6 +144,7 @@ export const buildBusinessExport = async (businessId) => {
     byBusiness(Purchase, businessId),
     byParent(PurchaseItem, Purchase, businessId),
     byParent(PurchaseExpense, Purchase, businessId),
+    byBusiness(SupplierPayment, businessId),
     byBusiness(Order, businessId),
     byParent(OrderItem, Order, businessId),
     byBusiness(Payment, businessId),
@@ -159,6 +162,7 @@ export const buildBusinessExport = async (businessId) => {
   const productNames = namesById(products);
   const customerNames = namesById(customers);
   const supplierNames = namesById(suppliers);
+  const paymentNamesAll = namesById(payments);
 
   const productOf = (row) => productNames.get(row.productId) || '';
 
@@ -195,6 +199,13 @@ export const buildBusinessExport = async (businessId) => {
     },
     { name: 'Detalle de compras', ...sheetFrom(PurchaseItem, purchaseItems, { productoNombre: productOf }) },
     { name: 'Servicios de compras', ...sheetFrom(PurchaseExpense, purchaseExpenses) },
+    {
+      name: 'Pagos a proveedores',
+      ...sheetFrom(SupplierPayment, supplierPayments, {
+        proveedorNombre: (row) => supplierNames.get(row.supplierId) || '',
+        formaDePago: (row) => paymentNamesAll.get(row.paymentId) || '',
+      }),
+    },
     {
       name: 'Remitos',
       ...sheetFrom(Order, orders, {

@@ -59,6 +59,11 @@ export const createPurchase = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const requestId = cleanRequestId(req.body.requestId);
   const invoiceNumber = req.body.invoiceNumber ? String(req.body.invoiceNumber).trim().slice(0, 255) || null : null;
+  // Contado (por defecto) o cuenta corriente: la de cuenta corriente suma a la deuda con el proveedor
+  const paymentCondition = req.body.paymentCondition ?? 'cash';
+  if (!['cash', 'account'].includes(paymentCondition)) {
+    throw httpError('La condición de pago tiene que ser contado o cuenta corriente.');
+  }
 
   // El mismo envío ya se procesó (doble clic o reintento): se devuelve esa compra, no se crea otra
   const sendExisting = async (id) => {
@@ -204,6 +209,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
         supplierId: supplier.id,
         invoiceNumber,
         date: purchaseDate,
+        paymentCondition,
         subtotal: totals.subtotal,
         vatAmount: totals.vatAmount,
         total: totals.total,

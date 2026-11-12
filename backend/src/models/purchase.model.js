@@ -46,6 +46,15 @@ const Purchase = sequelize.define(
       allowNull: false,
       defaultValue: 0,
     },
+    // Contado (cash) o cuenta corriente (account): la de cuenta corriente suma a lo que se le debe
+    // al proveedor (services/supplierAccount.service.js)
+    paymentCondition: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'cash',
+      field: 'payment_condition',
+      validate: { isIn: [['cash', 'account']] },
+    },
     // Anulación (controllers/purchase.controller.js → cancelPurchase)
     status: {
       type: DataTypes.STRING(20),

@@ -42,6 +42,7 @@ const emptyExpense = () => ({ description: '', quantity: 1, unitCost: '', vatRat
 const emptyForm = () => ({
   supplierId: '',
   invoiceNumber: '',
+  paymentCondition: 'cash',
   newSupplier: { name: '', cuit: '', phone: '', email: '' },
   items: [emptyItem()],
   expenses: [],
@@ -297,6 +298,7 @@ const Purchases = () => {
       payload = {
         supplierId,
         invoiceNumber: formData.invoiceNumber || null,
+        paymentCondition: formData.paymentCondition === 'account' ? 'account' : 'cash',
         items: payloadItems,
         expenses: (formData.expenses || []).map((expense) => ({
           description: expense.description.trim(),
@@ -464,6 +466,14 @@ const Purchases = () => {
         <div className="field">
           <label htmlFor="invoiceNumber">N° de factura (opcional)</label>
           <input id="invoiceNumber" placeholder="Ej: 0001-00001234" {...register('invoiceNumber')} />
+        </div>
+
+        <div className="field">
+          <label htmlFor="paymentCondition">Condición</label>
+          <select id="paymentCondition" {...register('paymentCondition')}>
+            <option value="cash">Contado</option>
+            <option value="account">Cuenta corriente</option>
+          </select>
         </div>
 
         <ScanBar onScan={handleScan} />
@@ -857,7 +867,10 @@ const Purchases = () => {
                       </span>
                     )}
                   </td>
-                  <td data-label="Factura">{purchase.invoiceNumber || '—'}</td>
+                  <td data-label="Factura">
+                    {purchase.invoiceNumber || '—'}
+                    {purchase.paymentCondition === 'account' && <small className="row-author">Cuenta corriente</small>}
+                  </td>
                   <td data-label="Artículos">
                     {[
                       ...(purchase.items || []).map(

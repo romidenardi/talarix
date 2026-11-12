@@ -8,6 +8,7 @@ import InstallmentPlan from './installmentPlan.model.js';
 import User from './user.model.js';
 import Customer from './customer.model.js';
 import Supplier from './supplier.model.js';
+import SupplierPayment from './supplierPayment.model.js';
 import Purchase from './purchase.model.js';
 import PurchaseItem from './purchaseItem.model.js';
 import PurchaseExpense from './purchaseExpense.model.js';
@@ -66,6 +67,11 @@ Purchase.belongsTo(Business, { foreignKey: 'businessId' });
 Supplier.hasMany(Purchase, { foreignKey: 'supplierId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 Purchase.belongsTo(Supplier, { foreignKey: 'supplierId', onDelete: 'RESTRICT', onUpdate: 'CASCADE' });
 
+// Pagos a proveedores: sin claves foráneas en la base (constraints: false), igual que en migrations/008
+Supplier.hasMany(SupplierPayment, { as: 'payments', foreignKey: 'supplierId', constraints: false });
+SupplierPayment.belongsTo(Supplier, { foreignKey: 'supplierId', constraints: false });
+SupplierPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false });
+
 Purchase.hasMany(PurchaseItem, { as: 'items', foreignKey: 'purchaseId' });
 PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchaseId' });
 
@@ -119,6 +125,7 @@ export {
   User,
   Customer,
   Supplier,
+  SupplierPayment,
   Purchase,
   PurchaseItem,
   PurchaseExpense,

@@ -11,6 +11,7 @@ import {
   Purchase,
   PurchaseItem,
   PurchaseExpense,
+  SupplierPayment,
   Order,
   OrderItem,
   sequelize,
@@ -51,6 +52,7 @@ const wipeBusinessData = async (businessId, t) => {
     await PurchaseExpense.destroy({ where: { purchaseId: { [Op.in]: purchaseIds } }, transaction: t });
   }
   await Purchase.destroy({ where: { businessId }, transaction: t });
+  await SupplierPayment.destroy({ where: { businessId }, transaction: t });
 
   await StockMovement.destroy({ where: { businessId }, transaction: t });
 
@@ -173,12 +175,14 @@ const seedOrder = async ({
 
 // lines: productos o insumos [código, cantidad, costo sin IVA]
 // expenses: servicios y gastos [concepto, cantidad, importe sin IVA, IVA]
+// paymentCondition: 'cash' (contado) o 'account' (cuenta corriente)
 const seedPurchase = async ({
   t,
   businessId,
   supplier,
   invoiceNumber,
   daysAgo,
+  paymentCondition = 'cash',
   lines = [],
   expenses = [],
   products,
@@ -205,6 +209,7 @@ const seedPurchase = async ({
       supplierId: supplier.id,
       invoiceNumber,
       date,
+      paymentCondition,
       subtotal,
       vatAmount,
       total,
@@ -406,6 +411,7 @@ const seedDemoData = async (businessId, t) => {
     supplier: suppliers.mayorista,
     invoiceNumber: 'A-0001-00001234',
     daysAgo: 12,
+    paymentCondition: 'account',
     lines: [
       ['ALM-002', 30, 980],
       ['ALM-003', 12, 2200],
@@ -434,6 +440,7 @@ const seedDemoData = async (businessId, t) => {
     supplier: suppliers.papelera,
     invoiceNumber: 'A-0002-00004410',
     daysAgo: 15,
+    paymentCondition: 'account',
     lines: [
       ['INS-001', 500, 45],
       ['INS-002', 20, 900],
@@ -460,6 +467,37 @@ const seedDemoData = async (businessId, t) => {
     daysAgo: 7,
     expenses: [['Energía eléctrica, período anterior', 1, 92000, 27]],
   });
+
+  // Cuenta corriente: un pago a cuenta al mayorista (queda saldo) y uno que cancela la papelera
+  await SupplierPayment.create(
+    {
+      businessId,
+      supplierId: suppliers.mayorista.id,
+      paymentId: transferencia.id,
+      date: daysAgoDate(6),
+      amount: 40000,
+      reference: 'Transferencia 0001',
+      ...actorFields(DEMO_ACTOR),
+    },
+    { transaction: t },
+  );
+  const papeleraDebt = await Purchase.sum('total', {
+    where: { businessId, supplierId: suppliers.papelera.id, paymentCondition: 'account' },
+    transaction: t,
+  });
+  await SupplierPayment.create(
+    {
+      businessId,
+      supplierId: suppliers.papelera.id,
+      paymentId: efectivo.id,
+      date: daysAgoDate(8),
+      amount: Number(papeleraDebt),
+      ...actorFields(DEMO_ACTOR),
+    },
+    { transaction: t },
+  );
+  // Un proveedor con deuda de antes de usar el sistema
+  await suppliers.bebidas.update({ openingBalance: 85000 }, { transaction: t });
 
   // Lo que se usó de los insumos (egresos de stock)
   for (const [code, quantity, daysAgo] of [

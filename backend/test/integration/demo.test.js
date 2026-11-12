@@ -37,6 +37,10 @@ describe('Cuenta demo', () => {
     });
     const expenses = purchases.flatMap((p) => p.expenses);
     assert.deepEqual(expenses.map((e) => Number(e.vatRate)).sort(), [21, 21, 27]);
+
+    // Cuenta corriente: compras a cuenta corriente y pagos de ejemplo
+    assert.equal(await models.SupplierPayment.count({ where: { businessId } }), 2);
+    assert.equal(purchases.filter((p) => p.paymentCondition === 'account').length, 2);
   });
 
   it('reiniciarla dos veces no duplica ni deja servicios sueltos', async () => {
@@ -45,6 +49,7 @@ describe('Cuenta demo', () => {
     const expenses = await models.PurchaseExpense.findAll();
     const own = expenses.filter((e) => purchaseIds.includes(e.purchaseId));
     assert.equal(own.length, 3);
+    assert.equal(await models.SupplierPayment.count({ where: { businessId: demo.business.id } }), 2);
     // Ningún servicio de un comercio demo queda apuntando a una compra borrada
     const allPurchaseIds = new Set((await models.Purchase.findAll({ attributes: ['id'] })).map((p) => p.id));
     assert.ok(expenses.every((e) => allPurchaseIds.has(e.purchaseId)));

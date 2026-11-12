@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { getSuppliers, createSupplier, updateSupplier, deleteSupplier } from '../controllers/supplier.controller.js';
+import { getSupplierBalances, getSupplierStatement } from '../controllers/supplierPayment.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 
@@ -12,9 +13,16 @@ const updateRules = [
   body('name').optional().trim().notEmpty().withMessage('El nombre no puede quedar vacío.'),
   body('email').optional({ values: 'falsy' }).isEmail().withMessage('El email no es válido.'),
   body('active').optional().isBoolean().withMessage('El estado no es válido.'),
+  body('openingBalance')
+    .optional()
+    .isFloat({ min: -999999999, max: 999999999 })
+    .withMessage('El saldo inicial tiene que ser un número.'),
 ];
 
 router.get('/', getSuppliers);
+// Cuenta corriente: saldo de cada proveedor y resumen de uno
+router.get('/balances', requireRole('admin', 'editor'), getSupplierBalances);
+router.get('/:id/account', requireRole('admin', 'editor'), getSupplierStatement);
 router.post('/', requireRole('admin', 'editor'), createRules, validate, createSupplier);
 router.put('/:id', requireRole('admin', 'editor'), updateRules, validate, updateSupplier);
 router.delete('/:id', requireRole('admin', 'editor'), deleteSupplier);

@@ -35,6 +35,9 @@ const ACTION_LABELS = {
   'customer.anonymized': 'Anonimizó un cliente',
   'order.cancelled': 'Anuló un remito',
   'purchase.cancelled': 'Anuló una compra',
+  'supplier_payment.created': 'Registró un pago a un proveedor',
+  'supplier_payment.cancelled': 'Anuló un pago a un proveedor',
+  'supplier.opening_balance_changed': 'Cambió el saldo inicial de un proveedor',
   'order.approved': 'Remito con descuento o precio autorizado',
   'order.approval_failed': 'Autorización de descuento rechazada',
 };
@@ -66,6 +69,12 @@ const describe = (row) => {
     case 'service_request.resolved':
     case 'service_request.reopened':
       return d.code ? `Código ${d.code}` : '';
+    case 'supplier_payment.created':
+      return d.supplier ? `${d.supplier}: $${d.amount}` : '';
+    case 'supplier_payment.cancelled':
+      return d.amount !== undefined ? `$${d.amount}` : '';
+    case 'supplier.opening_balance_changed':
+      return `$${d.from} → $${d.to}`;
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
     case 'order.approved': {

@@ -54,6 +54,13 @@ const Supplier = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // Cuenta corriente: lo que se le debía al empezar a usar el sistema (positivo: se le debe)
+    openingBalance: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'opening_balance',
+    },
   },
   {
     tableName: 'suppliers',

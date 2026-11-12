@@ -97,7 +97,8 @@ const Layout = () => {
       links: [
         canManageData && ['/suppliers', 'Proveedores'],
         ['/purchases', 'Compras'],
-        canManageData && ['/insumos', 'Insumos'],
+        canManageData && ['/insumos', 'Insumos y servicios'],
+        canManageData && ['/cuentas-proveedores', 'Cuentas corrientes'],
       ],
     },
     {

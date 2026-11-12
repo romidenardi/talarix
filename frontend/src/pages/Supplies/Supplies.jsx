@@ -1,4 +1,5 @@
 import { useState, Fragment } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useDialog } from '../../context/DialogContext.jsx';
 import { useResource } from '../../hooks/useResource.js';
@@ -177,15 +178,19 @@ const Supplies = () => {
     </>
   );
 
-  if (loading) return <Spinner label="Cargando insumos..." />;
+  if (loading) return <Spinner label="Cargando insumos y servicios..." />;
 
   return (
     <div className="supplies-page">
-      <h1>Insumos</h1>
+      <h1>Insumos y servicios</h1>
       <p className="report-note">
-        Lo que comprás y usás pero no vendés: envases, bolsas, artículos de limpieza, materia prima. Llevan stock y
-        costo, se cargan en Compras y no aparecen en Productos ni en los remitos. Para registrar lo que se usa, entrá en
-        Stock y cargá un egreso.
+        <strong>Insumos:</strong> lo que comprás y usás pero no vendés (envases, bolsas, artículos de limpieza, materia
+        prima). Llevan stock y costo, se cargan en Compras y no aparecen en Productos ni en los remitos. Para registrar
+        lo que se usa, entrá en Stock y cargá un egreso.
+      </p>
+      <p className="report-note">
+        <strong>Servicios y gastos</strong> (alquiler, luz, fletes, honorarios): no llevan stock, así que no se dan de
+        alta acá. Se cargan directamente en <Link to="/purchases">Compras</Link>, con «+ Agregar servicio o gasto».
       </p>
       <FormMessage message={loadError ? { type: 'error', text: loadError } : null} />
 
