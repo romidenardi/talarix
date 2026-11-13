@@ -75,6 +75,15 @@ export const customerBalance = async (businessId, customerId) => {
   return round2((Number(customer.openingBalance) || 0) + (Number(sold) || 0) - (Number(paid) || 0));
 };
 
+// Orden del resumen: por fecha y hora de carga. La base guarda segundos, sin milésimas, así que dos
+// movimientos del mismo segundo empatan: entonces van primero los remitos (por número, que es
+// correlativo) y después las cobranzas. Así el saldo acumulado sale siempre en el mismo orden.
+const byDateThenOrder = (a, b) =>
+  new Date(a.date) - new Date(b.date) ||
+  new Date(a.createdAt) - new Date(b.createdAt) ||
+  (a.type === b.type ? 0 : a.type === 'order' ? -1 : 1) ||
+  (a.number || 0) - (b.number || 0);
+
 // Resumen de cuenta de un cliente en un período: saldo anterior, movimientos con saldo acumulado y
 // saldo final. start/end: Date (end excluido), como readRange.
 export const customerStatement = async (businessId, customerId, { start, end }) => {
@@ -107,6 +116,7 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
       id: o.id,
       date: o.date,
       createdAt: o.createdAt,
+      number: Number(o.number),
       description: `Remito ${formatOrderNumber(o)}`,
       debit: round2(Number(o.total)),
       credit: 0,
@@ -121,13 +131,14 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
       debit: 0,
       credit: round2(Number(p.amount)),
     })),
-  ].sort((a, b) => new Date(a.date) - new Date(b.date) || new Date(a.createdAt) - new Date(b.createdAt));
+  ].sort(byDateThenOrder);
 
   let balance = previousBalance;
   for (const movement of movements) {
     balance = round2(balance + movement.debit - movement.credit);
     movement.balance = balance;
     delete movement.createdAt;
+    delete movement.number;
   }
 
   return {
