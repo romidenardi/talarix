@@ -96,6 +96,23 @@ describe('Importación de productos', () => {
     assert.equal(await models.Product.count({ where: { businessId: A.business.id } }), before);
   });
 
+  it('un rubro con subcategorías no se puede usar: hay que poner una subcategoría', async () => {
+    const bebidas = await models.Category.create({ businessId: A.business.id, name: 'Bebidas' });
+    const gaseosas = await models.Category.create({
+      businessId: A.business.id,
+      name: 'Gaseosas',
+      parentId: bebidas.id,
+    });
+    const rubro = await importProducts([['R1', 'Cola 2 L', 'bebidas', '1500', '900', '21', 'unidad']]);
+    assert.equal(rubro.status, 200);
+    assert.equal(rubro.body.imported, false);
+    assert.match(rubro.body.errors[0].message, /"Bebidas" tiene subcategorías: .*Gaseosas/);
+
+    const sub = await importProducts([['R1', 'Cola 2 L', 'gaseosas', '1500', '900', '21', 'unidad']]);
+    assert.equal(sub.body.imported, true, JSON.stringify(sub.body));
+    assert.equal((await productByCode('R1')).categoryId, gaseosas.id);
+  });
+
   it('un archivo que no es una planilla da un error claro, no 500', async () => {
     const res = await upload('/api/imports/products', {
       token: A.users.admin.token,

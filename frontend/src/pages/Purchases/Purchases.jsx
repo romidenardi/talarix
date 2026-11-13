@@ -16,6 +16,7 @@ import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
 import { toPercentOrNull, vatToFormValue, formatRate, PURCHASE_VAT_OPTIONS } from '../../utils/taxes.js';
 import { purchaseTotals } from '../../utils/purchaseTotals.js';
+import { EXPENSE_CATEGORIES } from '../../utils/expenseCategories.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { formatQuantity, quantityStep, quantityMin, toKg } from '../../utils/quantity.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
@@ -37,7 +38,7 @@ const emptyItem = () => ({
 });
 
 // Servicio o gasto (alquiler, luz, flete): concepto libre, sin producto ni stock
-const emptyExpense = () => ({ description: '', quantity: 1, unitCost: '', vatRate: '21' });
+const emptyExpense = () => ({ description: '', category: '', quantity: 1, unitCost: '', vatRate: '21' });
 
 const emptyForm = () => ({
   supplierId: '',
@@ -302,6 +303,7 @@ const Purchases = () => {
         items: payloadItems,
         expenses: (formData.expenses || []).map((expense) => ({
           description: expense.description.trim(),
+          category: expense.category,
           quantity: Number(expense.quantity),
           unitCost: Number(expense.unitCost),
           vatRate: Number(expense.vatRate),
@@ -740,6 +742,26 @@ const Purchases = () => {
                   />
                   {errors.expenses?.[index]?.description && (
                     <span className="error">{errors.expenses[index].description.message}</span>
+                  )}
+                </div>
+                <div className="field">
+                  <label htmlFor={`expense-category-${index}`}>
+                    Categoría
+                    <RequiredMark />
+                  </label>
+                  <select
+                    id={`expense-category-${index}`}
+                    {...register(`expenses.${index}.category`, { required: 'Elegí la categoría' })}
+                  >
+                    <option value="">Elegí…</option>
+                    {EXPENSE_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.expenses?.[index]?.category && (
+                    <span className="error">{errors.expenses[index].category.message}</span>
                   )}
                 </div>
                 <div className="field">

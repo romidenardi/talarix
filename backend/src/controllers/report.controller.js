@@ -5,4 +5,5 @@ export { salesByCustomer } from '../reports/salesByCustomer.js';
 export { salesByPayment } from '../reports/salesByPayment.js';
 export { vatReport } from '../reports/vat.js';
 export { purchaseVatReport, vatPositionReport } from '../reports/purchaseVat.js';
+export { expensesReport } from '../reports/expenses.js';
 export { dashboard } from '../reports/dashboard.js';

@@ -55,6 +55,15 @@ export const importProducts = asyncHandler(async (req, res) => {
     where: { businessId },
     attributes: ['name', 'internalCode', 'barcode', 'scalePlu'],
   });
+  // Rubros con subcategorías: un producto no puede ir en ellos (igual que al cargarlo a mano), sino
+  // en una de sus subcategorías. Clave: el nombre sin tildes ni mayúsculas → sus subcategorías.
+  const allCategories = await Category.findAll({ where: { businessId }, attributes: ['id', 'name', 'parentId'] });
+  const parentCategories = new Map();
+  for (const parent of allCategories) {
+    const children = allCategories.filter((c) => c.parentId === parent.id).map((c) => c.name);
+    if (children.length) parentCategories.set(normalizeText(parent.name), { name: parent.name, children });
+  }
+
   const byCode = new Map();
   const byBarcode = new Map();
   const byPlu = new Map();
@@ -109,6 +118,11 @@ export const importProducts = asyncHandler(async (req, res) => {
       if (d.unitType === null)
         return `Unidad desconocida ("${text(d.raw.unit)}"): usá "unidad" o "peso" (también sirven kg o kilo)`;
       if (Number.isNaN(d.vatRate)) return `IVA inválido ("${text(d.raw.vat)}"): usá 21, 10,5 o 0`;
+      const parent = parentCategories.get(normalizeText(d.categoryName));
+      if (parent) {
+        const options = parent.children.slice(0, 5).join(', ') + (parent.children.length > 5 ? '…' : '');
+        return `"${parent.name}" tiene subcategorías: poné una de ellas en la columna Categoría (${options})`;
+      }
       if (Number.isNaN(d.otherTaxes))
         return `Impuestos internos inválidos ("${text(d.raw.internal)}"): tiene que ser un porcentaje entre 0 y 100`;
       if (d.scalePlu) {

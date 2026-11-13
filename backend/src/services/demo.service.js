@@ -174,7 +174,7 @@ const seedOrder = async ({
 };
 
 // lines: productos o insumos [código, cantidad, costo sin IVA]
-// expenses: servicios y gastos [concepto, cantidad, importe sin IVA, IVA]
+// expenses: servicios y gastos [concepto, cantidad, importe sin IVA, IVA, categoría de gasto]
 // paymentCondition: 'cash' (contado) o 'account' (cuenta corriente)
 const seedPurchase = async ({
   t,
@@ -194,8 +194,9 @@ const seedPurchase = async ({
     unitCost,
     vatRate: Number(products[code].vatRate) || 0,
   }));
-  const services = expenses.map(([description, quantity, unitCost, vatRate]) => ({
+  const services = expenses.map(([description, quantity, unitCost, vatRate, category = 'other']) => ({
     description,
+    category,
     quantity,
     unitCost,
     vatRate,
@@ -430,7 +431,7 @@ const seedDemoData = async (businessId, t) => {
       ['BEB-002', 36, 850],
       ['BEB-003', 24, 1300],
     ],
-    expenses: [['Flete Santa Fe - Rafaela', 1, 18000, 21]],
+    expenses: [['Flete Santa Fe - Rafaela', 1, 18000, 21, 'shipping']],
   });
   // Insumos: entran al stock como cualquier compra
   await seedPurchase({
@@ -456,7 +457,7 @@ const seedDemoData = async (businessId, t) => {
     supplier: suppliers.inmobiliaria,
     invoiceNumber: 'A-0001-00000318',
     daysAgo: 10,
-    expenses: [['Alquiler del local', 1, 650000, 21]],
+    expenses: [['Alquiler del local', 1, 650000, 21, 'rent']],
   });
   await seedPurchase({
     t,
@@ -465,7 +466,7 @@ const seedDemoData = async (businessId, t) => {
     supplier: suppliers.energia,
     invoiceNumber: 'A-0045-01987654',
     daysAgo: 7,
-    expenses: [['Energía eléctrica, período anterior', 1, 92000, 27]],
+    expenses: [['Energía eléctrica, período anterior', 1, 92000, 27, 'utilities']],
   });
 
   // Cuenta corriente: un pago a cuenta al mayorista (queda saldo) y uno que cancela la papelera

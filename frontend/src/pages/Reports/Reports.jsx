@@ -7,6 +7,7 @@ import {
   getVatReport,
   getPurchaseVatReport,
   getVatPosition,
+  getExpensesReport,
 } from '../../api/reports.api';
 import { formatRate } from '../../utils/taxes.js';
 import { money, int, presetRange, periodLabel, formatDay, downloadCsv } from '../../utils/reportFormat';
@@ -19,6 +20,7 @@ const TABS = [
   ['vat', 'IVA ventas'],
   ['purchaseVat', 'IVA compras'],
   ['vatPosition', 'Posición de IVA'],
+  ['expenses', 'Gastos'],
   ['internal', 'Impuestos internos'],
   ['taxes', 'IVA + internos'],
 ];
@@ -41,6 +43,7 @@ const FETCHERS = {
   vat: getVatReport,
   purchaseVat: getPurchaseVatReport,
   vatPosition: getVatPosition,
+  expenses: getExpensesReport,
   internal: getVatReport,
   taxes: getVatReport,
 };
@@ -659,6 +662,107 @@ function VatPositionView({ data, range }) {
   );
 }
 
+// Gastos: los servicios de las compras (alquiler, luz, fletes...) por categoría de gasto
+function ExpensesView({ data, range }) {
+  const exportCsv = () =>
+    downloadCsv(
+      `gastos_${range.from}_${range.to}.csv`,
+      ['Fecha', 'Proveedor', 'Factura', 'Concepto', 'Categoría', 'Neto', 'IVA', 'Total'],
+      data.expenses.map((e) => [
+        new Date(e.date).toLocaleDateString('es-AR'),
+        e.supplier,
+        e.invoiceNumber,
+        e.description,
+        e.categoryLabel,
+        e.net,
+        e.vat,
+        e.total,
+      ]),
+    );
+  return (
+    <>
+      <p className="report-note">
+        Suma los servicios y gastos cargados en Compras (alquiler, luz, fletes, honorarios…), por categoría. No incluye
+        productos ni insumos, que van al stock. Las compras anuladas no cuentan.
+      </p>
+      <div className="stat-cards">
+        <div className="stat-card">
+          <span>Total de gastos</span>
+          <strong>{money(data.totals.total)}</strong>
+          <small>{int(data.totals.count)} renglones</small>
+        </div>
+        <div className="stat-card">
+          <span>Neto</span>
+          <strong>{money(data.totals.net)}</strong>
+        </div>
+        <div className="stat-card">
+          <span>IVA</span>
+          <strong>{money(data.totals.vat)}</strong>
+        </div>
+      </div>
+      {data.categories.length ? (
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Categoría</th>
+              <th className="num">Renglones</th>
+              <th className="num">Neto</th>
+              <th className="num">IVA</th>
+              <th className="num">Total</th>
+              <th className="num">% del total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.categories.map((c) => (
+              <tr key={c.category ?? 'none'}>
+                <td>{c.label}</td>
+                <td className="num">{int(c.count)}</td>
+                <td className="num">{money(c.net)}</td>
+                <td className="num">{money(c.vat)}</td>
+                <td className="num">{money(c.total)}</td>
+                <td className="num">
+                  {data.totals.total ? `${((c.total / data.totals.total) * 100).toFixed(1).replace('.', ',')} %` : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="report-note">No hay gastos cargados en este período.</p>
+      )}
+
+      <h2 className="report-subtitle">Detalle</h2>
+      <div className="report-actions">
+        <ExportButton onClick={exportCsv} disabled={!data.expenses.length} />
+      </div>
+      {data.expenses.length > 0 && (
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Concepto</th>
+              <th>Categoría</th>
+              <th className="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.expenses.map((e) => (
+              <tr key={e.id}>
+                <td>{new Date(e.date).toLocaleDateString('es-AR')}</td>
+                <td>{e.supplier}</td>
+                <td>{e.description}</td>
+                <td>{e.categoryLabel}</td>
+                <td className="num">{money(e.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
+
 const VIEWS = {
   summary: SummaryView,
   products: ProductsView,
@@ -667,6 +771,7 @@ const VIEWS = {
   vat: VatView,
   purchaseVat: PurchaseVatView,
   vatPosition: VatPositionView,
+  expenses: ExpensesView,
   internal: InternalTaxView,
   taxes: TaxesView,
 };
@@ -786,7 +891,7 @@ export default function Reports() {
       {loading && <p className="report-note">Cargando…</p>}
       {error && <p className="report-error">{error}</p>}
       {data && !loading && <View data={data} range={{ from, to }} />}
-      {data && !loading && !error && tab !== 'purchaseVat' && (
+      {data && !loading && !error && tab !== 'purchaseVat' && tab !== 'expenses' && (
         <p className="report-note">Los remitos anulados no se incluyen en los reportes.</p>
       )}
     </div>

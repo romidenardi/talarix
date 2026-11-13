@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as backTaxes from '../../src/utils/taxes.js';
 import * as frontTaxes from '../../../frontend/src/utils/taxes.js';
+import { EXPENSE_CATEGORIES as backExpenseCategories } from '../../src/utils/expenseCategories.js';
+import { EXPENSE_CATEGORIES as frontExpenseCategories } from '../../../frontend/src/utils/expenseCategories.js';
 import { purchaseTotals as backPurchase } from '../../src/utils/purchaseTotals.js';
 import { purchaseTotals as frontPurchase } from '../../../frontend/src/utils/purchaseTotals.js';
 import { DEFAULT_SCALE_CONFIG as backScale } from '../../src/utils/scaleConfig.js';
@@ -34,6 +36,10 @@ test('splitLineParts reparte igual en el frontend y en el backend', () => {
   front.forEach((part, i) => {
     for (const key of ['total', 'net', 'vat', 'internal']) assert.equal(part[key], back[i][key], `${key} ${i}`);
   });
+});
+
+test('las categorías de gasto son las mismas en el frontend y en el backend', () => {
+  assert.deepEqual(frontExpenseCategories, backExpenseCategories);
 });
 
 test('los totales de una compra dan lo mismo en el frontend y en el backend', () => {

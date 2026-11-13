@@ -150,3 +150,37 @@ describe('Servicios y gastos en las compras', () => {
     );
   });
 });
+
+describe('Categorías de gasto', () => {
+  it('cada servicio guarda su categoría; sin categoría va a «Otros»; una inventada se rechaza', async () => {
+    const res = await buy({
+      expenses: [
+        { description: 'Alquiler de noviembre', quantity: 1, unitCost: 100000, vatRate: 21, category: 'rent' },
+        { description: 'Gastos varios', quantity: 1, unitCost: 500, vatRate: 0 },
+      ],
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    const categories = res.body.expenses.map((e) => e.category).sort();
+    assert.deepEqual(categories, ['other', 'rent']);
+
+    const bad = await buy({
+      expenses: [{ description: 'X', quantity: 1, unitCost: 10, vatRate: 21, category: 'viajes-a-europa' }],
+    });
+    assert.equal(bad.status, 400);
+    assert.match(bad.body.message, /Servicio 1: la categoría de gasto/);
+  });
+
+  it('el reporte de gastos agrupa por categoría, sin contar compras anuladas ni productos', async () => {
+    const today = dayKey(new Date());
+    const res = await get(`/api/reports/expenses?from=${today}&to=${today}`);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    const byCategory = Object.fromEntries(res.body.categories.map((c) => [c.category, c]));
+    assert.equal(byCategory.rent.total, 121000);
+    assert.equal(byCategory.rent.label, 'Alquiler');
+    // Flete (1.000 + 27 %) y gastos varios (500): los dos en «Otros». La luz de la compra anulada no.
+    assert.equal(byCategory.other.count, 2);
+    assert.equal(byCategory.other.total, 1770);
+    assert.ok(res.body.expenses.every((e) => e.description !== 'Luz de octubre'));
+    assert.equal(res.body.totals.total, 122770);
+  });
+});

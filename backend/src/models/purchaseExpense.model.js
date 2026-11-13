@@ -22,6 +22,11 @@ const PurchaseExpense = sequelize.define(
       type: DataTypes.STRING(150),
       allowNull: false,
     },
+    // Categoría de gasto (utils/expenseCategories.js). NULL: cargado antes de que existieran.
+    category: {
+      type: DataTypes.STRING(40),
+      allowNull: true,
+    },
     quantity: {
       type: DataTypes.DECIMAL(12, 3),
       allowNull: false,

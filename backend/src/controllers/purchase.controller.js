@@ -8,6 +8,7 @@ import pkg from 'sequelize';
 import { audit } from '../utils/audit.js';
 import { readRange } from '../utils/dates.js';
 import { purchaseTotals } from '../utils/purchaseTotals.js';
+import { EXPENSE_CATEGORY_VALUES } from '../utils/expenseCategories.js';
 
 const { Op } = pkg;
 import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
@@ -117,8 +118,13 @@ export const createPurchase = asyncHandler(async (req, res) => {
     }
     const vatRate = toNumber(expense.vatRate ?? 21);
     if (!PURCHASE_VAT_RATES.includes(vatRate)) throw httpError(`Servicio ${n}: ${VAT_MESSAGE}`);
+    // Categoría de gasto: sin categoría va a «Otros»
+    const category = expense.category ? String(expense.category) : 'other';
+    if (!EXPENSE_CATEGORY_VALUES.includes(category))
+      throw httpError(`Servicio ${n}: la categoría de gasto no es válida.`);
     return {
       description,
+      category,
       quantity: round3(toNumber(expense.quantity)),
       unitCost: round2(toNumber(expense.unitCost)),
       vatRate,
