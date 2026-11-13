@@ -10,7 +10,11 @@ const router = Router();
 
 const createRules = [
   body('customerId').notEmpty().withMessage('El cliente es obligatorio.'),
-  body('paymentId').notEmpty().withMessage('La forma de pago es obligatoria.'),
+  // A cuenta corriente no hay forma de pago
+  body('paymentId')
+    .if((value, { req }) => req.body.paymentCondition !== 'account')
+    .notEmpty()
+    .withMessage('La forma de pago es obligatoria.'),
   body('items').isArray({ min: 1 }).withMessage('Debés incluir al menos un artículo.'),
 ];
 

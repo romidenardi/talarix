@@ -72,6 +72,13 @@ const Customer = sequelize.define(
       allowNull: true,
       field: 'anonymized_at',
     },
+    // Cuenta corriente: lo que debía al empezar a usar el sistema (positivo: el cliente debe)
+    openingBalance: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'opening_balance',
+    },
   },
   {
     tableName: 'customers',

@@ -12,6 +12,7 @@ import {
   PurchaseItem,
   PurchaseExpense,
   SupplierPayment,
+  CustomerPayment,
   Order,
   OrderItem,
   sequelize,
@@ -53,6 +54,7 @@ const wipeBusinessData = async (businessId, t) => {
   }
   await Purchase.destroy({ where: { businessId }, transaction: t });
   await SupplierPayment.destroy({ where: { businessId }, transaction: t });
+  await CustomerPayment.destroy({ where: { businessId }, transaction: t });
 
   await StockMovement.destroy({ where: { businessId }, transaction: t });
 
@@ -98,11 +100,13 @@ const SUPPLIES = [
 // que los remitos y compras reales: no pueden quedar distintos.
 const DEMO_ACTOR = { id: null, name: 'Datos de ejemplo' };
 
+// payment = null y paymentCondition 'account': remito a cuenta corriente (sin forma de pago)
 const seedOrder = async ({
   t,
   businessId,
   customer,
-  payment,
+  payment = null,
+  paymentCondition = 'cash',
   plan = null,
   lines,
   daysAgo,
@@ -126,7 +130,8 @@ const seedOrder = async ({
       businessId,
       number: await nextOrderNumber(businessId, t),
       customerId: customer.id,
-      paymentId: payment.id,
+      paymentId: payment ? payment.id : null,
+      paymentCondition,
       installmentPlanId: plan ? plan.id : null,
       date,
       grossTotal: totals.grossTotal,
@@ -171,6 +176,7 @@ const seedOrder = async ({
       t,
     );
   }
+  return order;
 };
 
 // lines: productos o insumos [código, cantidad, costo sin IVA]
@@ -603,6 +609,46 @@ const seedDemoData = async (businessId, t) => {
       ['LIM-001', 8],
     ],
   });
+
+  // Cuenta corriente de clientes: la distribuidora compra a cuenta corriente y paga una parte; el
+  // kiosco tiene deuda de antes de usar el sistema
+  await seedOrder({
+    t,
+    businessId,
+    products,
+    customer: customers.distribuidora,
+    paymentCondition: 'account',
+    daysAgo: 5,
+    lines: [
+      ['ALM-004', 20],
+      ['BEB-002', 24],
+    ],
+  });
+  await seedOrder({
+    t,
+    businessId,
+    products,
+    customer: customers.distribuidora,
+    paymentCondition: 'account',
+    daysAgo: 2,
+    lines: [
+      ['ALM-002', 20],
+      ['LIM-001', 10],
+    ],
+  });
+  await CustomerPayment.create(
+    {
+      businessId,
+      customerId: customers.distribuidora.id,
+      paymentId: transferencia.id,
+      date: daysAgoDate(3),
+      amount: 30000,
+      reference: 'Transferencia 0042',
+      ...actorFields(DEMO_ACTOR),
+    },
+    { transaction: t },
+  );
+  await customers.kiosco.update({ openingBalance: 18500 }, { transaction: t });
 };
 
 const resetting = new Set();

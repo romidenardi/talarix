@@ -1,4 +1,6 @@
-import { Customer, Order } from '../models/index.js';
+import { Customer, Order, CustomerPayment } from '../models/index.js';
+import { audit } from '../utils/audit.js';
+import { round2 } from '../utils/numbers.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { pick } from '../utils/pick.js';
@@ -18,7 +20,20 @@ const CUSTOMER_FIELDS = [
   'province',
   'phone',
   'email',
+  'openingBalance',
 ];
+
+// Saldo inicial de la cuenta corriente (lo que debía al empezar a usar el sistema): vacío = 0
+const cleanOpeningBalance = (data) => {
+  if (!('openingBalance' in data)) return data;
+  if (data.openingBalance === '' || data.openingBalance === null) data.openingBalance = 0;
+  const value = Number(data.openingBalance);
+  if (!Number.isFinite(value) || Math.abs(value) > 999999999) {
+    throw httpError('El saldo inicial tiene que ser un número.');
+  }
+  data.openingBalance = round2(value);
+  return data;
+};
 
 // Condición fiscal: solo los cuatro valores del sistema (acepta variantes: "RI", "responsable
 // inscripto", "CF"…). Si no coincide, el remito no sabría si discriminar IVA.
@@ -62,7 +77,7 @@ export const getCustomers = asyncHandler(async (req, res) => {
 
 export const createCustomer = asyncHandler(async (req, res) => {
   const customer = await Customer.create({
-    ...cleanTaxId(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS))),
+    ...cleanTaxId(cleanOpeningBalance(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS)))),
     businessId: req.user.businessId,
   });
   res.status(201).json(customer);
@@ -73,7 +88,18 @@ export const updateCustomer = asyncHandler(async (req, res) => {
   if (customer.anonymizedAt) {
     throw httpError('Este cliente fue anonimizado por un pedido de supresión de datos: no se puede editar.', 409);
   }
-  await customer.update(cleanTaxId(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS)), customer.cuit));
+  const previousOpening = Number(customer.openingBalance);
+  const data = cleanTaxId(cleanOpeningBalance(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS))), customer.cuit);
+  await customer.update(data);
+  // Cambiar el saldo inicial mueve la cuenta corriente: queda registrado
+  if ('openingBalance' in data && data.openingBalance !== previousOpening) {
+    await audit(req, {
+      action: 'customer.opening_balance_changed',
+      targetType: 'customer',
+      targetId: customer.id,
+      detail: { from: previousOpening, to: data.openingBalance },
+    });
+  }
   res.json(customer);
 });
 
@@ -81,7 +107,14 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
   const { businessId } = req.user;
   const customer = await findOwnCustomer(req.params.id, businessId);
 
-  // Un cliente con remitos no se borra: se perdería el historial de ventas
+  // Un cliente con remitos o cobranzas no se borra: se perdería el historial
+  const payments = await CustomerPayment.count({ where: { customerId: customer.id, businessId } });
+  if (payments > 0) {
+    throw httpError(
+      `${displayName(customer)} tiene cobranzas registradas y no se puede eliminar, porque se perdería su cuenta corriente.`,
+      409,
+    );
+  }
   const orders = await Order.count({ where: { customerId: customer.id, businessId } });
   if (orders > 0) {
     throw httpError(

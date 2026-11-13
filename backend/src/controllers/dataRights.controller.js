@@ -1,4 +1,6 @@
-import { Customer, Order, OrderItem, sequelize } from '../models/index.js';
+import { Customer, Order, OrderItem, CustomerPayment, sequelize } from '../models/index.js';
+import { customerBalance } from '../services/customerAccount.service.js';
+import { round2 } from '../utils/numbers.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { buildWorkbookBuffer, sheetFrom, columnsOf, todayStamp } from '../services/export.service.js';
@@ -19,6 +21,7 @@ const CUSTOMER_LABELS = {
   province: 'Provincia',
   phone: 'Teléfono',
   email: 'Email',
+  openingBalance: 'Saldo inicial de cuenta corriente',
   createdAt: 'Fecha de alta',
   updatedAt: 'Última modificación',
 };
@@ -42,6 +45,11 @@ export const exportCustomerData = asyncHandler(async (req, res) => {
   });
   const orderIds = orders.map((order) => order.id);
   const items = orderIds.length ? await OrderItem.findAll({ where: { orderId: orderIds }, raw: true }) : [];
+  const payments = await CustomerPayment.findAll({
+    where: { customerId: customer.id, businessId },
+    order: [['date', 'ASC']],
+    raw: true,
+  });
 
   const plain = customer.get({ plain: true });
   const dataRows = columnsOf(Customer).map((column) => ({
@@ -56,6 +64,7 @@ export const exportCustomerData = asyncHandler(async (req, res) => {
     { name: 'Datos del cliente', header: ['Campo', 'Valor'], data: dataRows },
     { name: 'Remitos', ...sheetFrom(Order, orders) },
     { name: 'Detalle de remitos', ...sheetFrom(OrderItem, items) },
+    { name: 'Cobranzas', ...sheetFrom(CustomerPayment, payments) },
   ]);
 
   console.log(`[derechos] acceso · comercio ${businessId} · cliente ${customer.id} · usuario ${req.user.id}`);
@@ -70,6 +79,18 @@ export const exportCustomerData = asyncHandler(async (req, res) => {
 export const anonymizeCustomer = asyncHandler(async (req, res) => {
   const customer = await findCustomer(req);
   if (customer.anonymizedAt) throw httpError('Este cliente ya fue anonimizado', 409);
+
+  // Con deuda en la cuenta corriente, primero se avisa: la deuda se conserva, pero después ya no se
+  // sabe a quién reclamarla. Se anonimiza solo si se confirma (confirmDebt: true).
+  const balance = await customerBalance(req.user.businessId, customer.id);
+  if (balance > 0.005 && req.body?.confirmDebt !== true) {
+    throw httpError(
+      `Este cliente debe $${round2(balance).toFixed(2)} en cuenta corriente. Si lo anonimizás, la deuda queda ` +
+        'registrada pero sin sus datos para reclamarla.',
+      409,
+      'CUSTOMER_HAS_DEBT',
+    );
+  }
 
   // Se borran sus datos y también los textos libres de sus remitos (notas y motivo de anulación),
   // que pueden tener su nombre o su teléfono. Los importes y productos se conservan.
@@ -93,6 +114,11 @@ export const anonymizeCustomer = asyncHandler(async (req, res) => {
     );
     await Order.update(
       { notes: null, cancelReason: null },
+      { where: { customerId: customer.id, businessId: req.user.businessId }, transaction: t },
+    );
+    // Lo mismo con los textos libres de sus cobranzas
+    await CustomerPayment.update(
+      { reference: null, notes: null, cancelReason: null },
       { where: { customerId: customer.id, businessId: req.user.businessId }, transaction: t },
     );
     await t.commit();

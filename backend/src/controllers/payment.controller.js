@@ -1,4 +1,12 @@
-import { Payment, InstallmentPlan, Order, OrderPayment, sequelize } from '../models/index.js';
+import {
+  Payment,
+  InstallmentPlan,
+  Order,
+  OrderPayment,
+  SupplierPayment,
+  CustomerPayment,
+  sequelize,
+} from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { pick } from '../utils/pick.js';
@@ -109,12 +117,20 @@ export const deletePayment = asyncHandler(async (req, res) => {
   if (!payment) throw httpError('Forma de pago no encontrada', 404);
 
   // Usada en un remito, o como una de las partes de una cuenta de mesa dividida (order_payments)
-  const [usedInOrders, usedInParts] = await Promise.all([
+  const [usedInOrders, usedInParts, usedInSupplierPayments, usedInCustomerPayments] = await Promise.all([
     Order.count({ where: { paymentId: id, businessId } }),
     OrderPayment.count({ where: { paymentId: id, businessId } }),
+    SupplierPayment.count({ where: { paymentId: id, businessId } }),
+    CustomerPayment.count({ where: { paymentId: id, businessId } }),
   ]);
   if (usedInOrders > 0 || usedInParts > 0) {
     throw httpError('Esta forma de pago se usó en remitos ya creados y no se puede eliminar.', 409);
+  }
+  if (usedInSupplierPayments > 0 || usedInCustomerPayments > 0) {
+    throw httpError(
+      'Esta forma de pago se usó en pagos a proveedores o cobranzas y no se puede eliminar. Podés desactivarla.',
+      409,
+    );
   }
 
   await InstallmentPlan.destroy({ where: { paymentId: id } });

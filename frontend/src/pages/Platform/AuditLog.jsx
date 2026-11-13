@@ -40,6 +40,9 @@ const ACTION_LABELS = {
   'supplier_payment.created': 'Registró un pago a un proveedor',
   'supplier_payment.cancelled': 'Anuló un pago a un proveedor',
   'supplier.opening_balance_changed': 'Cambió el saldo inicial de un proveedor',
+  'customer_payment.created': 'Registró una cobranza a un cliente',
+  'customer_payment.cancelled': 'Anuló una cobranza a un cliente',
+  'customer.opening_balance_changed': 'Cambió el saldo inicial de un cliente',
   'order.approved': 'Remito con descuento o precio autorizado',
   'order.approval_failed': 'Autorización de descuento rechazada',
 };
@@ -77,7 +80,11 @@ const describe = (row) => {
     case 'supplier_payment.cancelled':
       return d.amount !== undefined ? `$${d.amount}` : '';
     case 'supplier.opening_balance_changed':
+    case 'customer.opening_balance_changed':
       return `$${d.from} → $${d.to}`;
+    case 'customer_payment.created':
+    case 'customer_payment.cancelled':
+      return d.amount !== undefined ? `$${d.amount}` : '';
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
     case 'tables.tab_moved':

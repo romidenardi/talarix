@@ -608,13 +608,15 @@ td:nth-child(1),
   margin: 8px 0 0;
 }
 
-.supplier-payment-form .form-title {
+.supplier-payment-form .form-title,
+.customer-payment-form .form-title {
   width: 100%;
   font-size: 1.05rem;
   margin: 0;
 }
 
-.supplier-payment-form .field small {
+.supplier-payment-form .field small,
+.customer-payment-form .field small {
   display: block;
   margin-top: 4px;
   font-size: 12px;

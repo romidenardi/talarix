@@ -19,6 +19,8 @@ import Purchases from '../pages/Purchases/Purchases.jsx';
 import Supplies from '../pages/Supplies/Supplies.jsx';
 import SupplierAccounts from '../pages/SupplierAccounts/SupplierAccounts.jsx';
 import SupplierStatementPrint from '../pages/SupplierAccounts/SupplierStatementPrint.jsx';
+import CustomerAccounts from '../pages/CustomerAccounts/CustomerAccounts.jsx';
+import CustomerStatementPrint from '../pages/CustomerAccounts/CustomerStatementPrint.jsx';
 import Orders from '../pages/Orders/Orders.jsx';
 import OrderPrint from '../pages/Orders/OrderPrint.jsx';
 import Imports from '../pages/Imports/Imports.jsx';
@@ -50,6 +52,7 @@ const AppRoutes = () => {
         <Route path="/mesas/comandas/:id/imprimir" element={<TicketPrint />} />
         <Route element={<PrivateRoute allowedRoles={['admin', 'editor']} />}>
           <Route path="/cuentas-proveedores/:id/imprimir" element={<SupplierStatementPrint />} />
+          <Route path="/cuentas-clientes/:id/imprimir" element={<CustomerStatementPrint />} />
         </Route>
 
         <Route element={<Layout />}>
@@ -72,6 +75,7 @@ const AppRoutes = () => {
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/insumos" element={<Supplies />} />
             <Route path="/cuentas-proveedores" element={<SupplierAccounts />} />
+            <Route path="/cuentas-clientes" element={<CustomerAccounts />} />
             <Route path="/imports" element={<Imports />} />
           </Route>
 

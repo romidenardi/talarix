@@ -20,10 +20,20 @@ const Order = sequelize.define(
       allowNull: false,
       field: 'customer_id',
     },
+    // Forma de pago. NULL en los remitos a cuenta corriente (migración 010)
     paymentId: {
       type: DataTypes.UUID,
-      allowNull: false,
+      allowNull: true,
       field: 'payment_id',
+    },
+    // Contado (cash) o cuenta corriente (account): el de cuenta corriente suma a lo que debe el
+    // cliente (services/customerAccount.service.js)
+    paymentCondition: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      defaultValue: 'cash',
+      field: 'payment_condition',
+      validate: { isIn: [['cash', 'account']] },
     },
     installmentPlanId: {
       type: DataTypes.UUID,

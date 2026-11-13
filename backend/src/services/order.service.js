@@ -35,9 +35,18 @@ const MAX_PRICE = 99999999;
 export const createOrder = async ({ body, user, options = {} }) => {
   const fromTab = Boolean(options.tableTabId);
   const external = options.transaction || null;
-  const { customerId, paymentId, installmentPlanId, items, notes } = body;
+  const { customerId, items, notes } = body;
   const { businessId, role, id: userId } = user;
   const requestId = cleanRequestId(body.requestId);
+  // Contado (por defecto) o cuenta corriente. Las mesas siempre se cobran al contado. A cuenta
+  // corriente no hay forma de pago ni cuotas: se cobra después (services/customerAccount.service.js).
+  const paymentCondition = fromTab ? 'cash' : (body.paymentCondition ?? 'cash');
+  if (!['cash', 'account'].includes(paymentCondition)) {
+    throw httpError('La condición tiene que ser contado o cuenta corriente.');
+  }
+  const onAccount = paymentCondition === 'account';
+  const paymentId = onAccount ? null : body.paymentId;
+  const installmentPlanId = onAccount ? null : body.installmentPlanId;
 
   // El mismo envío ya se procesó (doble clic o reintento): se devuelve ese remito, no se crea otro
   if (requestId) {
@@ -92,9 +101,18 @@ export const createOrder = async ({ body, user, options = {} }) => {
       );
     }
 
-    const payment = await Payment.findOne({ where: { id: paymentId, businessId }, transaction: t });
-    if (!payment) throw httpError('Forma de pago no encontrada.', 404);
-    if (!payment.active) throw httpError(`La forma de pago ${payment.name} está inactiva. Elegí otra.`);
+    // A cuenta corriente hay que saber a quién se le fía: no sirve el "Consumidor Final" genérico
+    if (onAccount && !customer.businessName && customer.firstName === 'Consumidor' && customer.lastName === 'Final') {
+      throw httpError('Para vender a cuenta corriente elegí el cliente: no puede ser Consumidor Final.');
+    }
+
+    let payment = null;
+    if (!onAccount) {
+      if (!paymentId) throw httpError('La forma de pago es obligatoria.');
+      payment = await Payment.findOne({ where: { id: paymentId, businessId }, transaction: t });
+      if (!payment) throw httpError('Forma de pago no encontrada.', 404);
+      if (!payment.active) throw httpError(`La forma de pago ${payment.name} está inactiva. Elegí otra.`);
+    }
 
     let installmentPlan = null;
     if (installmentPlanId) {
@@ -240,7 +258,8 @@ export const createOrder = async ({ body, user, options = {} }) => {
         businessId,
         number,
         customerId: customer.id,
-        paymentId: payment.id,
+        paymentId: payment ? payment.id : null,
+        paymentCondition,
         installmentPlanId: installmentPlan ? installmentPlan.id : null,
         notes,
         grossTotal: totals.grossTotal,

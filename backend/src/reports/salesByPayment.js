@@ -39,7 +39,7 @@ export const salesByPayment = asyncHandler(async (req, res) => {
         const total = Number(r.total);
         return {
           paymentId: r.paymentId,
-          name: payments.get(r.paymentId)?.name || 'Sin forma de pago.',
+          name: r.paymentId ? payments.get(r.paymentId)?.name || 'Sin forma de pago.' : 'Cuenta corriente',
           orders: Number(r.orders),
           total: round2(total),
           installmentOrders: Number(r.installmentOrders),

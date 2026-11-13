@@ -157,7 +157,9 @@ const OrderPrint = () => {
           )}
         </div>
 
-        {parts.length > 0 ? (
+        {order.paymentCondition === 'account' ? (
+          <p className="print-payment">Condición: Cuenta corriente</p>
+        ) : parts.length > 0 ? (
           <div className="print-payment">
             <p>Formas de pago:</p>
             <ul>

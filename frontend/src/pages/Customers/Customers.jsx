@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDialog } from '../../context/DialogContext.jsx';
 import { useForm } from 'react-hook-form';
 import { useResource } from '../../hooks/useResource.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import * as customersApi from '../../api/customers.api.js';
 import { downloadCustomerData, anonymizeCustomer } from '../../api/dataRights.api.js';
+import { getCustomerBalances } from '../../api/customerAccounts.api.js';
+import { customerBalanceLabel } from '../../utils/customerAccounts.js';
 import { saveBlob, filenameFromResponse, errorMessageFrom } from '../../utils/download.js';
 import Spinner from '../../components/common/Spinner.jsx';
 import SearchInput from '../../components/common/SearchInput.jsx';
@@ -39,6 +41,21 @@ const Customers = () => {
   const [editingId, setEditingId] = useState(null);
   const [personType, setPersonType] = useState('individual');
   const [search, setSearch] = useState('');
+  // Saldo de cuenta corriente de cada cliente (Clientes lo ven administrador y editor)
+  const [balances, setBalances] = useState(() => new Map());
+
+  const loadBalances = async () => {
+    try {
+      const { data } = await getCustomerBalances();
+      setBalances(new Map(data.map((b) => [b.customerId, b.balance])));
+    } catch {
+      setBalances(new Map());
+    }
+  };
+
+  useEffect(() => {
+    loadBalances();
+  }, []);
 
   const {
     register,
@@ -91,6 +108,7 @@ const Customers = () => {
       province: customer.province || '',
       phone: customer.phone || '',
       email: customer.email || '',
+      openingBalance: Number(customer.openingBalance) || '',
     });
   };
 
@@ -107,10 +125,13 @@ const Customers = () => {
       province: formData.province || null,
       phone: formData.phone || null,
       email: formData.email || null,
+      // Saldo inicial vacío = 0
+      openingBalance: Number(formData.openingBalance) || 0,
     });
     if (result.success) {
       const savedId = editingId;
       setEditingId(null);
+      loadBalances();
       msg.success('Cambios guardados', savedId);
     } else if (!applyServerFieldErrors(result.error, editForm.setError, EDIT_FIELDS)) {
       msg.error(result.message, 'edit');
@@ -145,9 +166,25 @@ const Customers = () => {
       return;
 
     try {
-      const { data } = await anonymizeCustomer(customer.id);
+      let response;
+      try {
+        response = await anonymizeCustomer(customer.id);
+      } catch (err) {
+        // Debe en cuenta corriente: se avisa y se pide confirmar de nuevo
+        if (err.response?.data?.code !== 'CUSTOMER_HAS_DEBT') throw err;
+        const confirmed = await dialog.confirm({
+          title: 'El cliente tiene deuda',
+          message: `${err.response.data.message} ¿Anonimizarlo igual?`,
+          confirmLabel: 'Anonimizar igual',
+          cancelLabel: 'Volver',
+          danger: true,
+        });
+        if (!confirmed) return;
+        response = await anonymizeCustomer(customer.id, { confirmDebt: true });
+      }
       await reload();
-      msg.success(data.message || 'Cliente anonimizado.', 'list');
+      await loadBalances();
+      msg.success(response.data.message || 'Cliente anonimizado.', 'list');
     } catch (err) {
       msg.error(await errorMessageFrom(err), customer.id);
     }
@@ -298,13 +335,14 @@ const Customers = () => {
               <th>Condición fiscal</th>
               <th>CUIT</th>
               <th>Localidad</th>
+              <th>Saldo</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {visibleCustomers.length === 0 && (
               <tr>
-                <td colSpan={5} className="list-search-empty">
+                <td colSpan={6} className="list-search-empty">
                   {search ? 'No hay clientes que coincidan con la búsqueda.' : 'Todavía no hay clientes.'}
                 </td>
               </tr>
@@ -312,7 +350,7 @@ const Customers = () => {
             {visibleCustomers.map((customer) => (
               <tr key={customer.id}>
                 {editingId === customer.id ? (
-                  <td colSpan={5} className="edit-cell">
+                  <td colSpan={6} className="edit-cell">
                     <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                       <div className="field">
                         <label htmlFor={`edit-businessName-${customer.id}`}>Razón social</label>
@@ -410,6 +448,17 @@ const Customers = () => {
                         />
                         {editErrors.email && <span className="error">{editErrors.email.message}</span>}
                       </div>
+                      <div className="field">
+                        <label htmlFor={`edit-openingBalance-${customer.id}`}>Saldo inicial de cuenta corriente</label>
+                        <input
+                          id={`edit-openingBalance-${customer.id}`}
+                          type="number"
+                          step="0.01"
+                          placeholder="Ej: 25000"
+                          {...editForm.register('openingBalance')}
+                        />
+                        <small>Lo que te debía al empezar a usar Talarix. Negativo si tenía saldo a favor.</small>
+                      </div>
                       <div className="inline-edit-actions">
                         <button type="submit">Guardar</button>
                         <button type="button" onClick={() => setEditingId(null)}>
@@ -429,6 +478,15 @@ const Customers = () => {
                     <td data-label="Condición fiscal">{customer.fiscalCondition}</td>
                     <td data-label="CUIT">{customer.cuit || '—'}</td>
                     <td data-label="Localidad">{customer.city || '—'}</td>
+                    <td data-label="Saldo">
+                      {balances.has(customer.id) ? (
+                        <span className={balances.get(customer.id) > 0.005 ? 'amount amount-debt' : 'amount'}>
+                          {customerBalanceLabel(balances.get(customer.id))}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
                     <td data-label="Acciones">
                       {!customer.anonymizedAt && <button onClick={() => startEdit(customer)}>Editar</button>}
                       <button onClick={() => onDelete(customer.id)}>Eliminar</button>

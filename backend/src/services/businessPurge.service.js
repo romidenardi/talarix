@@ -13,6 +13,7 @@ import {
   PurchaseItem,
   PurchaseExpense,
   SupplierPayment,
+  CustomerPayment,
   Order,
   OrderItem,
   ComboItem,
@@ -69,6 +70,7 @@ export const purgeBusiness = async (businessId) => {
     await destroyByIds(PurchaseExpense, 'purchaseId', purchaseIds, transaction);
     await Purchase.destroy({ where: { businessId }, force: true, transaction });
     await SupplierPayment.destroy({ where: { businessId }, force: true, transaction });
+    await CustomerPayment.destroy({ where: { businessId }, force: true, transaction });
 
     const productIds = await idsOf(Product, { businessId }, transaction);
     await destroyByIds(StockMovement, 'productId', productIds, transaction);

@@ -13,6 +13,7 @@ import {
   PurchaseItem,
   PurchaseExpense,
   SupplierPayment,
+  CustomerPayment,
   Order,
   OrderItem,
   ComboItem,
@@ -123,6 +124,7 @@ export const buildBusinessExport = async (businessId) => {
     purchaseItems,
     purchaseExpenses,
     supplierPayments,
+    customerPayments,
     orders,
     orderItems,
     payments,
@@ -145,6 +147,7 @@ export const buildBusinessExport = async (businessId) => {
     byParent(PurchaseItem, Purchase, businessId),
     byParent(PurchaseExpense, Purchase, businessId),
     byBusiness(SupplierPayment, businessId),
+    byBusiness(CustomerPayment, businessId),
     byBusiness(Order, businessId),
     byParent(OrderItem, Order, businessId),
     byBusiness(Payment, businessId),
@@ -210,6 +213,13 @@ export const buildBusinessExport = async (businessId) => {
       name: 'Remitos',
       ...sheetFrom(Order, orders, {
         clienteNombre: (row) => customerNames.get(row.customerId) || '',
+      }),
+    },
+    {
+      name: 'Cobranzas a clientes',
+      ...sheetFrom(CustomerPayment, customerPayments, {
+        clienteNombre: (row) => customerNames.get(row.customerId) || '',
+        formaDePago: (row) => paymentNamesAll.get(row.paymentId) || '',
       }),
     },
     { name: 'Detalle de remitos', ...sheetFrom(OrderItem, orderItems, { productoNombre: productOf }) },

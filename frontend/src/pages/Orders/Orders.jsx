@@ -7,6 +7,8 @@ import ApprovalDialog from './ApprovalDialog.jsx';
 import { orderNumberLabel } from '../../utils/orderNumber.js';
 import { paymentLabel } from '../../utils/orderPayments.js';
 import { getCustomers, createCustomer } from '../../api/customers.api.js';
+import { getCustomerBalances } from '../../api/customerAccounts.api.js';
+import { customerBalanceLabel } from '../../utils/customerAccounts.js';
 import { getPayments } from '../../api/payments.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
 import { getScaleConfig } from '../../api/scale.api.js';
@@ -59,6 +61,7 @@ const Orders = () => {
   const [customers, setCustomers] = useState([]);
   const [payments, setPayments] = useState([]);
   const [products, setProducts] = useState([]);
+  const [balances, setBalances] = useState(() => new Map()); // saldo de cuenta corriente por cliente
   const [scaleConfig, setScaleConfig] = useState(resolveScaleConfig(null));
   const [loading, setLoading] = useState(true);
   const [cancellingId, setCancellingId] = useState(null);
@@ -83,6 +86,7 @@ const Orders = () => {
   } = useForm({
     defaultValues: {
       customerId: '',
+      paymentCondition: 'cash',
       paymentId: '',
       installmentPlanId: '',
       discountPercent: 0,
@@ -99,6 +103,8 @@ const Orders = () => {
   const isNewCustomer = selectedCustomerId === NEW_CUSTOMER;
   const newCustomerFiscalCondition = watch('newCustomer.fiscalCondition');
   const selectedPaymentId = watch('paymentId');
+  // Cuenta corriente: sin forma de pago ni cuotas; suma a lo que debe el cliente
+  const onAccount = watch('paymentCondition') === 'account';
   const selectedInstallmentPlanId = watch('installmentPlanId');
   const watchedDiscountPercent = watch('discountPercent');
   const watchedDiscountAmount = watch('discountAmount');
@@ -118,6 +124,12 @@ const Orders = () => {
       setCustomers(customersRes.data);
       setPayments(paymentsRes.data);
       setProducts(productsRes.data);
+      // Saldo de cuenta corriente de cada cliente (solo lo ven administrador y editor)
+      if (canManageData) {
+        getCustomerBalances()
+          .then(({ data }) => setBalances(new Map(data.map((b) => [b.customerId, b.balance]))))
+          .catch(() => setBalances(new Map()));
+      }
     } catch (err) {
       msg.error('No se pudo cargar la información. Recargá la página.', 'page');
     } finally {
@@ -212,7 +224,7 @@ const Orders = () => {
   const fiscalConditionForCalc = isNewCustomer ? newCustomerFiscalCondition : selectedCustomer?.fiscalCondition;
   const discriminatesVat = FISCAL_CONDITIONS_WITH_VAT_BREAKDOWN.includes(fiscalConditionForCalc);
 
-  const selectedPayment = payments.find((p) => p.id === selectedPaymentId);
+  const selectedPayment = onAccount ? null : payments.find((p) => p.id === selectedPaymentId);
   const availablePlans = selectedPayment?.installmentPlans || [];
   const selectedPlan = availablePlans.find((p) => p.id === selectedInstallmentPlanId);
   const totalFinanced = selectedPlan ? total * (1 + Number(selectedPlan.interestRate) / 100) : total;
@@ -504,10 +516,12 @@ const Orders = () => {
         });
       }
 
+      const account = formData.paymentCondition === 'account';
       const payload = {
         customerId,
-        paymentId: formData.paymentId,
-        installmentPlanId: formData.installmentPlanId || null,
+        paymentCondition: account ? 'account' : 'cash',
+        paymentId: account ? null : formData.paymentId,
+        installmentPlanId: account ? null : formData.installmentPlanId || null,
         discountPercent: Number(formData.discountPercent) || 0,
         discountAmount: Number(formData.discountAmount) || 0,
         notes: formData.notes || null,
@@ -531,6 +545,7 @@ const Orders = () => {
       }
       reset({
         customerId: '',
+        paymentCondition: 'cash',
         paymentId: '',
         installmentPlanId: '',
         discountPercent: 0,
@@ -691,22 +706,47 @@ const Orders = () => {
         )}
 
         <div className="field">
-          <label htmlFor="paymentId">
-            Forma de pago
-            <RequiredMark />
-          </label>
-          <select id="paymentId" {...register('paymentId', { required: 'Elegí la forma de pago' })}>
-            <option value="">Forma de pago...</option>
-            {payments
-              .filter((p) => p.active)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
+          <label htmlFor="paymentCondition">Condición</label>
+          <select id="paymentCondition" {...register('paymentCondition')}>
+            <option value="cash">Contado</option>
+            <option value="account">Cuenta corriente</option>
           </select>
-          {errors.paymentId && <span className="error">{errors.paymentId.message}</span>}
+          {onAccount && (
+            <small>
+              Suma a lo que debe el cliente y se cobra después
+              {canManageData ? ', en Cuentas corrientes' : ''}. No puede ser Consumidor Final.
+              {canManageData && selectedCustomer && balances.has(selectedCustomer.id) && (
+                <> Saldo actual: {customerBalanceLabel(balances.get(selectedCustomer.id))}.</>
+              )}
+            </small>
+          )}
         </div>
+
+        {!onAccount && (
+          <div className="field">
+            <label htmlFor="paymentId">
+              Forma de pago
+              <RequiredMark />
+            </label>
+            <select
+              id="paymentId"
+              {...register('paymentId', {
+                validate: (value, values) =>
+                  values.paymentCondition === 'account' || Boolean(value) || 'Elegí la forma de pago',
+              })}
+            >
+              <option value="">Forma de pago...</option>
+              {payments
+                .filter((p) => p.active)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+            </select>
+            {errors.paymentId && <span className="error">{errors.paymentId.message}</span>}
+          </div>
+        )}
 
         {availablePlans.length > 0 && (
           <div className="field">

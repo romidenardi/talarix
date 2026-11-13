@@ -9,6 +9,7 @@ import User from './user.model.js';
 import Customer from './customer.model.js';
 import Supplier from './supplier.model.js';
 import SupplierPayment from './supplierPayment.model.js';
+import CustomerPayment from './customerPayment.model.js';
 import Purchase from './purchase.model.js';
 import PurchaseItem from './purchaseItem.model.js';
 import PurchaseExpense from './purchaseExpense.model.js';
@@ -72,6 +73,11 @@ Supplier.hasMany(SupplierPayment, { as: 'payments', foreignKey: 'supplierId', co
 SupplierPayment.belongsTo(Supplier, { foreignKey: 'supplierId', constraints: false });
 SupplierPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false });
 
+// Cobranzas a clientes: sin claves foráneas en la base (constraints: false), igual que en migrations/010
+Customer.hasMany(CustomerPayment, { as: 'payments', foreignKey: 'customerId', constraints: false });
+CustomerPayment.belongsTo(Customer, { foreignKey: 'customerId', constraints: false });
+CustomerPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false });
+
 Purchase.hasMany(PurchaseItem, { as: 'items', foreignKey: 'purchaseId' });
 PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchaseId' });
 
@@ -126,6 +132,7 @@ export {
   Customer,
   Supplier,
   SupplierPayment,
+  CustomerPayment,
   Purchase,
   PurchaseItem,
   PurchaseExpense,

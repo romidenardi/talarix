@@ -91,7 +91,11 @@ const Layout = () => {
     { title: 'Gastronomía', links: [tablesEnabled && ['/mesas', 'Mesas']] },
     {
       title: 'Ventas',
-      links: [canManageData && ['/customers', 'Clientes'], ['/orders', 'Remitos']],
+      links: [
+        canManageData && ['/customers', 'Clientes'],
+        ['/orders', 'Remitos'],
+        canManageData && ['/cuentas-clientes', 'Cuentas corrientes'],
+      ],
     },
     {
       title: 'Compras',
