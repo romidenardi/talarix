@@ -82,6 +82,7 @@ describe('Plazos y datos visibles', () => {
   it('cada usuario del comercio ve el vencimiento de la prueba gratis, también el mozo', async () => {
     const B = await createBusiness(models, 'Con prueba');
     const until = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+    until.setMilliseconds(0); // la base guarda la fecha sin milisegundos
     await models.Business.update({ trialEndsAt: until }, { where: { id: B.business.id } });
 
     const admin = await api('GET', '/api/auth/session', { token: B.users.admin.token });
