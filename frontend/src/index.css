@@ -2164,6 +2164,21 @@ td .form-message {
   align-items: end;
 }
 
+/* Descuento al cobrar una mesa: % y monto, uno al lado del otro */
+.close-discount {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+/* Pasar la cuenta a otra mesa */
+.tab-move {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
 .close-parts {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

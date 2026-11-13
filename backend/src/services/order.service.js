@@ -30,7 +30,8 @@ const MAX_PRICE = 99999999;
 //
 // Al cobrar una mesa (services/table.service.js) se llama con options = { tableTabId, transaction }:
 // el stock ya se descontó al mandar cada comanda y los precios son los del momento del pedido, así que
-// no se mueve stock, no se pide autorización y no se revisa si el producto sigue activo.
+// no se mueve stock, no se pide autorización acá (el descuento del operador lo autoriza closeTab) y no se
+// revisa si el producto sigue activo.
 export const createOrder = async ({ body, user, options = {} }) => {
   const fromTab = Boolean(options.tableTabId);
   const external = options.transaction || null;

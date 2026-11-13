@@ -23,6 +23,7 @@ const ACTION_LABELS = {
   'tables.settings_changed': 'Activó o desactivó las mesas',
   'tables.item_cancelled': 'Anuló un plato de una mesa',
   'tables.tab_cancelled': 'Anuló una mesa',
+  'tables.tab_moved': 'Pasó una cuenta a otra mesa',
   'business.closure_cancelled': 'Baja cancelada',
   'business.purged': 'Comercio eliminado definitivamente',
   'business.exported': 'Exportó los datos del comercio',
@@ -79,8 +80,11 @@ const describe = (row) => {
       return `$${d.from} → $${d.to}`;
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
+    case 'tables.tab_moved':
+      return d.from ? `Mesa ${d.from} → mesa ${d.to}` : '';
     case 'order.approved': {
       const parts = [`Autorizó ${d.approver}`];
+      if (d.table) parts.push(`mesa ${d.table}`);
       if (d.discountPercent > 0) parts.push(`descuento ${d.discountPercent}%`);
       if (d.discountAmount > 0) parts.push(`descuento $${d.discountAmount}`);
       if (d.prices > 0) parts.push(d.prices === 1 ? '1 precio cambiado' : `${d.prices} precios cambiados`);

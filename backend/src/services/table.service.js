@@ -19,7 +19,16 @@ import { lockProducts, moveStock } from './stock.service.js';
 import { loadComboComponents } from './combo.service.js';
 import { createOrder } from './order.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
-import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
+import { APPROVER_ROLES, approvalSummary, checkApproval } from './orderApproval.service.js';
+import {
+  isPositiveQuantity,
+  isNonNegative,
+  toNumber,
+  toNumberOrZero,
+  round2,
+  round3,
+  quantityAllowedFor,
+} from '../utils/numbers.js';
 
 // Mesas y comandas.
 //   1. Se abre la cuenta de una mesa (TableTab).
@@ -27,7 +36,10 @@ import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAl
 //      (TabItem; el adicional cuelga de su plato con parent_item_id). El menú no lleva stock.
 //   3. Un administrador o editor puede anular un plato: se anulan también sus adicionales.
 //   4. Al cobrar se genera un remito con todos los platos. Si se paga en partes, cada parte queda en
-//      order_payments con su forma de pago y su propina.
+//      order_payments con su forma de pago y su propina. Se puede hacer un descuento (en % y/o en pesos)
+//      sobre el total, con la misma regla que en Remitos: administrador y editor lo aplican directo; el
+//      operador necesita la autorización de uno de ellos (services/orderApproval.service.js).
+//   5. Administrador, editor y operador pueden pasar una cuenta abierta a otra mesa libre.
 // Las cuentas abiertas antes del menú (migración 004) pueden tener productos comunes: esos siguen
 // moviendo stock al mandar, anular o cancelar (moveTabStock saltea los que no llevan stock).
 // Orden de los bloqueos, siempre el mismo para no trabarse: la cuenta, el comercio, los productos.
@@ -481,6 +493,34 @@ export const cancelTab = async ({ tabId, reason, user }) => {
   });
 };
 
+// ---- Pasar la cuenta a otra mesa ----
+
+// La cuenta (con sus comandas, platos y mozo) se mueve entera a una mesa libre. Se bloquea la cuenta y
+// después la mesa nueva, así nadie la abre al mismo tiempo (openTab también bloquea la mesa).
+export const moveTab = async ({ tabId, tableId, user }) => {
+  const { businessId } = user;
+  if (typeof tableId !== 'string' || !tableId) throw httpError('Elegí la mesa a la que pasa la cuenta.');
+  return sequelize.transaction(async (t) => {
+    const tab = await lockTab(tabId, businessId, t);
+    assertOpen(tab);
+    if (tab.tableId === tableId) throw httpError('La cuenta ya está en esa mesa.');
+    const target = await DiningTable.findOne({
+      where: { id: tableId, businessId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!target || !target.active) throw httpError('Mesa no encontrada.', 404);
+    const busy = await TableTab.findOne({
+      where: { businessId, tableId: target.id, status: OPEN_STATUSES },
+      transaction: t,
+    });
+    if (busy) throw httpError(`La mesa ${target.name} está ocupada. Elegí una libre.`, 409);
+    const from = await tableName(tab, t);
+    await tab.update({ tableId: target.id }, { transaction: t });
+    return { from, to: target.name };
+  });
+};
+
 // ---- Cobrar ----
 
 const defaultCustomer = async (businessId, transaction) => {
@@ -517,9 +557,29 @@ const readParts = (parts, total) => {
   return rows;
 };
 
+// Descuento al cobrar: mismo cálculo que un remito (services/orderPricing.js), sobre el total de la mesa
+const readDiscount = (body) => {
+  const discountPercent = toNumberOrZero(body.discountPercent);
+  const discountAmount = toNumberOrZero(body.discountAmount);
+  if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+    throw httpError('El porcentaje de descuento debe estar entre 0 y 100.');
+  }
+  if (!Number.isFinite(discountAmount) || discountAmount < 0) {
+    throw httpError('El descuento por monto no es válido.');
+  }
+  return { discountPercent, discountAmount: round2(discountAmount) };
+};
+
+export const discountedTotal = (gross, { discountPercent, discountAmount }) => {
+  const totalDiscount = round2(gross * (discountPercent / 100) + discountAmount);
+  if (totalDiscount > gross + 0.005) throw httpError('El descuento no puede ser mayor al total de la mesa.');
+  return round2(gross - totalDiscount);
+};
+
 export const closeTab = async ({ tabId, body, user }) => {
   const { businessId } = user;
   const requestId = cleanRequestId(body.requestId);
+  const discount = readDiscount(body);
   const previousOrder = async () =>
     requestId ? Order.findOne({ where: { businessId, requestId }, attributes: ['id'] }) : null;
   const previous = await previousOrder();
@@ -533,8 +593,20 @@ export const closeTab = async ({ tabId, body, user }) => {
       await TabItem.findAll({ where: { tabId: tab.id, businessId, status: 'active' }, transaction: t }),
     );
     if (!items.length) throw httpError('La mesa no tiene platos para cobrar. Si no se usó, anulala.');
-    const total = tabTotal(items);
+    const total = discountedTotal(tabTotal(items), discount);
     const parts = readParts(body.parts, total);
+
+    // El operador cobra sin descuento, salvo que lo autorice un administrador o editor
+    let approver = null;
+    const approval = approvalSummary({ rows: [], productMap: new Map(), ...discount });
+    if (approval.needed && !APPROVER_ROLES.includes(user.role)) {
+      approver = await checkApproval(body.approvalToken, {
+        requesterId: user.id,
+        businessId,
+        requestId,
+        summary: approval,
+      });
+    }
 
     const payments = await Payment.findAll({
       where: { id: [...new Set(parts.map((p) => p.paymentId))], businessId },
@@ -558,6 +630,8 @@ export const closeTab = async ({ tabId, body, user }) => {
         paymentId: main.paymentId,
         requestId,
         notes: `Mesa ${name}`,
+        discountPercent: discount.discountPercent,
+        discountAmount: discount.discountAmount,
         items: items.map((i) => ({
           productId: i.productId,
           quantity: Number(i.quantity),
@@ -583,7 +657,7 @@ export const closeTab = async ({ tabId, body, user }) => {
     );
 
     await t.commit();
-    return { orderId, created: true };
+    return { orderId, created: true, approver, approval, tableName: name };
   } catch (error) {
     await t.rollback();
     if (requestId && isDuplicateRequest(error)) {

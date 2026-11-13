@@ -18,6 +18,7 @@ import {
   askForBill,
   cancelTableTab,
   closeTableTab,
+  moveTableTab,
   getTips,
   getMenu,
   createMenuDish,
@@ -66,5 +67,7 @@ router.post('/tabs/:tabId/bill', askForBill);
 router.post('/tabs/:tabId/items/:itemId/cancel', requireRole(...MANAGER_ROLES), cancelTabItem);
 router.post('/tabs/:tabId/cancel', requireRole(...MANAGER_ROLES), cancelTableTab);
 router.post('/tabs/:tabId/close', requireRole(...CASHIER_ROLES), closeTableTab);
+// Pasar la cuenta a otra mesa: administrador, editor y operador (el mozo no)
+router.post('/tabs/:tabId/move', requireRole(...CASHIER_ROLES), moveTableTab);
 
 export default router;

@@ -17,8 +17,10 @@ export const requestBill = (tabId) => api.post(`/tables/tabs/${tabId}/bill`);
 export const cancelTabItem = (tabId, itemId, reason) =>
   api.post(`/tables/tabs/${tabId}/items/${itemId}/cancel`, { reason });
 export const cancelTab = (tabId, reason) => api.post(`/tables/tabs/${tabId}/cancel`, { reason });
-// parts: [{ paymentId, amount, tip }]
+// data: { parts: [{ paymentId, amount, tip }], customerId, requestId, discountPercent, discountAmount, approvalToken }
 export const closeTab = (tabId, data) => api.post(`/tables/tabs/${tabId}/close`, data);
+// Pasar la cuenta a otra mesa libre (administrador, editor y operador)
+export const moveTab = (tabId, tableId) => api.post(`/tables/tabs/${tabId}/move`, { tableId });
 
 export const getKitchen = () => api.get('/tables/kitchen');
 export const getTicket = (ticketId) => api.get(`/tables/tickets/${ticketId}`);

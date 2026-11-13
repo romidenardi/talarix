@@ -3,9 +3,18 @@ import { useEffect, useState } from 'react';
 // Pedido de autorización para el operador: un administrador o editor escribe su email y contraseña
 // en la misma pantalla para aprobar un descuento o un precio distinto al de lista.
 // summary: { discountPercent, discountAmount, prices: [{ name, unitPrice, listPrice, perKg }] }
+// También se usa al cobrar una mesa con descuento (pages/Tables/CloseTab.jsx), con otros textos.
 const money = (n) => `$${Number(n).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export default function ApprovalDialog({ summary, notice, onApprove, onCancel }) {
+export default function ApprovalDialog({
+  summary,
+  notice,
+  onApprove,
+  onCancel,
+  defaultNotice = 'Este remito tiene un descuento o un precio distinto al de lista.',
+  approveLabel = 'Autorizar y generar remito.',
+  cancelLabel = 'Volver al remito',
+}) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -47,8 +56,8 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
       >
         <h3 id="approval-title">Autorización necesaria</h3>
         <p>
-          {notice || 'Este remito tiene un descuento o un precio distinto al de lista.'} Un{' '}
-          <strong>administrador o editor</strong> tiene que autorizarlo con su email y contraseña.
+          {notice || defaultNotice} Un <strong>administrador o editor</strong> tiene que autorizarlo con su email y
+          contraseña.
         </p>
 
         <ul className="approval-summary">
@@ -91,10 +100,10 @@ export default function ApprovalDialog({ summary, notice, onApprove, onCancel })
 
         <div className="approval-actions">
           <button type="submit" disabled={sending}>
-            {sending ? 'Autorizando…' : 'Autorizar y generar remito.'}
+            {sending ? 'Autorizando…' : approveLabel}
           </button>
           <button type="button" onClick={onCancel} disabled={sending}>
-            Volver al remito
+            {cancelLabel}
           </button>
         </div>
       </form>

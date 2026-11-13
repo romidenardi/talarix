@@ -47,6 +47,18 @@ export const equalParts = (total, n) => {
   return Array.from({ length: n }, (_, i) => (i === n - 1 ? cents - base * (n - 1) : base) / 100);
 };
 
+// Con descuento, cada parte (por lo que pidió cada uno) baja en la misma proporción. Los centavos que
+// sobran o faltan por redondeo van a la parte más grande, así la suma da justo el total.
+export const scaleParts = (amounts, total) => {
+  const gross = amounts.reduce((s, a) => s + a, 0);
+  if (gross <= 0) return amounts.map(() => 0);
+  const cents = amounts.map((a) => Math.round(((a * total) / gross) * 100));
+  const diff = Math.round(total * 100) - cents.reduce((s, c) => s + c, 0);
+  const biggest = cents.indexOf(Math.max(...cents));
+  cents[biggest] += diff;
+  return cents.map((c) => c / 100);
+};
+
 // Preferencia de este navegador: imprimir la comanda al mandarla
 const PRINT_KEY = 'talarix.printTickets';
 export const readPrintPref = () => {

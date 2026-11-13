@@ -25,8 +25,9 @@ import CloseTab from './CloseTab.jsx';
 const EMPTY_PICK = { productId: '', quantity: '1', note: '', extraIds: [] };
 
 // Una mesa: abrirla, ver lo pedido por comanda, mandar platos del menú (con sus adicionales) a la
-// cocina, anular platos, pedir la cuenta y cobrar.
-export default function TabPanel({ table, menu, payments, customers, onChanged, onClose }) {
+// cocina, anular platos, pasar la cuenta a otra mesa, pedir la cuenta y cobrar.
+// tables: todas las mesas del salón (para elegir a cuál se pasa la cuenta)
+export default function TabPanel({ table, tables = [], menu, payments, customers, onChanged, onMoved, onClose }) {
   const { role } = useAuth();
   const dialog = useDialog();
   const isManager = role === 'admin' || role === 'editor';
@@ -39,6 +40,8 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
   const [pick, setPick] = useState(EMPTY_PICK);
   const [sending, setSending] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [moving, setMoving] = useState(false);
+  const [moveTo, setMoveTo] = useState('');
   const [printOnSend, setPrintOnSend] = useState(readPrintPref);
   const requestIdRef = useRef(newRequestId());
 
@@ -177,6 +180,25 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
     });
     if (reason === null) return;
     if (await run(() => tablesApi.cancelTab(tab.id, reason), 'No se pudo anular la mesa.')) onClose();
+  };
+
+  // Pasar la cuenta a otra mesa libre (administrador, editor y operador; el mozo no)
+  const freeTables = tables.filter((t) => t.active && !t.tab && t.id !== table.id);
+  const moveTab = async () => {
+    const target = freeTables.find((t) => t.id === moveTo);
+    if (!target) {
+      msg.error('Elegí la mesa a la que pasa la cuenta.', 'move');
+      return;
+    }
+    try {
+      await tablesApi.moveTab(tab.id, target.id);
+      setMoving(false);
+      setMoveTo('');
+      await onMoved(target.id);
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudo pasar la cuenta.'), 'move');
+      await onChanged();
+    }
   };
 
   if (!table.tab && !tab) {
@@ -413,6 +435,11 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
               Cobrar
             </button>
           )}
+          {canCharge && !moving && (
+            <button type="button" onClick={() => setMoving(true)}>
+              Pasar a otra mesa
+            </button>
+          )}
           {isManager && (
             <button type="button" className="btn-danger" onClick={cancelWholeTab}>
               Anular mesa
@@ -420,6 +447,41 @@ export default function TabPanel({ table, menu, payments, customers, onChanged, 
           )}
         </div>
       )}
+      {isOpen && moving && (
+        <div className="tab-move">
+          {freeTables.length ? (
+            <>
+              <div className="field">
+                <label htmlFor="tab-move-to">Pasar la cuenta a la mesa</label>
+                <select id="tab-move-to" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}>
+                  <option value="">Elegí una mesa libre</option>
+                  {freeTables.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      Mesa {t.name}
+                      {t.area ? ` · ${t.area}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" className="btn-primary" onClick={moveTab}>
+                Pasar
+              </button>
+            </>
+          ) : (
+            <p className="report-note">No hay mesas libres.</p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setMoving(false);
+              msg.clear();
+            }}
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+      <FormMessage message={msg.at('move')} onClose={msg.clear} />
       <FormMessage message={msg.at()} onClose={msg.clear} />
     </section>
   );

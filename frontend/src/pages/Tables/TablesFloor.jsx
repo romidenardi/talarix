@@ -106,10 +106,16 @@ export default function TablesFloor() {
         <TabPanel
           key={selected.id}
           table={selected}
+          tables={tables}
           menu={menu}
           payments={payments}
           customers={customers}
           onChanged={loadTables}
+          onMoved={async (tableId) => {
+            // La cuenta pasó a otra mesa: se muestra esa
+            await loadTables();
+            setSelectedId(tableId);
+          }}
           onClose={() => setSelectedId(null)}
         />
       )}

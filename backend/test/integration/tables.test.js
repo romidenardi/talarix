@@ -344,3 +344,114 @@ describe('Rol mozo', () => {
     assert.equal(res.status, 201, JSON.stringify(res.body));
   });
 });
+
+describe('Pasar de mesa y descuento al cobrar', () => {
+  let tab;
+  // MySQL puede devolver la columna JSON como texto
+  const detailOf = (log) => (typeof log.detail === 'string' ? JSON.parse(log.detail) : log.detail);
+  let freeTable;
+
+  const openWithRavioles = async (name, quantity) => {
+    const table = (await call('POST', '/', admin, { name })).body;
+    const opened = (await call('POST', `/${table.id}/open`, mozo, {})).body;
+    // Ravioles a precio promocional: 2500 cada uno
+    const sent = await call('POST', `/tabs/${opened.id}/tickets`, mozo, {
+      requestId: newRequestId(),
+      items: [{ productId: dishes.rav.id, quantity }],
+    });
+    assert.equal(sent.status, 201, JSON.stringify(sent.body));
+    return { table, tab: opened };
+  };
+
+  it('pasar la cuenta a una mesa libre: administrador, editor y operador; el mozo no', async () => {
+    const first = await openWithRavioles('5', 4);
+    tab = first.tab;
+    freeTable = (await call('POST', '/', admin, { name: '6' })).body;
+    const busy = await openWithRavioles('7', 1);
+
+    assert.equal((await call('POST', `/tabs/${tab.id}/move`, mozo, { tableId: freeTable.id })).status, 403);
+    const toBusy = await call('POST', `/tabs/${tab.id}/move`, operador, { tableId: busy.table.id });
+    assert.equal(toBusy.status, 409);
+    assert.match(toBusy.body.message, /ocupada/);
+    assert.equal((await call('POST', `/tabs/${tab.id}/move`, operador, {})).status, 400);
+
+    const moved = await call('POST', `/tabs/${tab.id}/move`, operador, { tableId: freeTable.id });
+    assert.equal(moved.status, 200, JSON.stringify(moved.body));
+    assert.equal(moved.body.table.name, '6');
+    assert.equal(moved.body.total, 10000, 'los platos viajan con la cuenta');
+    assert.equal(moved.body.waiterName, 'Mozo Juan', 'el mozo que la atendió no cambia');
+
+    const floor = (await call('GET', '/', mozo)).body;
+    assert.equal(floor.find((t) => t.id === first.table.id).tab, null, 'la mesa de origen queda libre');
+    assert.equal(floor.find((t) => t.id === freeTable.id).tab.id, tab.id);
+    assert.equal((await call('POST', `/${first.table.id}/open`, mozo, {})).status, 201, 'y se puede volver a abrir');
+
+    const log = await models.AuditLog.findOne({ where: { action: 'tables.tab_moved', targetId: tab.id } });
+    assert.deepEqual([detailOf(log).from, detailOf(log).to], ['5', '6']);
+  });
+
+  it('descuento del operador: necesita la autorización de un administrador o editor', async () => {
+    const requestId = newRequestId();
+    const body = { requestId, discountPercent: 10, parts: [{ paymentId: A.payment.id, amount: 9000 }] };
+    const denied = await call('POST', `/tabs/${tab.id}/close`, operador, body);
+    assert.equal(denied.status, 403);
+    assert.equal(denied.body.code, 'APPROVAL_REQUIRED');
+
+    const approval = await api('POST', '/api/orders/approval', {
+      token: operador,
+      body: {
+        email: A.users.editor.email,
+        password: A.password,
+        requestId,
+        discountPercent: 10,
+        discountAmount: 0,
+        items: [],
+      },
+    });
+    assert.equal(approval.status, 200, JSON.stringify(approval.body));
+    const { approvalToken } = approval.body;
+
+    const changed = await call('POST', `/tabs/${tab.id}/close`, operador, {
+      ...body,
+      discountPercent: 20,
+      parts: [{ paymentId: A.payment.id, amount: 8000 }],
+      approvalToken,
+    });
+    assert.equal(changed.status, 403, 'la autorización vale solo para ese descuento');
+
+    const res = await call('POST', `/tabs/${tab.id}/close`, operador, { ...body, approvalToken });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    const order = await models.Order.findByPk(res.body.orderId);
+    assert.equal(Number(order.grossTotal), 10000);
+    assert.equal(Number(order.discountPercent), 10);
+    assert.equal(Number(order.total), 9000);
+    const log = await models.AuditLog.findOne({ where: { action: 'order.approved', targetId: order.id } });
+    assert.equal(detailOf(log).approver, A.users.editor.email);
+    assert.equal(detailOf(log).table, '6');
+  });
+
+  it('el administrador aplica el descuento directo; las partes suman el total con descuento', async () => {
+    const { tab: other } = await openWithRavioles('8', 2);
+    const close = (body) => call('POST', `/tabs/${other.id}/close`, admin, { requestId: newRequestId(), ...body });
+
+    const tooMuch = await close({ discountAmount: 6000, parts: [{ paymentId: A.payment.id, amount: 0 }] });
+    assert.equal(tooMuch.status, 400);
+    assert.match(tooMuch.body.message, /mayor al total/);
+    const wrongSum = await close({ discountAmount: 500, parts: [{ paymentId: A.payment.id, amount: 5000 }] });
+    assert.equal(wrongSum.status, 400);
+    assert.match(wrongSum.body.message, /suman/);
+
+    const res = await close({
+      discountAmount: 500,
+      parts: [
+        { paymentId: A.payment.id, amount: 2250 },
+        { paymentId: card.id, amount: 2250, tip: 100 },
+      ],
+    });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    const order = await models.Order.findByPk(res.body.orderId);
+    assert.equal(Number(order.total), 4500);
+    assert.equal(Number(order.discountAmount), 500);
+    assert.equal(await models.AuditLog.count({ where: { action: 'order.approved', targetId: order.id } }), 0);
+  });
+});

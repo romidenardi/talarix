@@ -17,6 +17,7 @@ import {
   requestBill,
   cancelTab,
   closeTab,
+  moveTab,
   OPEN_STATUSES,
 } from '../services/table.service.js';
 import {
@@ -174,9 +175,41 @@ export const cancelTableTab = asyncHandler(async (req, res) => {
   res.json(await getTab(req.params.tabId, req.user.businessId));
 });
 
+// Body: { parts, customerId?, requestId, discountPercent?, discountAmount?, approvalToken? }
 export const closeTableTab = asyncHandler(async (req, res) => {
-  const { orderId, created } = await closeTab({ tabId: req.params.tabId, body: req.body, user: req.user });
+  const { orderId, created, approver, approval, tableName } = await closeTab({
+    tabId: req.params.tabId,
+    body: req.body,
+    user: req.user,
+  });
+  // Descuento del operador autorizado por un administrador o editor: mismo registro que en Remitos
+  if (approver) {
+    await audit(req, {
+      action: 'order.approved',
+      targetType: 'order',
+      targetId: orderId,
+      detail: {
+        approver: approver.email,
+        discountPercent: approval.discountPercent,
+        discountAmount: approval.discountAmount,
+        prices: 0,
+        table: tableName,
+      },
+    });
+  }
   res.status(created ? 201 : 200).json({ orderId });
+});
+
+// Body: { tableId } (una mesa libre)
+export const moveTableTab = asyncHandler(async (req, res) => {
+  const { from, to } = await moveTab({ tabId: req.params.tabId, tableId: req.body.tableId, user: req.user });
+  await audit(req, {
+    action: 'tables.tab_moved',
+    targetType: 'tab',
+    targetId: req.params.tabId,
+    detail: { from, to },
+  });
+  res.json(await getTab(req.params.tabId, req.user.businessId));
 });
 
 // ---- Propinas por mozo (?from=AAAA-MM-DD&to=AAAA-MM-DD) ----
