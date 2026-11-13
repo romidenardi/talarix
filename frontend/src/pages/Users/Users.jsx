@@ -19,9 +19,9 @@ const api = {
 };
 
 const ROLES = [
-  { value: 'admin', label: 'Administrador (todo, incluye gestionar usuarios)' },
-  { value: 'editor', label: 'Editor (todo, sin gestionar usuarios)' },
-  { value: 'operador', label: 'Operador (solo Compras y Remitos)' },
+  { value: 'admin', label: 'Administrador (todo: también usuarios, exportación y datos de clientes)' },
+  { value: 'editor', label: 'Editor (todo, menos usuarios, exportación y datos de clientes)' },
+  { value: 'operador', label: 'Operador (carga remitos y compras; con mesas, también las cobra)' },
   { value: 'mozo', label: 'Mozo (solo Mesas: abre mesas y manda comandas)' },
 ];
 

@@ -178,11 +178,11 @@ const Supplies = () => {
     </>
   );
 
-  if (loading) return <Spinner label="Cargando insumos y servicios..." />;
+  if (loading) return <Spinner label="Cargando insumos..." />;
 
   return (
     <div className="supplies-page">
-      <h1>Insumos y servicios</h1>
+      <h1>Insumos</h1>
       <p className="report-note">
         <strong>Insumos:</strong> lo que comprás y usás pero no vendés (envases, bolsas, artículos de limpieza, materia
         prima). Llevan stock y costo, se cargan en Compras y no aparecen en Productos ni en los remitos. Para registrar
