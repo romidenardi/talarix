@@ -170,6 +170,13 @@ export const resetPassword = asyncHandler(async (req, res) => {
 // Cuando se publica una versión nueva de los Términos y la Política (LEGAL_VERSION), cada usuario la
 // acepta la próxima vez que entra: el frontend consulta el estado y no deja seguir hasta aceptar.
 
+// Datos del comercio que la app muestra a todos sus usuarios: el vencimiento de la prueba gratis
+// (Términos, cláusula 16.1: «la fecha … se encontrará visible en el Sistema»). La demo no tiene.
+export const getSession = asyncHandler(async (req, res) => {
+  const business = await Business.findByPk(req.user.businessId, { attributes: ['type', 'trialEndsAt'] });
+  res.json({ trialEndsAt: business && business.type !== 'demo' ? business.trialEndsAt : null });
+});
+
 export const getTermsStatus = (req, res) => {
   res.json({ version: LEGAL_VERSION, accepted: req.user.termsVersion === LEGAL_VERSION });
 };

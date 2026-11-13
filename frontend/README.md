@@ -133,8 +133,10 @@ Casi todo el CSS está en `src/index.css`; algunas pantallas tienen su propio ar
 ## Cuenta demo
 Si el comercio es de tipo demo, el menú oculta Importar y Usuarios y se muestra un aviso de que no deben cargarse datos reales. La demo no se puede dar de baja.
 
+- **Vencimiento de la prueba gratis** (`components/layout/TrialBanner.jsx`): si el comercio tiene fecha de vencimiento, todos sus usuarios ven arriba «Prueba gratis: vence el …» (Términos, cláusula 16.1). Desde 7 días antes se destaca y suma el contacto de soporte. Lo pide a `GET /auth/session`; en la demo no se muestra.
+
 ## Textos legales
-Se editan en `src/legal/legalContent.js`: Términos y Condiciones de Uso (`/terminos`) y Política de Privacidad (`/privacidad`). Hoy `LEGAL_VERSION = '2026-11'`, con `LEGAL_IS_DRAFT = true` (muestra «Texto en revisión») hasta que los valide el abogado. La casilla de aceptación es `components/legal/TermsCheckbox.jsx`, y su texto tiene que coincidir con la cláusula 17 de los Términos.
+Se editan en `src/legal/legalContent.js`: Términos y Condiciones de Uso (`/terminos`) y Política de Privacidad (`/privacidad`). Hoy `LEGAL_VERSION = '2026-11/2'`, vigente desde el 13/11/2026, con `LEGAL_IS_DRAFT = false` (textos aprobados; en `true` muestra «Texto en revisión»). La casilla de aceptación es `components/legal/TermsCheckbox.jsx`, y su texto tiene que coincidir con la cláusula 17 de los Términos.
 
 **Versión nueva:** `components/legal/TermsGate.jsx` envuelve al sistema (en `Layout.jsx`). Al entrar, si el usuario no aceptó la versión vigente, muestra el aviso con la casilla en lugar de las pantallas, hasta que la acepta. Durante una baja no aparece (solo se exporta).
 

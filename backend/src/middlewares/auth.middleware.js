@@ -12,6 +12,8 @@ const MOZO_ALLOWED = [
   { method: '*', prefix: '/api/tables' },
   // Aceptar los textos legales cuando cambian (lo pide cualquier usuario al entrar)
   { method: '*', prefix: '/api/auth/terms' },
+  // Vencimiento de la prueba gratis, que se muestra a todos los usuarios
+  { method: 'GET', prefix: '/api/auth/session' },
 ];
 export const mozoCanUse = (method, url) => {
   const path = String(url || '').split('?')[0];

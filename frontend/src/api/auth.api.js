@@ -9,3 +9,6 @@ export const resetPassword = (token, password) => api.post('/auth/reset-password
 // Textos legales vigentes: si el usuario ya aceptó esta versión, y registrar la aceptación
 export const getTermsStatus = () => api.get('/auth/terms');
 export const acceptTerms = (legalVersion) => api.post('/auth/terms', { acceptTerms: true, legalVersion });
+
+// Datos del comercio para mostrar en la app: el vencimiento de la prueba gratis (null si no tiene)
+export const getSession = () => api.get('/auth/session');

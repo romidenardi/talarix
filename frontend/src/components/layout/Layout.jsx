@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import logo from '../../assets/logo.png';
 import { getTablesSettings } from '../../api/tables.api.js';
 import TermsGate from '../legal/TermsGate.jsx';
+import TrialBanner from './TrialBanner.jsx';
 
 const ROLE_LABELS = {
   admin: 'Administrador',
@@ -178,6 +179,7 @@ const Layout = () => {
           </button>
         </aside>
         <main className="app-main">
+          {!isDemo && <TrialBanner />}
           {isDemo && (
             <div className="demo-banner" role="status">
               <strong>Cuenta de demostración.</strong> No cargues datos reales: los pueden ver otros visitantes y todo

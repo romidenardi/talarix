@@ -352,7 +352,7 @@ Qué se registra:
 
 No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados.
 
-**Se conserva 12 meses** (Política de Privacidad): `services/auditCleanup.service.js` borra los registros más viejos todos los días a las 04:15 (hora de Buenos Aires) y una vez 50 segundos después de arrancar. El plazo es `AUDIT_RETENTION_MONTHS` en ese archivo.
+**Se conserva 12 meses** (Política de Privacidad): `services/auditCleanup.service.js` borra los registros más viejos todos los días a las 04:15 (hora de Buenos Aires) y una vez 50 segundos después de arrancar. El plazo es `AUDIT_RETENTION_MONTHS` en ese archivo. La misma tarea borra los **pedidos de demo** del sitio con más de 6 meses (`DEMO_REQUEST_RETENTION_MONTHS`, Política, cláusula 6.1.5); los pedidos de baja y arrepentimiento no se borran, porque son la constancia.
 
 ## Cambios en la base de datos
 
@@ -588,10 +588,11 @@ Restaurar: servicio MySQL → Backups → elegir fecha → Restore → revisar �
 - Clave de `root`: `ALTER USER 'root'@'%' IDENTIFIED BY '<clave>';` y lo mismo para `'root'@'localhost'`, con la misma clave. Enseguida, poner esa clave en `MYSQL_ROOT_PASSWORD` (y en `MYSQLPASSWORD` si no es una referencia) y aplicar los cambios. MySQL se reinicia y la app se corta unos segundos.
 
 ## Textos legales
-La versión vigente de los Términos y Condiciones y de la Política de Privacidad está en `src/utils/legal.js` (hoy `2026-11`, pendiente de la revisión final del abogado) y debe coincidir con `LEGAL_VERSION` del frontend. El contacto que figura en los textos es `soporte@talarix.com.ar`.
+La versión vigente de los Términos y Condiciones y de la Política de Privacidad está en `src/utils/legal.js` (hoy `2026-11/2`, vigente desde el 13/11/2026, textos aprobados) y debe coincidir con `LEGAL_VERSION` del frontend. El contacto que figura en los textos es `soporte@talarix.com.ar`.
 
 - **Al activar la cuenta** (`POST /api/auth/activate`) se exige aceptar la versión vigente y se guarda en el usuario (`terms_version`, `terms_accepted_at`, `terms_accepted_ip`).
 - **Versión nueva:** cada usuario la acepta la próxima vez que entra. `GET /api/auth/terms` (con sesión) responde `{ version, accepted }`, y `POST /api/auth/terms` con `{ acceptTerms: true, legalVersion }` la registra igual que la activación y deja `user.terms_accepted` en el registro de actividad. El mozo también puede usar estas dos rutas.
+- **Vencimiento de la prueba gratis:** `GET /api/auth/session` (con sesión, también el mozo) responde `{ trialEndsAt }` (null en la demo o sin vencimiento), para que la app lo muestre (Términos, cláusula 16.1).
 
 ---
 Última actualización: 27/10/2026 (migraciones, reportes en la base, vencimiento de pruebas, red privada y permisos mínimos de la base, limpieza de comentarios).
