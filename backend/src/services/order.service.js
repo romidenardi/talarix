@@ -5,6 +5,7 @@ import { loadComboComponents } from './combo.service.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { APPROVER_ROLES, approvalSummary, checkApproval } from './orderApproval.service.js';
 import { lockProducts, moveStock, actorFields } from './stock.service.js';
+import { commissionFields } from './commission.service.js';
 import { priceOrder, discriminatesVatFor } from './orderPricing.js';
 import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
 import {
@@ -253,6 +254,14 @@ export const createOrder = async ({ body, user, options = {} }) => {
       plan: installmentPlan,
     });
 
+    // Comisión: vende quien genera el remito; en una mesa, el mozo que la atendió (options.seller)
+    const commission = await commissionFields({
+      businessId,
+      seller: options.seller || { id: userId, name: user.name },
+      total: totals.total,
+      transaction: t,
+    });
+
     const order = await Order.create(
       {
         businessId,
@@ -276,6 +285,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
         totalFinanced: totals.totalFinanced,
         requestId,
         tableTabId: options.tableTabId || null,
+        ...commission,
         ...actorFields(user),
       },
       { transaction: t },

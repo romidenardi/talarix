@@ -8,4 +8,6 @@ export const getSalesByPayment = (params) => api.get('/reports/sales-by-payment'
 export const getVatReport = (params) => api.get('/reports/vat', { params });
 export const getPurchaseVatReport = (params) => api.get('/reports/purchase-vat', { params });
 export const getExpensesReport = (params) => api.get('/reports/expenses', { params });
+// Comisiones por vendedor (opcionales). enabled = false si nadie tiene comisión
+export const getCommissionsReport = (params) => api.get('/reports/commissions', { params });
 export const getVatPosition = (params) => api.get('/reports/vat-position', { params });

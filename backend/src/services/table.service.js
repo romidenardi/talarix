@@ -639,7 +639,12 @@ export const closeTab = async ({ tabId, body, user }) => {
         })),
       },
       user,
-      options: { tableTabId: tab.id, transaction: t },
+      // La comisión es del mozo que atendió la mesa, aunque la cobre otro
+      options: {
+        tableTabId: tab.id,
+        transaction: t,
+        seller: tab.waiterId ? { id: tab.waiterId, name: tab.waiterName } : undefined,
+      },
     });
 
     const order = await Order.findOne({ where: { id: orderId }, attributes: ['id', 'total'], transaction: t });

@@ -8,6 +8,7 @@ import {
   getPurchaseVatReport,
   getVatPosition,
   getExpensesReport,
+  getCommissionsReport,
 } from '../../api/reports.api';
 import { formatRate } from '../../utils/taxes.js';
 import { money, int, presetRange, periodLabel, formatDay, downloadCsv } from '../../utils/reportFormat';
@@ -21,6 +22,7 @@ const TABS = [
   ['purchaseVat', 'IVA compras'],
   ['vatPosition', 'Posición de IVA'],
   ['expenses', 'Gastos'],
+  ['commissions', 'Comisiones'],
   ['internal', 'Impuestos internos'],
   ['taxes', 'IVA + internos'],
 ];
@@ -44,6 +46,7 @@ const FETCHERS = {
   purchaseVat: getPurchaseVatReport,
   vatPosition: getVatPosition,
   expenses: getExpensesReport,
+  commissions: getCommissionsReport,
   internal: getVatReport,
   taxes: getVatReport,
 };
@@ -763,6 +766,106 @@ function ExpensesView({ data, range }) {
   );
 }
 
+// Comisiones por vendedor, con el detalle de cada remito para liquidarlas. Usa el % que tenía el
+// vendedor al momento de cada venta.
+function CommissionsView({ data, range }) {
+  const exportCsv = () =>
+    downloadCsv(
+      `comisiones_${range.from}_${range.to}.csv`,
+      ['Fecha', 'Remito', 'Vendedor', 'Origen', 'Total', '% comisión', 'Comisión'],
+      data.orders.map((o) => [
+        new Date(o.date).toLocaleDateString('es-AR'),
+        o.number,
+        o.seller,
+        o.table ? 'Mesa' : 'Remito',
+        o.total,
+        o.rate,
+        o.commission,
+      ]),
+    );
+  const pct = (rate) => (rate === null || rate === undefined ? '—' : formatRate(rate));
+  return (
+    <>
+      <p className="report-note">
+        Comisión de cada vendedor sobre el total final de sus remitos (con descuento e IVA). En Mesas, la venta es del
+        mozo que atendió la mesa; las propinas no cuentan. Cada remito usa el % que tenía el vendedor ese día. El % de
+        cada usuario se cambia en Usuarios.
+      </p>
+      <div className="stat-cards">
+        <div className="stat-card">
+          <span>Total de comisiones</span>
+          <strong>{money(data.totals.commission)}</strong>
+          <small>{int(data.totals.count)} remitos</small>
+        </div>
+        <div className="stat-card">
+          <span>Ventas con comisión</span>
+          <strong>{money(data.totals.sales)}</strong>
+        </div>
+      </div>
+      {data.sellers.length ? (
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Vendedor</th>
+              <th className="num">Remitos</th>
+              <th className="num">Vendido</th>
+              <th className="num">Comisión</th>
+              <th className="num">% actual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.sellers.map((s) => (
+              <tr key={s.sellerId || s.name}>
+                <td>{s.name}</td>
+                <td className="num">{int(s.count)}</td>
+                <td className="num">{money(s.sales)}</td>
+                <td className="num">{money(s.commission)}</td>
+                <td className="num">{pct(s.currentRate)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="report-note">No hay ventas con comisión en este período.</p>
+      )}
+
+      <h2 className="report-subtitle">Detalle</h2>
+      <div className="report-actions">
+        <ExportButton onClick={exportCsv} disabled={!data.orders.length} />
+      </div>
+      {data.orders.length > 0 && (
+        <table className="report-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Remito</th>
+              <th>Vendedor</th>
+              <th className="num">Total</th>
+              <th className="num">%</th>
+              <th className="num">Comisión</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.orders.map((o) => (
+              <tr key={o.id}>
+                <td>{new Date(o.date).toLocaleDateString('es-AR')}</td>
+                <td>
+                  {o.number}
+                  {o.table && <small> · Mesa</small>}
+                </td>
+                <td>{o.seller}</td>
+                <td className="num">{money(o.total)}</td>
+                <td className="num">{pct(o.rate)}</td>
+                <td className="num">{money(o.commission)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </>
+  );
+}
+
 const VIEWS = {
   summary: SummaryView,
   products: ProductsView,
@@ -772,6 +875,7 @@ const VIEWS = {
   purchaseVat: PurchaseVatView,
   vatPosition: VatPositionView,
   expenses: ExpensesView,
+  commissions: CommissionsView,
   internal: InternalTaxView,
   taxes: TaxesView,
 };
@@ -786,6 +890,14 @@ export default function Reports() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // La solapa Comisiones aparece solo si algún usuario tiene comisión (o hubo comisiones este mes)
+  const [commissionsEnabled, setCommissionsEnabled] = useState(false);
+
+  useEffect(() => {
+    getCommissionsReport(presetRange('thisMonth'))
+      .then((res) => setCommissionsEnabled(Boolean(res.data.enabled)))
+      .catch(() => setCommissionsEnabled(false));
+  }, []);
 
   useEffect(() => {
     if (!from || !to) return undefined;
@@ -823,7 +935,7 @@ export default function Reports() {
       <h1>Reportes</h1>
 
       <div className="report-tabs" role="tablist">
-        {TABS.map(([key, label]) => (
+        {TABS.filter(([key]) => key !== 'commissions' || commissionsEnabled).map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -891,7 +1003,7 @@ export default function Reports() {
       {loading && <p className="report-note">Cargando…</p>}
       {error && <p className="report-error">{error}</p>}
       {data && !loading && <View data={data} range={{ from, to }} />}
-      {data && !loading && !error && tab !== 'purchaseVat' && tab !== 'expenses' && (
+      {data && !loading && !error && tab !== 'purchaseVat' && tab !== 'expenses' && tab !== 'commissions' && (
         <p className="report-note">Los remitos anulados no se incluyen en los reportes.</p>
       )}
     </div>

@@ -26,6 +26,28 @@ const Order = sequelize.define(
       allowNull: true,
       field: 'payment_id',
     },
+    // Comisión (migración 011): quién vendió (en una mesa, el mozo que la atendió), su % y el importe
+    // sobre el total final, como estaban al momento de la venta. Sin comisión: rate y amount en NULL.
+    sellerId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'seller_id',
+    },
+    sellerName: {
+      type: DataTypes.STRING(100),
+      allowNull: true,
+      field: 'seller_name',
+    },
+    commissionRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: 'commission_rate',
+    },
+    commissionAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      field: 'commission_amount',
+    },
     // Contado (cash) o cuenta corriente (account): el de cuenta corriente suma a lo que debe el
     // cliente (services/customerAccount.service.js)
     paymentCondition: {

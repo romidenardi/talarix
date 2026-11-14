@@ -8,6 +8,7 @@ import {
   purchaseVatReport,
   vatPositionReport,
   expensesReport,
+  commissionsReport,
   dashboard,
 } from '../controllers/report.controller.js';
 
@@ -22,5 +23,7 @@ router.get('/vat', vatReport);
 router.get('/purchase-vat', purchaseVatReport);
 router.get('/vat-position', vatPositionReport);
 router.get('/expenses', expensesReport);
+// Comisiones por vendedor (opcionales: solo si algún usuario tiene %)
+router.get('/commissions', commissionsReport);
 
 export default router;

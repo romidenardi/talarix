@@ -98,7 +98,9 @@ const describe = (row) => {
       return parts.join(', ');
     }
     case 'user.created':
-      return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}`;
+      return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}${
+        d.commissionRate ? `, comisión ${d.commissionRate} %` : ''
+      }`;
     case 'user.deleted':
     case 'user.reinvited':
       return d.role ? `Rol ${word(ROLES, d.role)}` : '';
@@ -110,6 +112,10 @@ const describe = (row) => {
       if (d.active !== undefined) parts.push(d.active ? 'reactivado' : 'desactivado');
       if (d.password) parts.push('contraseña');
       if (d.email) parts.push('email');
+      if (d.commissionRate) {
+        const pct = (v) => (v === null || v === undefined ? 'sin comisión' : `${v} %`);
+        parts.push(`comisión ${pct(d.commissionRate.from)} → ${pct(d.commissionRate.to)}`);
+      }
       return parts.join(', ');
     }
     default:

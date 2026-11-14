@@ -70,6 +70,12 @@ const User = sequelize.define(
       allowNull: false,
       defaultValue: true,
     },
+    // Comisión por venta en %, opcional (NULL = sin comisión). Ver services/commission.service.js
+    commissionRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: 'commission_rate',
+    },
     // Se incrementa al cambiar o restablecer la contraseña: los tokens emitidos antes dejan de valer
     tokenVersion: {
       type: DataTypes.INTEGER,

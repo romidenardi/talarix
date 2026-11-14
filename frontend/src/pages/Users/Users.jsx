@@ -25,7 +25,18 @@ const ROLES = [
   { value: 'mozo', label: 'Mozo (solo Mesas: abre mesas y manda comandas)' },
 ];
 
-const DEFAULT_CREATE = { role: 'operador', mode: 'password' };
+const DEFAULT_CREATE = { role: 'operador', mode: 'password', commissionRate: '' };
+
+// Comisión por venta (opcional): vacío = sin comisión; si no, entre 0 y 100 (acepta coma decimal)
+const validateCommission = (value) => {
+  if (value === '' || value === null || value === undefined) return true;
+  const rate = Number(String(value).replace(',', '.'));
+  return (Number.isFinite(rate) && rate >= 0 && rate <= 100) || 'Poné un porcentaje entre 0 y 100, o dejalo vacío.';
+};
+const commissionLabel = (rate) =>
+  rate === null || rate === undefined || Number(rate) === 0
+    ? '—'
+    : `${Number(rate).toLocaleString('es-AR', { maximumFractionDigits: 2 })} %`;
 
 const buildNotice = (mail, email, prefix) => {
   if (mail?.sent) {
@@ -88,6 +99,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
         name: formData.name,
         email: formData.email,
         role: formData.role,
+        commissionRate: formData.commissionRate === '' ? null : formData.commissionRate,
         ...(invite ? { sendInvite: true } : { password: formData.password }),
       };
       const { data } = await usersApi.createUser(payload);
@@ -131,6 +143,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
       role: user.role,
       active: String(user.active),
       password: '',
+      commissionRate: user.commissionRate === null ? '' : String(Number(user.commissionRate)),
     });
   };
 
@@ -140,6 +153,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
       email: formData.email,
       role: formData.role,
       active: formData.active === 'true',
+      commissionRate: formData.commissionRate === '' ? null : formData.commissionRate,
     };
     if (formData.password) {
       payload.password = formData.password;
@@ -225,6 +239,18 @@ const UsersContent = ({ notice, setNotice, reload }) => {
           </select>
         </div>
 
+        <div className="field">
+          <label htmlFor="commissionRate">Comisión por venta (%)</label>
+          <input
+            id="commissionRate"
+            inputMode="decimal"
+            placeholder="Opcional, ej: 3"
+            {...register('commissionRate', { validate: validateCommission })}
+          />
+          <small>Sobre el total de cada remito que genere (en Mesas, de las que atienda). Vacío: sin comisión.</small>
+          {errors.commissionRate && <span className="error">{errors.commissionRate.message}</span>}
+        </div>
+
         <div className="field field-full">
           <label htmlFor="mode">¿Cómo va a ingresar?</label>
           <select id="mode" {...register('mode')}>
@@ -266,6 +292,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
               <th>Nombre</th>
               <th>Email</th>
               <th>Rol</th>
+              <th>Comisión</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -281,7 +308,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
               return (
                 <tr key={user.id}>
                   {editingId === user.id ? (
-                    <td colSpan={5} className="edit-cell">
+                    <td colSpan={6} className="edit-cell">
                       <form onSubmit={editForm.handleSubmit(onUpdate)} className="inline-edit-form">
                         <div className="field">
                           <label htmlFor={`edit-name-${user.id}`}>
@@ -334,6 +361,19 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                             <option value="false">Inactivo</option>
                           </select>
                         </div>
+                        <div className="field">
+                          <label htmlFor={`edit-commission-${user.id}`}>Comisión por venta (%)</label>
+                          <input
+                            id={`edit-commission-${user.id}`}
+                            inputMode="decimal"
+                            placeholder="Vacío: sin comisión"
+                            {...editForm.register('commissionRate', { validate: validateCommission })}
+                          />
+                          <small>Vale para los remitos nuevos; los anteriores conservan su comisión.</small>
+                          {editErrors.commissionRate && (
+                            <span className="error">{editErrors.commissionRate.message}</span>
+                          )}
+                        </div>
                         <div className="inline-edit-actions">
                           <button type="submit">Guardar</button>
                           <button type="button" onClick={() => setEditingId(null)}>
@@ -353,6 +393,7 @@ const UsersContent = ({ notice, setNotice, reload }) => {
                       </td>
                       <td data-label="Email">{user.email}</td>
                       <td data-label="Rol">{roleLabel(user.role)}</td>
+                      <td data-label="Comisión">{commissionLabel(user.commissionRate)}</td>
                       <td data-label="Estado">{statusLabel}</td>
                       <td data-label="Acciones">
                         <button onClick={() => startEdit(user)}>Editar</button>

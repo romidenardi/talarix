@@ -8,6 +8,7 @@ import { userCreatedEmail } from '../utils/mailTemplates.js';
 import { issueAccessLink } from '../utils/accessLinks.js';
 import { checkPassword, BCRYPT_ROUNDS } from '../utils/password.js';
 import { audit } from '../utils/audit.js';
+import { parseCommissionRate } from '../services/commission.service.js';
 
 const { Op } = pkg;
 
@@ -66,6 +67,8 @@ export const createUser = asyncHandler(async (req, res) => {
   const password = String(req.body.password || '');
   const sendInvite = req.body.sendInvite === true;
   const { role } = req.body;
+  // Comisión por venta, opcional (vacío = sin comisión)
+  const commissionRate = parseCommissionRate(req.body.commissionRate) ?? null;
 
   if (!name || !email) throw httpError('Nombre y email son obligatorios.');
   if (!EMAIL_REGEX.test(email)) throw httpError('El email no es válido.');
@@ -86,6 +89,7 @@ export const createUser = asyncHandler(async (req, res) => {
     email,
     passwordHash: sendInvite ? null : await bcrypt.hash(password, BCRYPT_ROUNDS),
     role: role || 'operador',
+    commissionRate,
     businessId: req.user.businessId,
   });
 
@@ -119,7 +123,7 @@ export const createUser = asyncHandler(async (req, res) => {
     action: 'user.created',
     targetType: 'user',
     targetId: user.id,
-    detail: { role: user.role, invite: sendInvite },
+    detail: { role: user.role, invite: sendInvite, ...(commissionRate ? { commissionRate } : {}) },
   });
   res.status(201).json({ ...toSafeUser(user), mail });
 });
@@ -139,6 +143,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (email !== undefined && !EMAIL_REGEX.test(email)) throw httpError('El email no es válido.');
   if (role !== undefined && !ROLES.includes(role)) throw httpError('Rol inválido.');
   if (active !== undefined && typeof active !== 'boolean') throw httpError('El estado no es válido.');
+  const commissionRate = parseCommissionRate(req.body.commissionRate);
 
   const t = await sequelize.transaction();
   let user;
@@ -168,6 +173,10 @@ export const updateUser = asyncHandler(async (req, res) => {
     if (active !== undefined && active !== user.active) changes.active = active;
     if (password) changes.password = true;
     if (email !== undefined && email !== user.email) changes.email = true;
+    const currentRate = user.commissionRate === null ? null : Number(user.commissionRate);
+    if (commissionRate !== undefined && commissionRate !== currentRate) {
+      changes.commissionRate = { from: currentRate, to: commissionRate };
+    }
 
     if (email !== undefined && email !== user.email) {
       const taken = await User.findOne({ where: { email }, transaction: t });
@@ -178,6 +187,7 @@ export const updateUser = asyncHandler(async (req, res) => {
     if (name !== undefined) user.name = name;
     if (role !== undefined) user.role = role;
     if (active !== undefined) user.active = active;
+    if (commissionRate !== undefined) user.commissionRate = commissionRate;
     if (password) {
       checkPassword(String(password), { email: user.email, name: user.name });
       user.passwordHash = await bcrypt.hash(String(password), BCRYPT_ROUNDS);
