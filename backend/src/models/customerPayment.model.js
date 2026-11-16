@@ -33,9 +33,24 @@ const CustomerPayment = sequelize.define(
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    // Lo que pagó de cuotas (es lo que baja el saldo del cliente)
     amount: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
+    },
+    // Recargo por mora (migración 013): lo cobrado, aparte de las cuotas, y lo que se había calculado.
+    // La diferencia es lo que se perdonó. Lo que pagó el cliente en total es amount + lateFee.
+    lateFee: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'late_fee',
+    },
+    lateFeeComputed: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'late_fee_computed',
     },
     // Número de transferencia, de cheque, etc.
     reference: {

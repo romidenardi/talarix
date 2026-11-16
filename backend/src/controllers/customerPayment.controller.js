@@ -1,9 +1,9 @@
 import pkg from 'sequelize';
-import { CustomerPayment, CustomerInstallment, Customer, Payment, sequelize } from '../models/index.js';
+import { CustomerPayment, CustomerInstallment, Customer, Payment, Business, sequelize } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { audit } from '../utils/audit.js';
-import { readRange } from '../utils/dates.js';
+import { readRange, dayKey } from '../utils/dates.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { actorFields } from '../services/stock.service.js';
 import { toNumber, round2 } from '../utils/numbers.js';
@@ -12,6 +12,10 @@ import {
   customerInstallments,
   lockUnpaidInstallments,
   overdueReport,
+  lateFeeConfig,
+  installmentRates,
+  readLateFeeConfig,
+  paymentLateFees,
 } from '../services/customerInstallment.service.js';
 
 const { Op } = pkg;
@@ -31,7 +35,8 @@ const cleanText = (value, max) =>
 
 // Cobranzas a clientes (cuenta corriente): solo administrador y editor (se monta con requireRole en
 // app.js). Cada cobranza paga cuotas completas (services/customerInstallment.service.js): se eligen
-// las cuotas y el importe es la suma de ellas.
+// las cuotas y el importe es la suma de ellas. Las cuotas vencidas suman aparte el recargo por mora
+// con la tasa de su remito (se puede perdonar en todo o en parte).
 
 // Cobranzas de un período (?from&to; sin fechas, los últimos 30 días). ?customerId para uno solo.
 export const getCustomerPayments = asyncHandler(async (req, res) => {
@@ -75,6 +80,7 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
   let created;
   let amount;
   let paidCount = 0;
+  let fees = { computed: 0, charged: 0 };
   try {
     created = await sequelize.transaction(async (t) => {
       // Las cuotas elegidas, bloqueadas: dos cobranzas a la vez no pagan la misma cuota
@@ -86,6 +92,9 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
       });
       amount = round2(installments.reduce((sum, i) => sum + Number(i.amount), 0));
       paidCount = installments.length;
+      // Recargo por mora a la fecha de la cobranza, con la tasa del remito de cada cuota
+      const rates = await installmentRates(businessId, installments, t);
+      fees = paymentLateFees({ rows: installments, day: dayKey(date), rates, charged: req.body.lateFee });
       // Si viene el importe, tiene que coincidir con la suma de las cuotas (se cobran completas)
       if (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '') {
         if (Math.abs(toNumber(req.body.amount) - amount) > 0.005) {
@@ -99,6 +108,8 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
           paymentId: payment.id,
           date,
           amount,
+          lateFee: fees.charged,
+          lateFeeComputed: fees.computed,
           reference: cleanText(req.body.reference, 100),
           notes: cleanText(req.body.notes, 255),
           requestId,
@@ -106,10 +117,12 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
         },
         { transaction: t },
       );
-      await CustomerInstallment.update(
-        { customerPaymentId: row.id, paidAt: date },
-        { where: { id: installments.map((i) => i.id) }, transaction: t },
-      );
+      for (const [index, inst] of installments.entries()) {
+        await inst.update(
+          { customerPaymentId: row.id, paidAt: date, lateFee: fees.perInstallment[index] || null },
+          { transaction: t },
+        );
+      }
       return row;
     });
   } catch (error) {
@@ -126,7 +139,11 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
     action: 'customer_payment.created',
     targetType: 'customer_payment',
     targetId: created.id,
-    detail: { amount, installments: paidCount },
+    detail: {
+      amount,
+      installments: paidCount,
+      ...(fees.computed > 0 ? { lateFee: fees.charged, lateFeeWaived: round2(fees.computed - fees.charged) } : {}),
+    },
   });
   const full = await CustomerPayment.findOne({ where: { id: created.id, businessId }, include: paymentIncludes });
   res.status(201).json(full);
@@ -156,7 +173,7 @@ export const cancelCustomerPayment = asyncHandler(async (req, res) => {
       { transaction: t },
     );
     await CustomerInstallment.update(
-      { customerPaymentId: null, paidAt: null },
+      { customerPaymentId: null, paidAt: null, lateFee: null },
       { where: { businessId, customerPaymentId: payment.id }, transaction: t },
     );
   });
@@ -165,7 +182,7 @@ export const cancelCustomerPayment = asyncHandler(async (req, res) => {
     action: 'customer_payment.cancelled',
     targetType: 'customer_payment',
     targetId: payment.id,
-    detail: { amount: Number(payment.amount) },
+    detail: { amount: Number(payment.amount), lateFee: Number(payment.lateFee) || 0 },
   });
   const full = await CustomerPayment.findOne({ where: { id: payment.id, businessId }, include: paymentIncludes });
   res.json(full);
@@ -191,4 +208,25 @@ export const getCustomerStatement = asyncHandler(async (req, res) => {
   const { from, to, start, end } = readRange(req.query);
   const statement = await customerStatement(req.user.businessId, req.params.id, { start, end });
   res.json({ range: { from, to }, ...statement });
+});
+
+// Recargo por mora del comercio: % mensual (null = no cobra) y días de gracia
+export const getLateFeeConfig = asyncHandler(async (req, res) => {
+  res.json(await lateFeeConfig(req.user.businessId));
+});
+
+export const updateLateFeeConfig = asyncHandler(async (req, res) => {
+  const { businessId } = req.user;
+  const config = readLateFeeConfig(req.body);
+  await Business.update(
+    { lateFeeRate: config.rate, lateFeeGraceDays: config.graceDays },
+    { where: { id: businessId } },
+  );
+  await audit(req, {
+    action: 'late_fee.updated',
+    targetType: 'business',
+    targetId: businessId,
+    detail: config,
+  });
+  res.json(await lateFeeConfig(businessId));
 });

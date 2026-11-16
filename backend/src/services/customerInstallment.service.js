@@ -1,12 +1,12 @@
 import pkg from 'sequelize';
-import { CustomerInstallment, Customer, Order } from '../models/index.js';
+import { CustomerInstallment, Customer, Order, Business } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
 import { round2, toNumber } from '../utils/numbers.js';
 import { dayKey } from '../utils/dates.js';
 import { formatOrderNumber } from './orderNumber.service.js';
-import { dueDates, splitAmount, daysLate } from '../utils/accountInstallments.js';
+import { dueDates, splitAmount, daysLate, lateFee, spreadFee } from '../utils/accountInstallments.js';
 
-export { dueDates, splitAmount, daysLate };
+export { dueDates, splitAmount, daysLate, lateFee, spreadFee };
 
 const { Op } = pkg;
 
@@ -19,8 +19,76 @@ const { Op } = pkg;
 //   - Las cuotas son iguales; los centavos que sobran van a la última.
 //   - Una cobranza paga cuotas completas. Anularla las deja impagas otra vez.
 //   - El saldo inicial positivo del cliente es una cuota más, sin remito, que vence el día que se carga.
+//   - Recargo por mora (opcional): el comercio configura un % mensual y días de gracia, y cada remito
+//     a cuenta corriente guarda los vigentes al hacerlo (los que imprime en la leyenda). Cada cuota
+//     cobra con los de su remito: si después se cambia la tasa, los remitos anteriores no cambian; un
+//     remito hecho sin tasa no cobra recargo. El saldo inicial (sin remito) usa la tasa vigente.
+//     Se calcula por día de atraso desde el vencimiento (utils/accountInstallments.js, lateFee). No se
+//     guarda mientras la cuota está impaga; al cobrar queda en la cuota y en la cobranza, que puede
+//     perdonarlo en todo o en parte. No cambia el saldo: se cobra aparte.
 
 export const MAX_INSTALLMENTS = 60;
+export const MAX_LATE_FEE_RATE = 100;
+export const MAX_GRACE_DAYS = 90;
+
+// Recargo por mora del comercio: { rate (NULL = no cobra), graceDays }
+export const lateFeeConfig = async (businessId, transaction) => {
+  const business = await Business.findByPk(businessId, {
+    attributes: ['id', 'lateFeeRate', 'lateFeeGraceDays'],
+    transaction,
+  });
+  const rate =
+    business?.lateFeeRate === null || business?.lateFeeRate === undefined ? null : Number(business.lateFeeRate);
+  return { rate: rate > 0 ? rate : null, graceDays: Number(business?.lateFeeGraceDays) || 0 };
+};
+
+// Lee la configuración del recargo: % mensual vacío o 0 = no cobra recargo
+export const readLateFeeConfig = (body) => {
+  const raw = body.rate;
+  const rate = raw === undefined || raw === null || raw === '' ? 0 : toNumber(raw);
+  if (!Number.isFinite(rate) || rate < 0 || rate > MAX_LATE_FEE_RATE) {
+    throw httpError(`El recargo tiene que ser un % mensual entre 0 y ${MAX_LATE_FEE_RATE}.`);
+  }
+  const rawGrace = body.graceDays;
+  const graceDays = rawGrace === undefined || rawGrace === null || rawGrace === '' ? 0 : Number(rawGrace);
+  if (!Number.isInteger(graceDays) || graceDays < 0 || graceDays > MAX_GRACE_DAYS) {
+    throw httpError(`Los días de gracia tienen que ser un número entero entre 0 y ${MAX_GRACE_DAYS}.`);
+  }
+  return { rate: rate > 0 ? round2(rate) : null, graceDays };
+};
+
+// Lo que se guarda en un remito a cuenta corriente para la leyenda del recargo
+export const orderLateFeeFields = (config) => ({
+  lateFeeRate: config?.rate ?? null,
+  lateFeeGraceDays: config?.rate ? config.graceDays : null,
+});
+
+// Tasa y días de gracia de cada cuota (en el orden de rows): los de su remito; el saldo inicial, los
+// vigentes del comercio
+export const installmentRates = async (businessId, rows, transaction) => {
+  const orderIds = [...new Set(rows.map((r) => r.orderId).filter(Boolean))];
+  const [config, orders] = await Promise.all([
+    rows.some((r) => !r.orderId) ? lateFeeConfig(businessId, transaction) : null,
+    orderIds.length
+      ? Order.findAll({
+          where: { id: { [Op.in]: orderIds }, businessId },
+          attributes: ['id', 'lateFeeRate', 'lateFeeGraceDays'],
+          transaction,
+        })
+      : [],
+  ]);
+  const byOrder = new Map(
+    orders.map((o) => [
+      o.id,
+      { rate: Number(o.lateFeeRate) > 0 ? Number(o.lateFeeRate) : null, graceDays: Number(o.lateFeeGraceDays) || 0 },
+    ]),
+  );
+  return rows.map((r) => (r.orderId ? byOrder.get(r.orderId) || { rate: null, graceDays: 0 } : config));
+};
+
+// Recargo de una cuota impaga a la fecha day (AAAA-MM-DD), con su tasa ({ rate, graceDays })
+const feeAt = (inst, day, terms) =>
+  lateFee(Number(inst.amount), daysLate(inst.dueDate, day), terms?.rate, terms?.graceDays);
 
 // Lee las condiciones de la cuenta corriente del remito: { installments, interestRate, dueDay }
 export const readAccountTerms = (body) => {
@@ -148,9 +216,12 @@ export const customerInstallments = async (businessId, customerId) => {
     ],
   });
   const today = dayKey(new Date());
+  const rates = await installmentRates(businessId, rows);
   return rows
-    .map((inst) => {
+    .map((inst, index) => {
       const late = inst.paidAt ? 0 : daysLate(inst.dueDate, today);
+      // Pagada: el recargo que se cobró. Impaga: el que lleva a hoy
+      const fee = inst.paidAt ? round2(Number(inst.lateFee) || 0) : feeAt(inst, today, rates[index]);
       return {
         id: inst.id,
         orderId: inst.orderId,
@@ -163,6 +234,10 @@ export const customerInstallments = async (businessId, customerId) => {
         paidAt: inst.paidAt,
         customerPaymentId: inst.customerPaymentId,
         daysLate: late,
+        lateFee: fee,
+        // Tasa con la que cobra recargo (la de su remito), para calcularlo en la cobranza
+        lateFeeRate: rates[index]?.rate ?? null,
+        lateFeeGraceDays: rates[index]?.graceDays ?? 0,
         status: inst.paidAt ? 'paid' : late > 0 ? 'overdue' : 'pending',
       };
     })
@@ -180,14 +255,16 @@ export const OVERDUE_BUCKETS = [
 // Mora a hoy: por cliente, lo impago por vencer y lo vencido por tramo de atraso
 export const overdueReport = async (businessId, customerNameOf) => {
   const today = dayKey(new Date());
+  const config = await lateFeeConfig(businessId);
   const rows = await CustomerInstallment.findAll({
     where: { businessId, status: 'active', paidAt: null },
     include: [{ model: Customer, attributes: ['id', 'businessName', 'firstName', 'lastName', 'cuit', 'phone'] }],
   });
-  const empty = () => ({ notDue: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90: 0, overdue: 0, total: 0 });
+  const empty = () => ({ notDue: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90: 0, overdue: 0, total: 0, lateFee: 0 });
   const byCustomer = new Map();
   const totals = { ...empty(), customers: 0 };
-  for (const inst of rows) {
+  const rates = await installmentRates(businessId, rows);
+  for (const [index, inst] of rows.entries()) {
     const amount = Number(inst.amount);
     const late = daysLate(inst.dueDate, today);
     const key = late > 0 ? OVERDUE_BUCKETS.find((b) => late >= b.min && late <= b.max).key : 'notDue';
@@ -204,6 +281,7 @@ export const overdueReport = async (businessId, customerNameOf) => {
     entry.total += amount;
     if (late > 0) {
       entry.overdue += amount;
+      entry.lateFee += feeAt(inst, today, rates[index]);
       entry.maxDaysLate = Math.max(entry.maxDaysLate, late);
       if (!entry.oldestDueDate || inst.dueDate < entry.oldestDueDate) entry.oldestDueDate = inst.dueDate;
     }
@@ -220,7 +298,13 @@ export const overdueReport = async (businessId, customerNameOf) => {
     for (const k of Object.keys(empty())) totals[k] = round2(totals[k] + c[k]);
   }
   totals.customers = customers.filter((c) => c.overdue > 0).length;
-  return { date: today, buckets: OVERDUE_BUCKETS.map(({ key, label }) => ({ key, label })), totals, customers };
+  return {
+    date: today,
+    lateFeeConfig: config,
+    buckets: OVERDUE_BUCKETS.map(({ key, label }) => ({ key, label })),
+    totals,
+    customers,
+  };
 };
 
 // Para la cobranza: las cuotas elegidas, bloqueadas, del cliente, activas e impagas
@@ -238,4 +322,24 @@ export const lockUnpaidInstallments = async ({ businessId, customerId, ids, tran
     throw httpError('Alguna de las cuotas elegidas ya está cobrada. Actualizá la pantalla.', 409);
   }
   return rows;
+};
+
+// Recargo de las cuotas que se cobran, a la fecha de la cobranza (day, AAAA-MM-DD). charged: lo que
+// se cobra de recargo (undefined = todo lo calculado); puede ser menos (se perdona) pero no más.
+// rates: la tasa de cada cuota (installmentRates). Devuelve { computed, charged, perInstallment:
+// [recargo cobrado de cada cuota, en el orden de rows] }.
+export const paymentLateFees = ({ rows, day, rates, charged }) => {
+  const fees = rows.map((inst, index) => feeAt(inst, day, rates[index]));
+  const computed = round2(fees.reduce((sum, f) => sum + f, 0));
+  let total = computed;
+  if (charged !== undefined && charged !== null && charged !== '') {
+    total = toNumber(charged);
+    if (!Number.isFinite(total) || total < 0) throw httpError('El recargo por mora no es válido.');
+    if (total > computed + 0.005) {
+      throw httpError(`El recargo por mora de estas cuotas es de $${computed.toFixed(2)}: no se puede cobrar más.`);
+    }
+    total = round2(total);
+  }
+  const perInstallment = Math.abs(total - computed) < 0.005 ? fees : spreadFee(total, fees);
+  return { computed, charged: total, perInstallment };
 };

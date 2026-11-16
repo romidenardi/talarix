@@ -11,6 +11,8 @@ const { Op, fn, col, literal } = pkg;
 //   saldo inicial + remitos activos a cuenta corriente (con su interés) − cobranzas activas
 // Positivo: el cliente debe; negativo: tiene saldo a favor. Anular un remito o una cobranza la saca
 // de la cuenta. Las cuotas y la mora están en services/customerInstallment.service.js.
+// El recargo por mora no cambia el saldo: se cobra en el momento, junto con las cuotas. En el resumen
+// aparece como un cargo y la cobranza lo incluye, así que se cancelan.
 
 // Lo que suma un remito a cuenta corriente: el total con interés si lo tiene
 const ORDER_OWED = 'COALESCE(total_financed, total)';
@@ -85,11 +87,13 @@ export const customerBalance = async (businessId, customerId) => {
 
 // Orden del resumen: por fecha y hora de carga. La base guarda segundos, sin milésimas, así que dos
 // movimientos del mismo segundo empatan: entonces van primero los remitos (por número, que es
-// correlativo) y después las cobranzas. Así el saldo acumulado sale siempre en el mismo orden.
+// correlativo), después el recargo por mora de una cobranza y después la cobranza. Así el saldo
+// acumulado sale siempre en el mismo orden.
+const TYPE_ORDER = { order: 0, late_fee: 1, payment: 2 };
 const byDateThenOrder = (a, b) =>
   new Date(a.date) - new Date(b.date) ||
   new Date(a.createdAt) - new Date(b.createdAt) ||
-  (a.type === b.type ? 0 : a.type === 'order' ? -1 : 1) ||
+  TYPE_ORDER[a.type] - TYPE_ORDER[b.type] ||
   (a.number || 0) - (b.number || 0);
 
 // Resumen de cuenta de un cliente en un período: saldo anterior, movimientos con saldo acumulado y
@@ -109,7 +113,7 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
     }),
     CustomerPayment.findAll({
       where: { businessId, customerId, status: 'active', date: inRange },
-      attributes: ['id', 'date', 'amount', 'reference', 'notes', 'createdAt'],
+      attributes: ['id', 'date', 'amount', 'lateFee', 'reference', 'notes', 'createdAt'],
       include: [{ model: Payment, attributes: ['id', 'name'] }],
     }),
   ]);
@@ -132,16 +136,32 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
       debit: round2(owedOf(o)),
       credit: 0,
     })),
-    ...payments.map((p) => ({
-      type: 'payment',
-      id: p.id,
-      date: p.date,
-      createdAt: p.createdAt,
-      description: ['Cobranza', p.Payment?.name, p.reference && `ref. ${p.reference}`].filter(Boolean).join(' · '),
-      notes: p.notes || null,
-      debit: 0,
-      credit: round2(Number(p.amount)),
-    })),
+    ...payments.flatMap((p) => {
+      const fee = round2(Number(p.lateFee) || 0);
+      const payment = {
+        type: 'payment',
+        id: p.id,
+        date: p.date,
+        createdAt: p.createdAt,
+        description: ['Cobranza', p.Payment?.name, p.reference && `ref. ${p.reference}`].filter(Boolean).join(' · '),
+        notes: p.notes || null,
+        debit: 0,
+        credit: round2(Number(p.amount) + fee),
+      };
+      if (!fee) return [payment];
+      return [
+        {
+          type: 'late_fee',
+          id: `${p.id}-fee`,
+          date: p.date,
+          createdAt: p.createdAt,
+          description: 'Recargo por mora',
+          debit: fee,
+          credit: 0,
+        },
+        payment,
+      ];
+    }),
   ].sort(byDateThenOrder);
 
   let balance = previousBalance;

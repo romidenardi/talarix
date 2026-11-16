@@ -72,4 +72,12 @@ test('las cuotas de cuenta corriente dan lo mismo en el frontend y en el backend
   ]) {
     assert.deepEqual(frontInstallments.splitAmount(total, count), backInstallments.splitAmount(total, count));
   }
+  for (const args of [
+    [100000, 20, 3, 0],
+    [33333.33, 7, 2.5, 5],
+    [1500, 3, 4, 5],
+    [999.99, 400, 10, 0],
+  ]) {
+    assert.equal(frontInstallments.lateFee(...args), backInstallments.lateFee(...args), `recargo ${args.join(', ')}`);
+  }
 });

@@ -1,7 +1,7 @@
-// Cuotas de la cuenta corriente de clientes: vencimientos, importes y días de atraso
+// Cuotas de la cuenta corriente de clientes: vencimientos, importes, días de atraso y recargo por mora
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { dueDates, splitAmount, daysLate } from '../../src/utils/accountInstallments.js';
+import { dueDates, splitAmount, daysLate, lateFee, spreadFee } from '../../src/utils/accountInstallments.js';
 
 describe('Vencimientos', () => {
   it('la primera vence el próximo día elegido posterior a la venta', () => {
@@ -38,5 +38,34 @@ describe('Días de atraso', () => {
     assert.equal(daysLate('2026-11-20', '2026-11-21'), 1);
     assert.equal(daysLate('2026-10-20', '2026-11-20'), 31);
     assert.equal(daysLate('2026-03-01', '2026-03-31'), 30);
+  });
+});
+
+describe('Recargo por mora', () => {
+  it('interés simple por día: % mensual ÷ 30 por cada día de atraso', () => {
+    assert.equal(lateFee(100000, 20, 3), 2000);
+    assert.equal(lateFee(100000, 30, 3), 3000);
+    assert.equal(lateFee(100000, 1, 3), 100);
+    assert.equal(lateFee(33333.33, 7, 2.5), 194.44);
+  });
+
+  it('sin tasa, sin atraso o dentro de los días de gracia, no hay recargo', () => {
+    assert.equal(lateFee(100000, 20, null), 0);
+    assert.equal(lateFee(100000, 20, 0), 0);
+    assert.equal(lateFee(100000, 0, 3), 0);
+    assert.equal(lateFee(100000, 5, 3, 5), 0, 'el último día de gracia todavía no tiene recargo');
+  });
+
+  it('pasados los días de gracia, se cuenta desde el vencimiento', () => {
+    assert.equal(lateFee(100000, 6, 3, 5), 600);
+  });
+});
+
+describe('Reparto del recargo perdonado en parte', () => {
+  it('en proporción a lo que calculó cada cuota; los centavos a la última', () => {
+    assert.deepEqual(spreadFee(1000, [1500, 500]), [750, 250]);
+    assert.deepEqual(spreadFee(100, [1, 1, 1]), [33.33, 33.33, 33.34]);
+    assert.deepEqual(spreadFee(10, [3, 0]), [10, 0], 'la cuota sin recargo no se lleva nada');
+    assert.deepEqual(spreadFee(0, [3, 4]), [0, 0]);
   });
 });

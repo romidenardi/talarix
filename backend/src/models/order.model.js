@@ -57,6 +57,18 @@ const Order = sequelize.define(
       allowNull: true,
       field: 'account_due_day',
     },
+    // Recargo por mora vigente cuando se hizo el remito a cuenta corriente (migración 013): con ese
+    // cobran sus cuotas y es el de la leyenda del remito impreso. NULL: no cobra recargo.
+    lateFeeRate: {
+      type: DataTypes.DECIMAL(5, 2),
+      allowNull: true,
+      field: 'late_fee_rate',
+    },
+    lateFeeGraceDays: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'late_fee_grace_days',
+    },
     // Contado (cash) o cuenta corriente (account): el de cuenta corriente suma a lo que debe el
     // cliente (services/customerAccount.service.js)
     paymentCondition: {

@@ -319,6 +319,139 @@ describe('Cuotas, interés y vencimientos', () => {
   });
 });
 
+describe('Recargo por mora', () => {
+  const bAdmin = () => B.users.admin.token;
+  const ago = (days) => dayKey(new Date(Date.now() - days * 24 * 60 * 60 * 1000));
+  const put = (body, token = bAdmin()) => api('PUT', '/api/customer-payments/late-fee', { token, body });
+  let late;
+  let withoutRate; // remito de $100.000 en 1 cuota, hecho sin tasa
+  let withRate; // remito de $100.000 en 2 cuotas de $50.000, hecho con 3 % y 5 días de gracia
+  // Cuotas de un remito, por número (1ª, 2ª…)
+  const installmentsOf = async (orderId) =>
+    (await get(`/api/customers/${late.id}/installments`, bAdmin())).body
+      .filter((i) => i.orderId === orderId)
+      .sort((a, b) => a.number - b.number);
+
+  before(async () => {
+    late = await models.Customer.create({
+      businessId: B.business.id,
+      businessName: 'Kiosco Atrasado',
+      fiscalCondition: 'Responsable Inscripto',
+    });
+  });
+
+  const sellB = (overrides = {}) =>
+    api('POST', '/api/orders', {
+      token: bAdmin(),
+      body: {
+        customerId: late.id,
+        requestId: newRequestId(),
+        paymentCondition: 'account',
+        items: [{ productId: B.products.yerba.id, quantity: 100, unitPrice: 1000 }],
+        ...overrides,
+      },
+    });
+  const collectB = (body) =>
+    api('POST', '/api/customer-payments', {
+      token: bAdmin(),
+      body: { customerId: late.id, paymentId: B.payment.id, requestId: newRequestId(), ...body },
+    });
+
+  it('sin configurar no hay recargo, y el remito no lleva tasa', async () => {
+    const config = await api('GET', '/api/customer-payments/late-fee', { token: bAdmin() });
+    assert.equal(config.status, 200, JSON.stringify(config.body));
+    assert.deepEqual(config.body, { rate: null, graceDays: 0 });
+    const res = await sellB();
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(res.body.lateFeeRate, null);
+    withoutRate = res.body.id;
+  });
+
+  it('se configura un % mensual y días de gracia; se valida; el operador no puede', async () => {
+    assert.equal((await put({ rate: 150 })).status, 400);
+    assert.equal((await put({ rate: 3, graceDays: 1.5 })).status, 400);
+    assert.equal((await put({ rate: 3, graceDays: 5 }, B.users.operador.token)).status, 403);
+    const res = await put({ rate: 3, graceDays: 5 }, B.users.editor.token);
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.deepEqual(res.body, { rate: 3, graceDays: 5 });
+  });
+
+  it('el remito a cuenta corriente guarda la tasa vigente', async () => {
+    const res = await sellB({ accountInstallments: 2 });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(Number(res.body.lateFeeRate), 3);
+    assert.equal(res.body.lateFeeGraceDays, 5);
+    withRate = res.body.id;
+    const order = await api('GET', `/api/orders/${withRate}`, { token: B.users.operador.token });
+    assert.equal(Number(order.body.lateFeeRate), 3, 'el operador la ve para imprimir');
+  });
+
+  it('cada cuota cobra con la tasa de su remito: sin tasa no hay recargo; cambiar la tasa no la toca', async () => {
+    const [old] = await installmentsOf(withoutRate);
+    const [first, second] = await installmentsOf(withRate);
+    // Vencidas hace 20 días, salvo la 2ª del remito con tasa: hace 4 (dentro de la gracia)
+    await models.CustomerInstallment.update({ dueDate: ago(20) }, { where: { id: [old.id, first.id] } });
+    await models.CustomerInstallment.update({ dueDate: ago(4) }, { where: { id: second.id } });
+
+    // La tasa del comercio cambia después: no afecta a los remitos ya hechos
+    assert.equal((await put({ rate: 6, graceDays: 0 })).status, 200);
+
+    const [oldNow] = await installmentsOf(withoutRate);
+    const [firstNow, secondNow] = await installmentsOf(withRate);
+    assert.equal(oldNow.lateFee, 0, 'el remito hecho sin tasa no cobra recargo');
+    assert.equal(firstNow.lateFee, 1000, '$50.000 × 3 % ÷ 30 × 20 días, con la tasa del remito');
+    assert.equal(firstNow.lateFeeRate, 3);
+    assert.equal(secondNow.lateFee, 0, 'dentro de los 5 días de gracia del remito');
+
+    const overdue = (await get('/api/customers/overdue', bAdmin())).body;
+    const row = overdue.customers.find((c) => c.customerId === late.id);
+    assert.equal(row.lateFee, 1000);
+    assert.equal(overdue.totals.lateFee, 1000);
+  });
+
+  it('no se cobra más recargo del calculado', async () => {
+    const [first] = await installmentsOf(withRate);
+    const res = await collectB({ installmentIds: [first.id], lateFee: 1500 });
+    assert.equal(res.status, 400, JSON.stringify(res.body));
+  });
+
+  it('la cobranza suma el recargo aparte: el saldo baja solo por la cuota', async () => {
+    const [first] = await installmentsOf(withRate);
+    const before = (await get('/api/customers/balances', bAdmin())).body.find((b) => b.customerId === late.id);
+    const res = await collectB({ installmentIds: [first.id] });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(Number(res.body.amount), 50000);
+    assert.equal(Number(res.body.lateFee), 1000);
+    assert.equal(Number(res.body.lateFeeComputed), 1000);
+    const after = (await get('/api/customers/balances', bAdmin())).body.find((b) => b.customerId === late.id);
+    assert.equal(after.balance, before.balance - 50000);
+
+    const paidInst = await models.CustomerInstallment.findByPk(first.id);
+    assert.equal(Number(paidInst.lateFee), 1000);
+
+    // En el resumen: el recargo como cargo y la cobranza por el total, así que se cancelan
+    const statement = (await get(`/api/customers/${late.id}/account?from=${today()}&to=${today()}`, bAdmin())).body;
+    const types = statement.movements.map((m) => m.type);
+    assert.equal(statement.movements[types.indexOf('late_fee')].debit, 1000);
+    assert.equal(statement.movements[types.indexOf('payment')].credit, 51000);
+    assert.equal(statement.balance, after.balance);
+  });
+
+  it('se puede perdonar el recargo; anular la cobranza lo borra de las cuotas', async () => {
+    const [, second] = await installmentsOf(withRate);
+    await models.CustomerInstallment.update({ dueDate: ago(30) }, { where: { id: second.id } });
+    const res = await collectB({ installmentIds: [second.id], lateFee: 0 });
+    assert.equal(res.status, 201, JSON.stringify(res.body));
+    assert.equal(Number(res.body.lateFee), 0);
+    assert.equal(Number(res.body.lateFeeComputed), 1500, '$50.000 × 3 % ÷ 30 × 30 días');
+    const cancel = await api('POST', `/api/customer-payments/${res.body.id}/cancel`, { token: bAdmin(), body: {} });
+    assert.equal(cancel.status, 200, JSON.stringify(cancel.body));
+    const inst = await models.CustomerInstallment.findByPk(second.id);
+    assert.equal(inst.lateFee, null);
+    assert.equal(inst.paidAt, null);
+  });
+});
+
 describe('Anonimizar un cliente con deuda', () => {
   it('primero avisa la deuda; con la confirmación, anonimiza y la deuda se conserva', async () => {
     const path = `/api/data-rights/customers/${customer.id}/anonymize`;

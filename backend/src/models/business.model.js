@@ -30,6 +30,10 @@ const Business = sequelize.define(
     deleteAt: { type: DataTypes.DATE, allowNull: true, field: 'delete_at' },
     // Formato de las etiquetas de la balanza del comercio (ver utils/scaleConfig.js)
     scaleConfig: { type: DataTypes.JSON, allowNull: true, field: 'scale_config' },
+    // Recargo por mora de la cuenta corriente de clientes (migración 013): % mensual (NULL = no cobra)
+    // y días de gracia después del vencimiento. Ver utils/accountInstallments.js (lateFee).
+    lateFeeRate: { type: DataTypes.DECIMAL(5, 2), allowNull: true, field: 'late_fee_rate' },
+    lateFeeGraceDays: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'late_fee_grace_days' },
   },
   {
     tableName: 'businesses',

@@ -65,6 +65,13 @@ const CustomerInstallment = sequelize.define(
       allowNull: true,
       field: 'paid_at',
     },
+    // Recargo por mora cobrado con la cuota (migración 013). Mientras está impaga queda NULL: el
+    // recargo se calcula a la fecha.
+    lateFee: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      field: 'late_fee',
+    },
   },
   {
     tableName: 'customer_installments',

@@ -55,7 +55,7 @@ const CustomerStatementPrint = () => {
 
         <StatementTable
           statement={statement}
-          debitLabel="Remitos"
+          debitLabel="Remitos y recargos"
           creditLabel="Cobranzas"
           formatBalance={customerBalanceLabel}
         />

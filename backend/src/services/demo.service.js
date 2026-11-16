@@ -618,7 +618,9 @@ const seedDemoData = async (businessId, t) => {
   //   - La distribuidora compró hace 5 días en 3 cuotas sin interés (vencen los 10) y ya pagó la 1ª.
   //   - Hace 40 días compró en 2 cuotas con 10 % de interés (vencen los 20): la 1ª está vencida.
   //   - El kiosco tiene deuda de antes de usar el sistema, vencida hace 45 días.
-  // Así el reporte de mora muestra los tramos de 1 a 30 y de 31 a 60 días.
+  // Así el reporte de mora muestra los tramos de 1 a 30 y de 31 a 60 días. El comercio cobra 3 %
+  // mensual de recargo por mora, con 5 días de gracia, así que las cuotas vencidas ya lo muestran.
+  await Business.update({ lateFeeRate: 3, lateFeeGraceDays: 5 }, { where: { id: businessId }, transaction: t });
   const accountOrder = async ({ daysAgo, lines, installments, interestRate, dueDay }) => {
     const order = await seedOrder({
       t,
@@ -637,6 +639,8 @@ const seedDemoData = async (businessId, t) => {
         installmentAmount: plan.installmentAmount,
         totalFinanced: plan.totalFinanced,
         accountDueDay: dueDay,
+        lateFeeRate: 3,
+        lateFeeGraceDays: 5,
       },
       { transaction: t },
     );

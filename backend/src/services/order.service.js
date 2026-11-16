@@ -6,7 +6,13 @@ import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { APPROVER_ROLES, approvalSummary, checkApproval } from './orderApproval.service.js';
 import { lockProducts, moveStock, actorFields } from './stock.service.js';
 import { commissionFields } from './commission.service.js';
-import { readAccountTerms, accountPlan, createOrderInstallments } from './customerInstallment.service.js';
+import {
+  readAccountTerms,
+  accountPlan,
+  createOrderInstallments,
+  lateFeeConfig,
+  orderLateFeeFields,
+} from './customerInstallment.service.js';
 import { priceOrder, discriminatesVatFor } from './orderPricing.js';
 import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
 import {
@@ -267,6 +273,8 @@ export const createOrder = async ({ body, user, options = {} }) => {
 
     // A cuenta corriente: total con interés, monto de cada cuota y vencimientos
     const account = onAccount ? accountPlan({ total: totals.total, date: new Date(), ...accountTerms }) : null;
+    // Y el recargo por mora vigente: con ese cobran sus cuotas, y va en la leyenda del remito
+    const lateFee = onAccount ? orderLateFeeFields(await lateFeeConfig(businessId, t)) : {};
 
     const order = await Order.create(
       {
@@ -290,6 +298,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
         installmentAmount: account ? account.installmentAmount : totals.installmentAmount,
         totalFinanced: account ? account.totalFinanced : totals.totalFinanced,
         accountDueDay: account ? accountTerms.dueDay : null,
+        ...lateFee,
         requestId,
         tableTabId: options.tableTabId || null,
         ...commission,

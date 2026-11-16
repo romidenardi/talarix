@@ -179,6 +179,16 @@ const OrderPrint = () => {
                 ))}
               </ul>
             )}
+            {Number(order.lateFeeRate) > 0 && (
+              <p className="print-late-fee">
+                Las cuotas vencidas devengan un interés punitorio del {Number(order.lateFeeRate)} % mensual, calculado
+                por día de atraso desde el vencimiento
+                {Number(order.lateFeeGraceDays) > 0
+                  ? `, si se pagan después de ${order.lateFeeGraceDays} ${Number(order.lateFeeGraceDays) === 1 ? 'día' : 'días'} de gracia`
+                  : ''}
+                .
+              </p>
+            )}
           </div>
         ) : parts.length > 0 ? (
           <div className="print-payment">

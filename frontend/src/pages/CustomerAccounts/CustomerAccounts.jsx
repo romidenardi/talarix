@@ -10,6 +10,8 @@ import {
   cancelCustomerPayment,
   getCustomerInstallments,
   getCustomerOverdue,
+  getLateFeeConfig,
+  updateLateFeeConfig,
 } from '../../api/customerAccounts.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
@@ -22,10 +24,15 @@ import { money, presetRange, toISODate, downloadCsv } from '../../utils/reportFo
 import { newRequestId } from '../../utils/requestId.js';
 import { customerBalanceLabel as balanceLabel } from '../../utils/customerAccounts.js';
 import StatementTable from '../SupplierAccounts/StatementTable.jsx';
+import { daysLate, lateFee } from '../../utils/accountInstallments.js';
 
 // Cuenta corriente de clientes (el espejo de pages/SupplierAccounts). El saldo de cada cliente es:
 // saldo inicial + remitos a cuenta corriente (con su interés) − cobranzas. Cada remito se divide en
 // cuotas con vencimiento, y cada cobranza paga cuotas completas. Abajo, la mora por tramo de atraso.
+// Recargo por mora: el comercio configura % mensual y días de gracia («Recargo por mora»); cada remito
+// guarda los vigentes y sus cuotas vencidas cobran con esos (el saldo inicial, con los vigentes). Se
+// suma al cobrar, aparte del saldo, y se puede perdonar. El cálculo es el de
+// utils/accountInstallments.js (lateFee), el mismo que hace el servidor.
 // Solo administrador y editor.
 
 const formatDate = (value) => new Date(value).toLocaleDateString('es-AR');
@@ -48,6 +55,10 @@ const paymentDate = (day) => (day && day !== toISODate(new Date()) ? `${day}T12:
 // Nombre del cliente como lo trae la cobranza
 const customerLabel = (c) =>
   c ? c.businessName || [c.firstName, c.lastName].filter(Boolean).join(' ') || 'Cliente sin nombre' : 'este cliente';
+
+// Lo que pagó el cliente en una cobranza: las cuotas más el recargo
+const paidTotal = (p) => Math.round((Number(p.amount) + (Number(p.lateFee) || 0)) * 100) / 100;
+const round2 = (n) => Math.round(n * 100) / 100;
 
 const emptyPayment = () => ({
   customerId: '',
@@ -82,6 +93,12 @@ const CustomerAccounts = () => {
   const [statementInstallments, setStatementInstallments] = useState([]);
   const [overdue, setOverdue] = useState(null);
 
+  // Recargo por mora del comercio (el formulario para cambiarlo) y lo que se cobra en esta cobranza
+  // (null = todo lo calculado; si no, lo que se escribió en el campo)
+  const [feeForm, setFeeForm] = useState({ rate: '', graceDays: '0' });
+  const [savingFee, setSavingFee] = useState(false);
+  const [chargedFee, setChargedFee] = useState(null);
+
   const formRef = useRef(null);
   const sendingRef = useRef(false);
   const requestIdRef = useRef(newRequestId());
@@ -94,10 +111,30 @@ const CustomerAccounts = () => {
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: emptyPayment() });
   const formCustomerId = watch('customerId');
+  const formDate = watch('date');
   const selectedCustomer = balances.find((b) => b.customerId === formCustomerId);
-  const selectedTotal =
-    Math.round(payInstallments.filter((i) => selectedIds.includes(i.id)).reduce((sum, i) => sum + i.amount, 0) * 100) /
-    100;
+  const selectedTotal = round2(
+    payInstallments.filter((i) => selectedIds.includes(i.id)).reduce((sum, i) => sum + i.amount, 0),
+  );
+  // Recargo de una cuota a la fecha elegida de la cobranza, con la tasa de su remito
+  const feeOf = (inst) =>
+    lateFee(
+      inst.amount,
+      daysLate(inst.dueDate, formDate || toISODate(new Date())),
+      inst.lateFeeRate,
+      inst.lateFeeGraceDays,
+    );
+  const computedFee = round2(
+    payInstallments.filter((i) => selectedIds.includes(i.id)).reduce((sum, i) => sum + feeOf(i), 0),
+  );
+  const typedFee = chargedFee === null ? computedFee : Math.max(0, round2(Number(chargedFee) || 0));
+  const feeToCharge = Math.min(typedFee, computedFee);
+  const totalToCollect = round2(selectedTotal + feeToCharge);
+
+  // Al cambiar las cuotas o la fecha, el recargo vuelve a ser el calculado
+  useEffect(() => {
+    setChargedFee(null);
+  }, [selectedIds, formDate]);
 
   const loadPayInstallments = async (customerId) => {
     setSelectedIds([]);
@@ -124,6 +161,32 @@ const CustomerAccounts = () => {
       setOverdue(data);
     } catch (err) {
       msg.error(serverMessage(err, 'No se pudo cargar la mora.'), 'overdue');
+    }
+  };
+
+  const loadFeeConfig = async () => {
+    const { data } = await getLateFeeConfig();
+    setFeeForm({ rate: data.rate === null ? '' : String(data.rate), graceDays: String(data.graceDays ?? 0) });
+  };
+
+  const saveFeeConfig = async (event) => {
+    event.preventDefault();
+    setSavingFee(true);
+    try {
+      const { data } = await updateLateFeeConfig({
+        rate: feeForm.rate === '' ? null : Number(feeForm.rate),
+        graceDays: feeForm.graceDays === '' ? 0 : Number(feeForm.graceDays),
+      });
+      setFeeForm({ rate: data.rate === null ? '' : String(data.rate), graceDays: String(data.graceDays) });
+      msg.success(
+        data.rate ? `Recargo guardado: ${data.rate} % mensual.` : 'Listo: no se cobra recargo por mora.',
+        'fee',
+      );
+      await loadOverdue();
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudo guardar el recargo.'), 'fee');
+    } finally {
+      setSavingFee(false);
     }
   };
 
@@ -165,7 +228,13 @@ const CustomerAccounts = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [, methods] = await Promise.all([loadBalances(), getPayments(), loadPayments(), loadOverdue()]);
+        const [, methods] = await Promise.all([
+          loadBalances(),
+          getPayments(),
+          loadPayments(),
+          loadOverdue(),
+          loadFeeConfig(),
+        ]);
         setPaymentMethods(methods.data.filter((p) => p.active !== false));
       } catch {
         msg.error('No se pudo cargar la información. Recargá la página.', 'page');
@@ -220,6 +289,7 @@ const CustomerAccounts = () => {
         installmentIds: selectedIds,
         paymentId: formData.paymentId,
         amount: selectedTotal,
+        ...(computedFee > 0 ? { lateFee: feeToCharge } : {}),
         date: paymentDate(formData.date),
         reference: formData.reference || null,
         notes: formData.notes || null,
@@ -227,7 +297,11 @@ const CustomerAccounts = () => {
       });
       requestIdRef.current = newRequestId();
       reset({ ...emptyPayment(), customerId: formData.customerId, paymentId: formData.paymentId });
-      msg.success(`Cobranza de ${money(selectedTotal)} registrada.`, 'form');
+      msg.success(
+        `Cobranza de ${money(totalToCollect)} registrada` +
+          (feeToCharge > 0 ? ` (incluye ${money(feeToCharge)} de recargo por mora).` : '.'),
+        'form',
+      );
       await refresh();
     } catch (err) {
       msg.error(serverMessage(err, 'No se pudo registrar la cobranza.'), 'form');
@@ -240,8 +314,9 @@ const CustomerAccounts = () => {
     const reason = await dialog.prompt({
       title: 'Anular cobranza',
       message:
-        `Vas a anular la cobranza de ${money(payment.amount)} a ${customerLabel(payment.Customer)} ` +
-        `del ${formatDate(payment.date)}. El importe vuelve a sumar a la deuda y sus cuotas quedan impagas.`,
+        `Vas a anular la cobranza de ${money(paidTotal(payment))} a ${customerLabel(payment.Customer)} ` +
+        `del ${formatDate(payment.date)}. Sus cuotas vuelven a sumar a la deuda y quedan impagas` +
+        (Number(payment.lateFee) > 0 ? '; el recargo se vuelve a calcular cuando se cobren.' : '.'),
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular cobranza',
       cancelLabel: 'Volver',
@@ -270,6 +345,7 @@ const CustomerAccounts = () => {
         'Por vencer',
         ...overdue.buckets.map((b) => b.label),
         'Total vencido',
+        ...(showFee ? ['Recargo a hoy'] : []),
         'Días de atraso',
       ],
       overdue.customers.map((c) => [
@@ -279,6 +355,7 @@ const CustomerAccounts = () => {
         c.notDue,
         ...overdue.buckets.map((b) => c[b.key]),
         c.overdue,
+        ...(showFee ? [c.lateFee] : []),
         c.maxDaysLate,
       ]),
     );
@@ -289,6 +366,8 @@ const CustomerAccounts = () => {
     (b) => !onlyWithBalance || Math.abs(b.balance) >= 0.005 || b.customerId === statementId,
   );
   const totalDebt = balances.reduce((sum, b) => sum + Math.max(b.balance, 0), 0);
+  // La columna de recargo: si el comercio cobra, o si queda recargo de remitos hechos con tasa
+  const showFee = Boolean(overdue?.lateFeeConfig?.rate || overdue?.totals?.lateFee > 0);
   // Para cobrar: los que no están anonimizados, y los anonimizados solo si todavía deben
   const customerOptions = balances.filter(
     (b) => !b.anonymized || Math.abs(b.balance) >= 0.005 || b.customerId === watch('customerId'),
@@ -299,8 +378,8 @@ const CustomerAccounts = () => {
       <h1>Cuentas corrientes de clientes</h1>
       <p className="report-note">
         Los remitos con condición «Cuenta corriente» suman a lo que te debe cada cliente, divididos en cuotas con su
-        vencimiento. Cada cobranza paga cuotas completas. El saldo inicial de cada cliente se carga al editarlo en
-        Clientes y es una cuota más. Las mesas siempre se cobran al contado.
+        vencimiento. Cada cobranza paga cuotas completas, más el recargo por mora si lo configuraste. El saldo inicial
+        de cada cliente se carga al editarlo en Clientes y es una cuota más. Las mesas siempre se cobran al contado.
       </p>
       <FormMessage message={msg.at('page')} />
 
@@ -370,15 +449,41 @@ const CustomerAccounts = () => {
                   <span>
                     {installmentLabel(inst)} · {money(inst.amount)} · vence el {formatKey(inst.dueDate)}
                     {inst.daysLate > 0 && <span className="installment-overdue"> · {installmentStatus(inst)}</span>}
+                    {feeOf(inst) > 0 && <span className="installment-overdue"> · + {money(feeOf(inst))} de mora</span>}
                   </span>
                 </label>
               ))}
             </div>
           )}
-          <small>
-            Total a cobrar: <strong>{money(selectedTotal)}</strong> (las cuotas se cobran completas)
-          </small>
+          {computedFee > 0 ? (
+            <small>
+              Cuotas: {money(selectedTotal)} + recargo por mora: {money(feeToCharge)} · Total a cobrar:{' '}
+              <strong>{money(totalToCollect)}</strong>
+            </small>
+          ) : (
+            <small>
+              Total a cobrar: <strong>{money(selectedTotal)}</strong> (las cuotas se cobran completas)
+            </small>
+          )}
         </div>
+        {computedFee > 0 && (
+          <div className="field">
+            <label htmlFor="pay-late-fee">Recargo por mora que se cobra</label>
+            <input
+              id="pay-late-fee"
+              type="number"
+              min="0"
+              max={computedFee}
+              step="0.01"
+              value={chargedFee === null ? String(computedFee) : chargedFee}
+              onChange={(e) => setChargedFee(e.target.value)}
+            />
+            <small>
+              Calculado: {money(computedFee)}, con la tasa de cada remito. Podés bajarlo o ponerlo en 0 para perdonarlo.
+            </small>
+            {typedFee > computedFee && <span className="error">No puede ser más que lo calculado.</span>}
+          </div>
+        )}
         <div className="field">
           <label htmlFor="pay-method">
             Forma de pago
@@ -477,7 +582,7 @@ const CustomerAccounts = () => {
           {statement && (
             <StatementTable
               statement={statement}
-              debitLabel="Remitos"
+              debitLabel="Remitos y recargos"
               creditLabel="Cobranzas"
               formatBalance={balanceLabel}
             />
@@ -512,7 +617,14 @@ const CustomerAccounts = () => {
                         <tr key={inst.id}>
                           <td data-label="Concepto">{installmentLabel(inst)}</td>
                           <td data-label="Vence">{formatKey(inst.dueDate)}</td>
-                          <td data-label="Importe">{money(inst.amount)}</td>
+                          <td data-label="Importe">
+                            {money(inst.amount)}
+                            {inst.lateFee > 0 && (
+                              <small className="row-author">
+                                {inst.paid ? 'Recargo cobrado' : 'Recargo a hoy'}: {money(inst.lateFee)}
+                              </small>
+                            )}
+                          </td>
                           <td data-label="Estado">
                             <span className={inst.status === 'overdue' ? 'installment-overdue' : undefined}>
                               {installmentStatus(inst)}
@@ -532,6 +644,9 @@ const CustomerAccounts = () => {
       <h2 className="report-subtitle">Mora</h2>
       <p className="report-note">
         Lo que cada cliente tiene vencido e impago a hoy, por días de atraso, y lo que todavía no venció.
+        {showFee
+          ? ' El recargo a hoy se cobra aparte, junto con las cuotas.'
+          : ' Para cobrar recargo por las cuotas vencidas, configuralo más abajo.'}
       </p>
       <FormMessage message={msg.at('overdue')} />
       {overdue && (
@@ -551,13 +666,14 @@ const CustomerAccounts = () => {
                     <th key={b.key}>{b.label}</th>
                   ))}
                   <th>Total vencido</th>
+                  {showFee && <th>Recargo a hoy</th>}
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {overdue.customers.length === 0 && (
                   <tr>
-                    <td colSpan={overdue.buckets.length + 4} className="list-search-empty">
+                    <td colSpan={overdue.buckets.length + (showFee ? 5 : 4)} className="list-search-empty">
                       No hay cuotas impagas.
                     </td>
                   </tr>
@@ -581,6 +697,7 @@ const CustomerAccounts = () => {
                     <td data-label="Total vencido">
                       <strong>{money(c.overdue)}</strong>
                     </td>
+                    {showFee && <td data-label="Recargo a hoy">{c.lateFee ? money(c.lateFee) : '—'}</td>}
                     <td data-label="Acciones">
                       <button type="button" onClick={() => startPayment(c.customerId)}>
                         Cobrar
@@ -602,6 +719,7 @@ const CustomerAccounts = () => {
                     <td data-label="Total vencido">
                       <strong>{money(overdue.totals.overdue)}</strong>
                     </td>
+                    {showFee && <td data-label="Recargo a hoy">{money(overdue.totals.lateFee)}</td>}
                     <td />
                   </tr>
                 )}
@@ -610,6 +728,48 @@ const CustomerAccounts = () => {
           </div>
         </>
       )}
+
+      <h2 className="report-subtitle">Recargo por mora</h2>
+      <p className="report-note">
+        Opcional. Si cargás un % mensual, las cuotas vencidas suman un interés por cada día de atraso desde el
+        vencimiento (por ejemplo, $100.000 al 3 % mensual con 20 días de atraso: $2.000). Si se pagan dentro de los días
+        de gracia, no hay recargo. Se cobra aparte, junto con las cuotas, y en cada cobranza se puede perdonar. Cada
+        remito a cuenta corriente guarda la tasa vigente al hacerlo, la imprime en la leyenda y sus cuotas cobran con
+        esa: si después la cambiás, los remitos anteriores siguen con la suya. Los remitos hechos sin tasa no cobran
+        recargo; el saldo inicial usa la tasa vigente. Vacío: los remitos nuevos no cobran recargo.
+      </p>
+      <form onSubmit={saveFeeConfig} className="customer-payment-form late-fee-form">
+        <div className="field">
+          <label htmlFor="fee-rate">Interés por mora (% mensual)</label>
+          <input
+            id="fee-rate"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            placeholder="Sin recargo"
+            value={feeForm.rate}
+            onChange={(e) => setFeeForm((f) => ({ ...f, rate: e.target.value }))}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="fee-grace">Días de gracia</label>
+          <input
+            id="fee-grace"
+            type="number"
+            min="0"
+            max="90"
+            step="1"
+            value={feeForm.graceDays}
+            onChange={(e) => setFeeForm((f) => ({ ...f, graceDays: e.target.value }))}
+          />
+          <small>Días después del vencimiento sin recargo.</small>
+        </div>
+        <button type="submit" disabled={savingFee}>
+          {savingFee ? 'Guardando…' : 'Guardar recargo'}
+        </button>
+        <FormMessage message={msg.at('fee')} onClose={msg.clear} />
+      </form>
 
       <h2 className="report-subtitle">Cobranzas registradas</h2>
       <DateRangeFilter value={paymentsRange} loading={paymentsLoading} label="Cobranzas" onChange={loadPayments} />
@@ -651,7 +811,15 @@ const CustomerAccounts = () => {
                     )}
                   </td>
                   <td data-label="Importe">
-                    <span className="amount">{money(p.amount)}</span>
+                    <span className="amount">{money(paidTotal(p))}</span>
+                    {Number(p.lateFee) > 0 && (
+                      <small className="row-author">Incluye {money(p.lateFee)} de recargo por mora</small>
+                    )}
+                    {Number(p.lateFeeComputed) - Number(p.lateFee) > 0.005 && (
+                      <small className="row-author">
+                        Recargo perdonado: {money(Number(p.lateFeeComputed) - Number(p.lateFee))}
+                      </small>
+                    )}
                   </td>
                   <td data-label="Forma de pago">{p.Payment?.name || '—'}</td>
                   <td data-label="Referencia">

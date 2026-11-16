@@ -45,3 +45,27 @@ export const daysLate = (dueDate, today) => {
   const diff = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${dueDate}T00:00:00Z`)) / 86400000;
   return diff > 0 ? Math.round(diff) : 0;
 };
+
+// Recargo por mora de una cuota impaga (interés punitorio): interés simple por día, el % mensual ÷ 30
+// por cada día de atraso, contado desde el vencimiento. Si el atraso no pasa los días de gracia, no
+// hay recargo. Sin tasa, tampoco. Ej.: $100.000 al 3 % mensual con 20 días de atraso = $2.000.
+export const lateFee = (amount, days, rate, graceDays = 0) => {
+  if (!rate || rate <= 0 || !days || days <= 0 || days <= (graceDays || 0)) return 0;
+  return Math.round((Math.round(amount * 100) * rate * days) / 3000) / 100;
+};
+
+// Reparte un recargo cobrado (total) entre las cuotas, en proporción al recargo que calculó cada una
+// (weights). Se usa cuando se perdona parte del recargo. Los centavos que sobran van a la última que
+// tiene recargo.
+export const spreadFee = (total, weights) => {
+  const totalCents = Math.round(total * 100);
+  const sum = weights.reduce((a, b) => a + Math.round(b * 100), 0);
+  if (!sum || !totalCents) return weights.map(() => 0);
+  const cents = weights.map((w) => Math.floor((Math.round(w * 100) * totalCents) / sum));
+  let last = -1;
+  weights.forEach((w, i) => {
+    if (w > 0) last = i;
+  });
+  cents[last] += totalCents - cents.reduce((a, b) => a + b, 0);
+  return cents.map((c) => c / 100);
+};
