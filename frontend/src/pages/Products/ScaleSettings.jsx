@@ -13,8 +13,7 @@ import {
   lineFromLabel,
 } from '../../utils/scale.js';
 import { formatQuantity } from '../../utils/quantity.js';
-
-const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
+import { money } from '../../utils/reportFormat.js';
 
 const ScaleSettings = ({ products }) => {
   const msg = useMessage();

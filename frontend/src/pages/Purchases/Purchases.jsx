@@ -10,7 +10,7 @@ import { serverMessage } from '../../utils/serverErrors.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Spinner from '../../components/common/Spinner.jsx';
 import DateRangeFilter from '../../components/common/DateRangeFilter.jsx';
-import { presetRange } from '../../utils/reportFormat.js';
+import { presetRange, money } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
@@ -359,7 +359,7 @@ const Purchases = () => {
       title: 'Anular compra',
       message:
         `Vas a anular la compra a ${name}${purchase.invoiceNumber ? ` (factura ${purchase.invoiceNumber})` : ''} ` +
-        `por $${Number(purchase.total).toFixed(2)}.\n` +
+        `por ${money(Number(purchase.total))}.\n` +
         'Se resta del stock lo que había sumado. Si fue un error de carga, después cargala de nuevo bien.',
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular compra',
@@ -611,8 +611,8 @@ const Purchases = () => {
                 {rowUnitType === 'weight' && rowQuantity > 0 && (
                   <div className="field field-full">
                     <small className="report-note">
-                      {formatQuantity(rowQuantity, 'weight')} × ${rowCost.toFixed(2)} por kg = $
-                      {(Math.round(rowQuantity * rowCost * 100) / 100).toFixed(2)}
+                      {formatQuantity(rowQuantity, 'weight')} × {money(rowCost)} por kg ={' '}
+                      {money(Math.round(rowQuantity * rowCost * 100) / 100)}
                     </small>
                   </div>
                 )}
@@ -835,15 +835,15 @@ const Purchases = () => {
         </div>
 
         <div className="purchase-total">
-          <span>Neto: ${totals.subtotal.toFixed(2)}</span>
+          <span>Neto: {money(totals.subtotal)}</span>
           {totals.byRate
             .filter((r) => r.rate > 0)
             .map((r) => (
               <span key={r.rate}>
-                IVA {formatRate(r.rate)}: ${r.vat.toFixed(2)}
+                IVA {formatRate(r.rate)}: {money(r.vat)}
               </span>
             ))}
-          <strong>Total: ${totals.total.toFixed(2)}</strong>
+          <strong>Total: {money(totals.total)}</strong>
         </div>
 
         <button type="submit" disabled={isSubmitting}>
@@ -904,9 +904,9 @@ const Purchases = () => {
                     ].join(', ')}
                   </td>
                   <td data-label="Total">
-                    <span className="amount">${Number(purchase.total).toFixed(2)}</span>
+                    <span className="amount">{money(Number(purchase.total))}</span>
                     {purchase.vatAmount != null && Number(purchase.vatAmount) > 0 && (
-                      <small className="row-author">IVA ${Number(purchase.vatAmount).toFixed(2)}</small>
+                      <small className="row-author">IVA {money(Number(purchase.vatAmount))}</small>
                     )}
                   </td>
                   {canManageData && (

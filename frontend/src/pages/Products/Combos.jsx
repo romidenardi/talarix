@@ -11,8 +11,7 @@ import { matchesSearch } from '../../utils/search.js';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { isVariantGroup } from '../../utils/variants.js';
 import CategoryOptions from '../../components/common/CategoryOptions.jsx';
-
-const money = (value) => `$${(Number(value) || 0).toFixed(2)}`;
+import { money } from '../../utils/reportFormat.js';
 
 const emptyComponent = () => ({ productId: '', quantity: 1 });
 const emptyForm = () => ({

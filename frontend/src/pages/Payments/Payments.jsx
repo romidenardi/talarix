@@ -8,6 +8,7 @@ import { RequiredMark, RequiredLegend } from '../../components/common/Required.j
 import FormMessage from '../../components/common/FormMessage.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { applyServerFieldErrors } from '../../utils/serverErrors.js';
+import { formatRate } from '../../utils/taxes.js';
 
 const api = {
   getAll: paymentsApi.getPayments,
@@ -108,7 +109,7 @@ const Payments = () => {
     return payment.installmentPlans
       .map(
         (p) =>
-          `${p.installments} cuotas (${Number(p.interestRate) > 0 ? `+${p.interestRate}% interés` : 'sin interés'})`,
+          `${p.installments} cuotas (${Number(p.interestRate) > 0 ? `+${formatRate(p.interestRate)} interés` : 'sin interés'})`,
       )
       .join(' · ');
   };

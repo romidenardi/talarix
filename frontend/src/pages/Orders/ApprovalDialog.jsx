@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { formatRate } from '../../utils/taxes.js';
 
 // Pedido de autorización para el operador: un administrador o editor escribe su email y contraseña
 // en la misma pantalla para aprobar un descuento o un precio distinto al de lista.
@@ -61,7 +62,7 @@ export default function ApprovalDialog({
         </p>
 
         <ul className="approval-summary">
-          {summary.discountPercent > 0 && <li>Descuento: {summary.discountPercent}%</li>}
+          {summary.discountPercent > 0 && <li>Descuento: {formatRate(summary.discountPercent)}</li>}
           {summary.discountAmount > 0 && <li>Descuento por monto: {money(summary.discountAmount)}</li>}
           {summary.prices.map((p) => (
             <li key={`${p.name}-${p.unitPrice}`}>

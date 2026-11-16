@@ -25,6 +25,7 @@ import { newRequestId } from '../../utils/requestId.js';
 import { customerBalanceLabel as balanceLabel } from '../../utils/customerAccounts.js';
 import StatementTable from '../SupplierAccounts/StatementTable.jsx';
 import { daysLate, lateFee } from '../../utils/accountInstallments.js';
+import { formatRate } from '../../utils/taxes.js';
 
 // Cuenta corriente de clientes (el espejo de pages/SupplierAccounts). El saldo de cada cliente es:
 // saldo inicial + remitos a cuenta corriente (con su interés) − cobranzas. Cada remito se divide en
@@ -179,7 +180,7 @@ const CustomerAccounts = () => {
       });
       setFeeForm({ rate: data.rate === null ? '' : String(data.rate), graceDays: String(data.graceDays) });
       msg.success(
-        data.rate ? `Recargo guardado: ${data.rate} % mensual.` : 'Listo: no se cobra recargo por mora.',
+        data.rate ? `Recargo guardado: ${formatRate(data.rate)} mensual.` : 'Listo: no se cobra recargo por mora.',
         'fee',
       );
       await loadOverdue();

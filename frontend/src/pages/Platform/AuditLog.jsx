@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { getAuditLog } from '../../api/platform.api';
+import { money } from '../../utils/reportFormat.js';
+import { formatRate } from '../../utils/taxes.js';
 
 // Registro de actividad (tabla audit_logs): quién hizo qué, cuándo y desde qué IP.
 const ACTION_LABELS = {
@@ -42,6 +44,7 @@ const ACTION_LABELS = {
   'supplier.opening_balance_changed': 'Cambió el saldo inicial de un proveedor',
   'customer_payment.created': 'Registró una cobranza a un cliente',
   'customer_payment.cancelled': 'Anuló una cobranza a un cliente',
+  'late_fee.updated': 'Cambió el recargo por mora',
   'customer.opening_balance_changed': 'Cambió el saldo inicial de un cliente',
   'order.approved': 'Remito con descuento o precio autorizado',
   'order.approval_failed': 'Autorización de descuento rechazada',
@@ -76,15 +79,22 @@ const describe = (row) => {
     case 'service_request.reopened':
       return d.code ? `Código ${d.code}` : '';
     case 'supplier_payment.created':
-      return d.supplier ? `${d.supplier}: $${d.amount}` : '';
+      return d.supplier ? `${d.supplier}: ${money(d.amount)}` : '';
     case 'supplier_payment.cancelled':
-      return d.amount !== undefined ? `$${d.amount}` : '';
+      return d.amount !== undefined ? money(d.amount) : '';
     case 'supplier.opening_balance_changed':
     case 'customer.opening_balance_changed':
-      return `$${d.from} → $${d.to}`;
+      return `${money(d.from)} → ${money(d.to)}`;
     case 'customer_payment.created':
-    case 'customer_payment.cancelled':
-      return d.amount !== undefined ? `$${d.amount}` : '';
+    case 'customer_payment.cancelled': {
+      if (d.amount === undefined) return '';
+      const parts = [money(d.amount)];
+      if (d.lateFee > 0) parts.push(`recargo ${money(d.lateFee)}`);
+      if (d.lateFeeWaived > 0) parts.push(`recargo perdonado ${money(d.lateFeeWaived)}`);
+      return parts.join(', ');
+    }
+    case 'late_fee.updated':
+      return d.rate ? `${formatRate(d.rate)} mensual, ${d.graceDays} días de gracia` : 'Sin recargo';
     case 'platform.recovery_code_used':
       return `Quedan ${d.left}`;
     case 'tables.tab_moved':
@@ -92,14 +102,14 @@ const describe = (row) => {
     case 'order.approved': {
       const parts = [`Autorizó ${d.approver}`];
       if (d.table) parts.push(`mesa ${d.table}`);
-      if (d.discountPercent > 0) parts.push(`descuento ${d.discountPercent}%`);
-      if (d.discountAmount > 0) parts.push(`descuento $${d.discountAmount}`);
+      if (d.discountPercent > 0) parts.push(`descuento ${formatRate(d.discountPercent)}`);
+      if (d.discountAmount > 0) parts.push(`descuento ${money(d.discountAmount)}`);
       if (d.prices > 0) parts.push(d.prices === 1 ? '1 precio cambiado' : `${d.prices} precios cambiados`);
       return parts.join(', ');
     }
     case 'user.created':
       return `Rol ${word(ROLES, d.role)}${d.invite ? ', con invitación' : ''}${
-        d.commissionRate ? `, comisión ${d.commissionRate} %` : ''
+        d.commissionRate ? `, comisión ${formatRate(d.commissionRate)}` : ''
       }`;
     case 'user.deleted':
     case 'user.reinvited':
@@ -113,7 +123,7 @@ const describe = (row) => {
       if (d.password) parts.push('contraseña');
       if (d.email) parts.push('email');
       if (d.commissionRate) {
-        const pct = (v) => (v === null || v === undefined ? 'sin comisión' : `${v} %`);
+        const pct = (v) => (v === null || v === undefined ? 'sin comisión' : formatRate(v));
         parts.push(`comisión ${pct(d.commissionRate.from)} → ${pct(d.commissionRate.to)}`);
       }
       return parts.join(', ');

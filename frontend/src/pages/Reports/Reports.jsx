@@ -280,7 +280,7 @@ function PaymentsView({ data, range }) {
               <td>{p.name}</td>
               <td className="num">{int(p.orders)}</td>
               <td className="num">{money(p.total)}</td>
-              <td className="num">{p.share}%</td>
+              <td className="num">{formatRate(p.share)}</td>
               <td className="num">{int(p.installmentOrders)}</td>
               <td className="num">{money(p.financed)}</td>
             </tr>
@@ -340,7 +340,7 @@ function VatView({ data, range }) {
         <tbody>
           {data.byRate.map((r) => (
             <tr key={r.rate}>
-              <td className="num">{r.rate}%</td>
+              <td className="num">{formatRate(r.rate)}</td>
               <td className="num">{money(r.net)}</td>
               <td className="num">{money(r.vat)}</td>
               <td className="num">{money(r.total)}</td>
@@ -404,7 +404,7 @@ function InternalTaxView({ data, range }) {
           <tbody>
             {rows.map((r) => (
               <tr key={r.rate}>
-                <td className="num">{r.rate}%</td>
+                <td className="num">{formatRate(r.rate)}</td>
                 <td className="num">{money(r.net)}</td>
                 <td className="num">{money(r.internal)}</td>
                 <td className="num">{money(r.total)}</td>
@@ -475,7 +475,7 @@ function TaxesView({ data, range }) {
         <tbody>
           {data.byRate.map((r) => (
             <tr key={r.rate}>
-              <td className="num">{r.rate}%</td>
+              <td className="num">{formatRate(r.rate)}</td>
               <td className="num">{money(r.net)}</td>
               <td className="num">{money(r.vat)}</td>
               <td className="num">{money(r.internal)}</td>

@@ -11,7 +11,15 @@ import { purchaseTotals } from '../utils/purchaseTotals.js';
 import { EXPENSE_CATEGORY_VALUES } from '../utils/expenseCategories.js';
 
 const { Op } = pkg;
-import { isPositiveQuantity, isNonNegative, toNumber, round2, round3, quantityAllowedFor } from '../utils/numbers.js';
+import {
+  isPositiveQuantity,
+  isNonNegative,
+  toNumber,
+  round2,
+  round3,
+  quantityAllowedFor,
+  formatMoney,
+} from '../utils/numbers.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_COST = 99999999;
@@ -161,7 +169,7 @@ export const createPurchase = asyncHandler(async (req, res) => {
       if (duplicate) {
         throw httpError(
           `La factura ${invoiceNumber} de ${supplier.name} ya está cargada (compra del ${arDate(duplicate.date)} ` +
-            `por $${Number(duplicate.total).toFixed(2)}). Si la cargás de nuevo, el stock se suma dos veces.`,
+            `por ${formatMoney(duplicate.total)}). Si la cargás de nuevo, el stock se suma dos veces.`,
           409,
           'DUPLICATE_INVOICE',
         );

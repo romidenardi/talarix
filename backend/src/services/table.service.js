@@ -28,6 +28,7 @@ import {
   round2,
   round3,
   quantityAllowedFor,
+  formatMoney,
 } from '../utils/numbers.js';
 
 // Mesas y comandas.
@@ -552,7 +553,7 @@ const readParts = (parts, total) => {
   });
   const sum = round2(rows.reduce((s, r) => s + r.amount, 0));
   if (Math.abs(sum - total) > 0.001) {
-    throw httpError(`Las partes suman $${sum.toFixed(2)} y la cuenta es de $${total.toFixed(2)}.`);
+    throw httpError(`Las partes suman ${formatMoney(sum)} y la cuenta es de ${formatMoney(total)}.`);
   }
   return rows;
 };

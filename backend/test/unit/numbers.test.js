@@ -9,6 +9,7 @@ import {
   isPositiveQuantity,
   isNonNegativeQuantity,
   quantityAllowedFor,
+  formatMoney,
 } from '../../src/utils/numbers.js';
 
 test('toNumber acepta números y texto numérico, rechaza vacíos y objetos', () => {
@@ -60,4 +61,10 @@ test('por unidad solo enteros; por peso, decimales', () => {
   assert.equal(quantityAllowedFor({ unitType: 'unit' }, 2), true);
   assert.equal(quantityAllowedFor({ unitType: 'unit' }, 1.5), false);
   assert.equal(quantityAllowedFor({ unitType: 'weight' }, 0.125), true);
+});
+
+test('formatMoney: punto para los miles y coma para los decimales', () => {
+  assert.equal(formatMoney(1234567.5), '$1.234.567,50');
+  assert.equal(formatMoney(0), '$0,00');
+  assert.equal(formatMoney('999.99'), '$999,99');
 });

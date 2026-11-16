@@ -6,7 +6,7 @@ import { audit } from '../utils/audit.js';
 import { readRange, dayKey } from '../utils/dates.js';
 import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { actorFields } from '../services/stock.service.js';
-import { toNumber, round2 } from '../utils/numbers.js';
+import { toNumber, round2, formatMoney } from '../utils/numbers.js';
 import { customerBalances, customerStatement, customerName } from '../services/customerAccount.service.js';
 import {
   customerInstallments,
@@ -98,7 +98,7 @@ export const createCustomerPayment = asyncHandler(async (req, res) => {
       // Si viene el importe, tiene que coincidir con la suma de las cuotas (se cobran completas)
       if (req.body.amount !== undefined && req.body.amount !== null && req.body.amount !== '') {
         if (Math.abs(toNumber(req.body.amount) - amount) > 0.005) {
-          throw httpError(`Las cuotas elegidas suman $${amount.toFixed(2)}: se cobran completas.`);
+          throw httpError(`Las cuotas elegidas suman ${formatMoney(amount)}: se cobran completas.`);
         }
       }
       const row = await CustomerPayment.create(

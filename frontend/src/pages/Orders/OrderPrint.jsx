@@ -6,6 +6,7 @@ import { formatQuantity, perKg } from '../../utils/quantity.js';
 import { orderNumberLabel } from '../../utils/orderNumber.js';
 import { paymentParts } from '../../utils/orderPayments.js';
 import { formatRate } from '../../utils/taxes.js';
+import { money } from '../../utils/reportFormat.js';
 
 const OrderPrint = () => {
   const { id } = useParams();
@@ -93,10 +94,10 @@ const OrderPrint = () => {
                 </td>
                 <td>{formatQuantity(item.quantity, item.Product?.unitType)}</td>
                 <td>
-                  ${Number(item.unitPrice).toFixed(2)}
+                  {money(Number(item.unitPrice))}
                   {perKg(item.Product?.unitType)}
                 </td>
-                <td>${(Math.round(Number(item.quantity) * Number(item.unitPrice) * 100) / 100).toFixed(2)}</td>
+                <td>{money(Math.round(Number(item.quantity) * Number(item.unitPrice) * 100) / 100)}</td>
               </tr>
             ))}
           </tbody>
@@ -105,12 +106,12 @@ const OrderPrint = () => {
         <div className="print-total">
           {hasDiscount && (
             <>
-              <p>Importe: ${Number(order.grossTotal).toFixed(2)}</p>
+              <p>Importe: {money(Number(order.grossTotal))}</p>
               <p>
-                Descuento: -${totalDiscount.toFixed(2)}
-                {Number(order.discountPercent) > 0 && ` (${order.discountPercent}%`}
+                Descuento: -{money(totalDiscount)}
+                {Number(order.discountPercent) > 0 && ` (${formatRate(order.discountPercent)}`}
                 {Number(order.discountPercent) > 0 && Number(order.discountAmount) > 0 && ' + '}
-                {Number(order.discountAmount) > 0 && `bono $${Number(order.discountAmount).toFixed(2)}`}
+                {Number(order.discountAmount) > 0 && `bono ${money(Number(order.discountAmount))}`}
                 {Number(order.discountPercent) > 0 && ')'}
               </p>
             </>
@@ -118,28 +119,28 @@ const OrderPrint = () => {
 
           {order.discriminatesVat ? (
             <>
-              <p>Subtotal: ${Number(order.subtotal).toFixed(2)}</p>
+              <p>Subtotal: {money(Number(order.subtotal))}</p>
               {Array.isArray(order.vatBreakdown) && order.vatBreakdown.some((row) => row.rate > 0) ? (
                 order.vatBreakdown
                   .filter((row) => row.rate > 0)
                   .map((row) => (
                     <p key={row.rate}>
-                      IVA {formatRate(row.rate)}: ${Number(row.vat).toFixed(2)}
+                      IVA {formatRate(row.rate)}: {money(Number(row.vat))}
                     </p>
                   ))
               ) : (
-                <p>IVA: ${Number(order.vatAmount).toFixed(2)}</p>
+                <p>IVA: {money(Number(order.vatAmount))}</p>
               )}
               {Number(order.internalTaxAmount) > 0 && (
-                <p>Impuestos internos: ${Number(order.internalTaxAmount).toFixed(2)}</p>
+                <p>Impuestos internos: {money(Number(order.internalTaxAmount))}</p>
               )}
               <p>
-                <strong>Total: ${Number(order.total).toFixed(2)}</strong>
+                <strong>Total: {money(Number(order.total))}</strong>
               </p>
             </>
           ) : (
             <p>
-              <strong>Total: ${Number(order.total).toFixed(2)}</strong>
+              <strong>Total: {money(Number(order.total))}</strong>
             </p>
           )}
 
@@ -147,11 +148,11 @@ const OrderPrint = () => {
             <>
               <p>
                 Plan: {order.installmentsCount} cuotas{' '}
-                {Number(order.interestRate) > 0 ? `(+${order.interestRate}% interés)` : '(sin interés)'}
+                {Number(order.interestRate) > 0 ? `(+${formatRate(order.interestRate)} interés)` : '(sin interés)'}
               </p>
-              <p>Monto de cada cuota: ${Number(order.installmentAmount).toFixed(2)}</p>
+              <p>Monto de cada cuota: {money(Number(order.installmentAmount))}</p>
               <p>
-                <strong>Total financiado: ${Number(order.totalFinanced).toFixed(2)}</strong>
+                <strong>Total financiado: {money(Number(order.totalFinanced))}</strong>
               </p>
             </>
           )}
@@ -162,26 +163,26 @@ const OrderPrint = () => {
             <p>
               Condición: Cuenta corriente
               {Number(order.installmentsCount) > 1 ? ` en ${order.installmentsCount} cuotas` : ''}
-              {Number(order.interestRate) > 0 ? ` (+${order.interestRate}% interés)` : ''}
+              {Number(order.interestRate) > 0 ? ` (+${formatRate(order.interestRate)} interés)` : ''}
             </p>
             {Number(order.interestRate) > 0 && (
               <p>
-                <strong>Total con interés: ${Number(order.totalFinanced).toFixed(2)}</strong>
+                <strong>Total con interés: {money(Number(order.totalFinanced))}</strong>
               </p>
             )}
             {order.accountInstallments?.length > 0 && (
               <ul>
                 {order.accountInstallments.map((inst) => (
                   <li key={inst.number}>
-                    {order.accountInstallments.length > 1 ? `Cuota ${inst.number}: ` : ''}$
-                    {Number(inst.amount).toFixed(2)}, vence el {inst.dueDate.split('-').reverse().join('/')}
+                    {order.accountInstallments.length > 1 ? `Cuota ${inst.number}: ` : ''}
+                    {money(Number(inst.amount))}, vence el {inst.dueDate.split('-').reverse().join('/')}
                   </li>
                 ))}
               </ul>
             )}
             {Number(order.lateFeeRate) > 0 && (
               <p className="print-late-fee">
-                Las cuotas vencidas devengan un interés punitorio del {Number(order.lateFeeRate)} % mensual, calculado
+                Las cuotas vencidas devengan un interés punitorio del {formatRate(order.lateFeeRate)} mensual, calculado
                 por día de atraso desde el vencimiento
                 {Number(order.lateFeeGraceDays) > 0
                   ? `, si se pagan después de ${order.lateFeeGraceDays} ${Number(order.lateFeeGraceDays) === 1 ? 'día' : 'días'} de gracia`
@@ -196,7 +197,7 @@ const OrderPrint = () => {
             <ul>
               {parts.map((part) => (
                 <li key={part.id}>
-                  {part.Payment?.name || 'Sin forma de pago.'}: ${Number(part.amount).toFixed(2)}
+                  {part.Payment?.name || 'Sin forma de pago.'}: {money(Number(part.amount))}
                 </li>
               ))}
             </ul>

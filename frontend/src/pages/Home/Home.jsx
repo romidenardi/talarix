@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { getDashboard } from '../../api/reports.api';
 import { money, int, formatDay } from '../../utils/reportFormat';
+import { formatRate } from '../../utils/taxes.js';
 
 const change = (current, previous) => {
   if (!previous) return null;
@@ -41,7 +42,7 @@ function Dashboard() {
           <small>
             {delta === null
               ? 'Sin ventas en el mismo tramo del mes anterior.'
-              : `${delta >= 0 ? '+' : ''}${delta}% vs. el mismo tramo del mes anterior (${money(data.previous.total)}).`}
+              : `${delta >= 0 ? '+' : ''}${formatRate(delta)} vs. el mismo tramo del mes anterior (${money(data.previous.total)}).`}
           </small>
         </div>
         <div className="stat-card">

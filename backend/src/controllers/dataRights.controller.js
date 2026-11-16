@@ -1,6 +1,6 @@
 import { Customer, Order, OrderItem, CustomerPayment, CustomerInstallment, sequelize } from '../models/index.js';
 import { customerBalance } from '../services/customerAccount.service.js';
-import { round2 } from '../utils/numbers.js';
+import { round2, formatMoney } from '../utils/numbers.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import { buildWorkbookBuffer, sheetFrom, columnsOf, todayStamp } from '../services/export.service.js';
@@ -96,7 +96,7 @@ export const anonymizeCustomer = asyncHandler(async (req, res) => {
   const balance = await customerBalance(req.user.businessId, customer.id);
   if (balance > 0.005 && req.body?.confirmDebt !== true) {
     throw httpError(
-      `Este cliente debe $${round2(balance).toFixed(2)} en cuenta corriente. Si lo anonimizás, la deuda queda ` +
+      `Este cliente debe ${formatMoney(round2(balance))} en cuenta corriente. Si lo anonimizás, la deuda queda ` +
         'registrada pero sin sus datos para reclamarla.',
       409,
       'CUSTOMER_HAS_DEBT',

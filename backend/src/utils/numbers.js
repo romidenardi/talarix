@@ -33,3 +33,8 @@ export const isNonNegativeQuantity = (v) => {
 export const quantityAllowedFor = (product, quantity) => product.unitType === 'weight' || Number.isInteger(quantity);
 
 export const unitWord = (product) => (product.unitType === 'weight' ? 'kg' : 'unidades');
+
+// Importe en pesos como se escribe en la Argentina: $1.234,56 (punto para los miles, coma para los
+// decimales). Para los mensajes que ve el usuario.
+const pesos = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const formatMoney = (n) => `$${pesos.format(Number(n) || 0)}`;

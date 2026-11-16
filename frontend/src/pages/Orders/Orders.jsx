@@ -40,7 +40,7 @@ import { serverMessage } from '../../utils/serverErrors.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 import Spinner from '../../components/common/Spinner.jsx';
 import DateRangeFilter from '../../components/common/DateRangeFilter.jsx';
-import { presetRange } from '../../utils/reportFormat.js';
+import { presetRange, money } from '../../utils/reportFormat.js';
 import ScanBar from '../../components/common/ScanBar.jsx';
 import SearchSelect from '../../components/common/SearchSelect.jsx';
 import VatSelect from '../../components/common/VatSelect.jsx';
@@ -49,6 +49,7 @@ import { readScaleCode, scaleCodeProblem, lineFromLabel, resolveScaleConfig } fr
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { formatQuantity, quantityStep, quantityMin, round3, toKg } from '../../utils/quantity.js';
 import { isVariantGroup } from '../../utils/variants.js';
+import { formatRate } from '../../utils/taxes.js';
 
 const NEW_CUSTOMER = '__new__';
 const NEW_PRODUCT = '__new_product__';
@@ -372,8 +373,8 @@ const Orders = () => {
     const added = `${product.name}: ${formatQuantity(line.quantity, 'weight')} agregado.`;
     if (line.priceMismatch) {
       msg.error(
-        `${added} Ojo: la etiqueta dice $${label.value.toFixed(2)}, pero con el precio del sistema ` +
-          `($${Number(product.price).toFixed(2)} por kg) serían $${(line.quantity * Number(product.price)).toFixed(2)}. ` +
+        `${added} Ojo: la etiqueta dice ${money(label.value)}, pero con el precio del sistema ` +
+          `(${money(Number(product.price))} por kg) serían ${money(line.quantity * Number(product.price))}. ` +
           `Revisá que el precio de ${product.name} en la balanza sea el mismo que en el sistema.`,
         'scan',
       );
@@ -592,8 +593,8 @@ const Orders = () => {
       const savedTotal = Number(saved?.total);
       if (Number.isFinite(savedTotal) && Math.abs(savedTotal - previewTotal) > 0.01) {
         msg.error(
-          `Remito ${orderNumberLabel(saved)} generado, pero el total guardado ($${savedTotal.toFixed(2)}) es distinto ` +
-            `del que mostraba la pantalla ($${previewTotal.toFixed(2)}). Vale el guardado: revisalo antes de entregarlo.`,
+          `Remito ${orderNumberLabel(saved)} generado, pero el total guardado (${money(savedTotal)}) es distinto ` +
+            `del que mostraba la pantalla (${money(previewTotal)}). Vale el guardado: revisalo antes de entregarlo.`,
         );
       } else {
         msg.success('Remito generado, stock actualizado');
@@ -667,7 +668,7 @@ const Orders = () => {
     const reason = await dialog.prompt({
       title: 'Anular remito',
       message:
-        `Vas a anular el remito de ${displayCustomer(order)} por $${Number(order.total).toFixed(2)}.\n` +
+        `Vas a anular el remito de ${displayCustomer(order)} por ${money(Number(order.total))}.\n` +
         'El stock de los productos vendidos se devuelve y el remito deja de contar en los reportes.',
       label: 'Motivo (opcional)',
       placeholder: 'Ej: el cliente devolvió la mercadería',
@@ -866,7 +867,7 @@ const Orders = () => {
               {availablePlans.map((plan) => (
                 <option key={plan.id} value={plan.id}>
                   {plan.installments} cuotas{' '}
-                  {Number(plan.interestRate) > 0 ? `(+${plan.interestRate}% interés)` : '(sin interés)'}
+                  {Number(plan.interestRate) > 0 ? `(+${formatRate(plan.interestRate)} interés)` : '(sin interés)'}
                 </option>
               ))}
             </select>
@@ -1024,8 +1025,8 @@ const Orders = () => {
                 {rowUnitType === 'weight' && rowQuantity > 0 && (
                   <div className="field field-full">
                     <small className="report-note">
-                      {formatQuantity(rowQuantity, 'weight')} × ${rowPrice.toFixed(2)} por kg = $
-                      {(Math.round(rowQuantity * rowPrice * 100) / 100).toFixed(2)}
+                      {formatQuantity(rowQuantity, 'weight')} × {money(rowPrice)} por kg ={' '}
+                      {money(Math.round(rowQuantity * rowPrice * 100) / 100)}
                     </small>
                   </div>
                 )}
@@ -1169,29 +1170,29 @@ const Orders = () => {
         </button>
 
         <div className="purchase-total">
-          {(discriminatesVat || hasDiscount) && <div>Importe: ${grossTotal.toFixed(2)}</div>}
-          {hasDiscount && <div>Descuento: -${totalDiscount.toFixed(2)}</div>}
+          {(discriminatesVat || hasDiscount) && <div>Importe: {money(grossTotal)}</div>}
+          {hasDiscount && <div>Descuento: -{money(totalDiscount)}</div>}
           {discriminatesVat ? (
             <>
-              <div>Subtotal: ${subtotal.toFixed(2)}</div>
-              <div>IVA: ${vatAmount.toFixed(2)}</div>
-              {internalTaxAmount > 0 && <div>Impuestos internos: ${internalTaxAmount.toFixed(2)}</div>}
-              <div>Total: ${total.toFixed(2)}</div>
+              <div>Subtotal: {money(subtotal)}</div>
+              <div>IVA: {money(vatAmount)}</div>
+              {internalTaxAmount > 0 && <div>Impuestos internos: {money(internalTaxAmount)}</div>}
+              <div>Total: {money(total)}</div>
             </>
           ) : (
-            <div>Total: ${total.toFixed(2)}</div>
+            <div>Total: {money(total)}</div>
           )}
           {discountExceedsTotal && <div className="error">El descuento no puede ser mayor al total.</div>}
 
           {accountPreview && (
             <>
-              {accountRate > 0 && <div>Total con interés: ${accountPreview.financed.toFixed(2)}</div>}
+              {accountRate > 0 && <div>Total con interés: {money(accountPreview.financed)}</div>}
               <div>
                 {accountCount === 1
                   ? `Cuenta corriente: vence el ${formatKey(accountPreview.dates[0])}`
-                  : `Cuenta corriente: ${accountCount} cuotas de $${accountPreview.amounts[0].toFixed(2)}` +
+                  : `Cuenta corriente: ${accountCount} cuotas de ${money(accountPreview.amounts[0])}` +
                     (accountPreview.amounts[accountCount - 1] !== accountPreview.amounts[0]
-                      ? ` (la última de $${accountPreview.amounts[accountCount - 1].toFixed(2)})`
+                      ? ` (la última de ${money(accountPreview.amounts[accountCount - 1])})`
                       : '') +
                     `, la primera vence el ${formatKey(accountPreview.dates[0])}`}
               </div>
@@ -1200,8 +1201,8 @@ const Orders = () => {
           {selectedPlan && (
             <>
               <div>Cantidad de cuotas: {selectedPlan.installments}</div>
-              <div>Monto de cada cuota: ${installmentAmount.toFixed(2)}</div>
-              <div>Precio total financiado: ${totalFinanced.toFixed(2)}</div>
+              <div>Monto de cada cuota: {money(installmentAmount)}</div>
+              <div>Precio total financiado: {money(totalFinanced)}</div>
             </>
           )}
         </div>
@@ -1257,7 +1258,7 @@ const Orders = () => {
                   </td>
                   <td data-label="Forma de pago">{paymentLabel(order)}</td>
                   <td data-label="Total">
-                    <span className="amount">${Number(order.totalFinanced || order.total).toFixed(2)}</span>
+                    <span className="amount">{money(Number(order.totalFinanced || order.total))}</span>
                   </td>
                   <td data-label="Acciones">
                     <Link to={`/orders/${order.id}/print`}>

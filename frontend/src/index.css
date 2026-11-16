@@ -197,11 +197,15 @@ a {
 
 /* ---------- Formularios ---------- */
 
+/* Los campos se alinean arriba: así las cajas quedan a la misma altura aunque alguno tenga una ayuda o
+   un error debajo. La etiqueta ocupa siempre una línea de 18px (+ 4px de separación), y los botones y
+   casillas sueltos del formulario bajan esos 22px para quedar a la altura de las cajas. */
 form {
+  --field-label-offset: 22px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: flex-end;
+  align-items: flex-start;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -292,6 +296,22 @@ label {
   font-size: 12px;
   color: var(--color-text-muted);
   font-weight: 500;
+}
+
+.field > label,
+.field > .field-label {
+  line-height: 18px;
+  min-height: 18px;
+}
+
+form:has(.field > label) > button {
+  margin-top: var(--field-label-offset);
+}
+
+form:has(.field > label) > .checkbox-inline {
+  margin-top: var(--field-label-offset);
+  min-height: 40px;
+  align-items: center;
 }
 
 .field-full {
@@ -592,7 +612,7 @@ td:nth-child(1),
 .purchase-item-row {
   display: flex;
   gap: 10px;
-  align-items: flex-end;
+  align-items: flex-start;
   flex-wrap: wrap;
   width: 100%;
   padding-bottom: 10px;
@@ -908,7 +928,7 @@ td:nth-child(1),
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: flex-end;
+  align-items: flex-start;
   background: transparent;
   border: none;
   padding: 0;
@@ -919,6 +939,12 @@ td:nth-child(1),
   display: flex;
   gap: 8px;
   align-items: flex-end;
+}
+
+/* Los botones de la edición en línea, a la altura de las cajas (como en los formularios) */
+.inline-edit-form:has(.field > label) > .inline-edit-actions,
+.inline-edit-form:has(.field > label) > button {
+  margin-top: 22px;
 }
 
 /* ---------- Plataforma (superadmin) ---------- */

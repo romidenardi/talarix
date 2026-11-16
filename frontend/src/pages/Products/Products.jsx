@@ -757,16 +757,14 @@ const Products = () => {
                         </td>
                         <td data-label="Categoría">{categoryName(product.categoryId)}</td>
                         <td data-label="Precio">
-                          ${Number(product.price).toFixed(2)}
+                          {money(Number(product.price))}
                           {perKg(product.unitType)}
                         </td>
                         <td data-label="Precio promo">
-                          {product.promoPrice
-                            ? `$${Number(product.promoPrice).toFixed(2)}${perKg(product.unitType)}`
-                            : '—'}
+                          {product.promoPrice ? `${money(Number(product.promoPrice))}${perKg(product.unitType)}` : '—'}
                         </td>
                         <td data-label="Costo">
-                          ${Number(product.cost).toFixed(2)}
+                          {money(Number(product.cost))}
                           {perKg(product.unitType)}
                         </td>
                         <td data-label="Stock">

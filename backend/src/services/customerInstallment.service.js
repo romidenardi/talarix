@@ -1,7 +1,7 @@
 import pkg from 'sequelize';
 import { CustomerInstallment, Customer, Order, Business } from '../models/index.js';
 import { httpError } from '../utils/httpError.js';
-import { round2, toNumber } from '../utils/numbers.js';
+import { round2, toNumber, formatMoney } from '../utils/numbers.js';
 import { dayKey } from '../utils/dates.js';
 import { formatOrderNumber } from './orderNumber.service.js';
 import { dueDates, splitAmount, daysLate, lateFee, spreadFee } from '../utils/accountInstallments.js';
@@ -336,7 +336,7 @@ export const paymentLateFees = ({ rows, day, rates, charged }) => {
     total = toNumber(charged);
     if (!Number.isFinite(total) || total < 0) throw httpError('El recargo por mora no es válido.');
     if (total > computed + 0.005) {
-      throw httpError(`El recargo por mora de estas cuotas es de $${computed.toFixed(2)}: no se puede cobrar más.`);
+      throw httpError(`El recargo por mora de estas cuotas es de ${formatMoney(computed)}: no se puede cobrar más.`);
     }
     total = round2(total);
   }
