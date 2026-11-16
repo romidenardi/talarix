@@ -6,6 +6,7 @@ import { cleanRequestId, isDuplicateRequest } from '../utils/requestId.js';
 import { APPROVER_ROLES, approvalSummary, checkApproval } from './orderApproval.service.js';
 import { lockProducts, moveStock, actorFields } from './stock.service.js';
 import { commissionFields } from './commission.service.js';
+import { readAccountTerms, accountPlan, createOrderInstallments } from './customerInstallment.service.js';
 import { priceOrder, discriminatesVatFor } from './orderPricing.js';
 import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
 import {
@@ -48,6 +49,8 @@ export const createOrder = async ({ body, user, options = {} }) => {
   const onAccount = paymentCondition === 'account';
   const paymentId = onAccount ? null : body.paymentId;
   const installmentPlanId = onAccount ? null : body.installmentPlanId;
+  // Cuenta corriente: cuotas (1 o más), interés opcional y día de vencimiento
+  const accountTerms = onAccount ? readAccountTerms(body) : null;
 
   // El mismo envío ya se procesó (doble clic o reintento): se devuelve ese remito, no se crea otro
   if (requestId) {
@@ -262,6 +265,9 @@ export const createOrder = async ({ body, user, options = {} }) => {
       transaction: t,
     });
 
+    // A cuenta corriente: total con interés, monto de cada cuota y vencimientos
+    const account = onAccount ? accountPlan({ total: totals.total, date: new Date(), ...accountTerms }) : null;
+
     const order = await Order.create(
       {
         businessId,
@@ -279,10 +285,11 @@ export const createOrder = async ({ body, user, options = {} }) => {
         vatAmount: totals.vatAmount,
         internalTaxAmount: totals.internalTaxAmount,
         discriminatesVat: discriminatesVatFor(customer.fiscalCondition),
-        installmentsCount: totals.installmentsCount,
-        interestRate: totals.interestRate,
-        installmentAmount: totals.installmentAmount,
-        totalFinanced: totals.totalFinanced,
+        installmentsCount: account ? accountTerms.installments : totals.installmentsCount,
+        interestRate: account ? accountTerms.interestRate : totals.interestRate,
+        installmentAmount: account ? account.installmentAmount : totals.installmentAmount,
+        totalFinanced: account ? account.totalFinanced : totals.totalFinanced,
+        accountDueDay: account ? accountTerms.dueDay : null,
         requestId,
         tableTabId: options.tableTabId || null,
         ...commission,
@@ -291,6 +298,7 @@ export const createOrder = async ({ body, user, options = {} }) => {
       { transaction: t },
     );
     orderId = order.id;
+    if (account) await createOrderInstallments({ order, plan: account, transaction: t });
 
     await OrderItem.bulkCreate(
       lines.map((line) => ({

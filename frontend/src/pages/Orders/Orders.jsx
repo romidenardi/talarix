@@ -9,6 +9,27 @@ import { paymentLabel } from '../../utils/orderPayments.js';
 import { getCustomers, createCustomer } from '../../api/customers.api.js';
 import { getCustomerBalances } from '../../api/customerAccounts.api.js';
 import { customerBalanceLabel } from '../../utils/customerAccounts.js';
+import { dueDates, splitAmount } from '../../utils/accountInstallments.js';
+
+// Cuenta corriente en cuotas: el día de vencimiento que se usó la última vez en este navegador
+const DUE_DAY_KEY = 'talarix.accountDueDay';
+const storedDueDay = () => {
+  try {
+    const day = Number(window.localStorage.getItem(DUE_DAY_KEY));
+    return Number.isInteger(day) && day >= 1 && day <= 31 ? day : 10;
+  } catch {
+    return 10;
+  }
+};
+const rememberDueDay = (day) => {
+  try {
+    window.localStorage.setItem(DUE_DAY_KEY, String(day));
+  } catch {
+    // Sin almacenamiento del navegador: la próxima vez vuelve al 10
+  }
+};
+const todayKey = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Argentina/Buenos_Aires' });
+const formatKey = (key) => key.split('-').reverse().join('/');
 import { getPayments } from '../../api/payments.api.js';
 import { getProducts, createProduct } from '../../api/products.api.js';
 import { getScaleConfig } from '../../api/scale.api.js';
@@ -87,6 +108,9 @@ const Orders = () => {
     defaultValues: {
       customerId: '',
       paymentCondition: 'cash',
+      accountInstallments: 1,
+      accountInterestRate: '',
+      accountDueDay: storedDueDay(),
       paymentId: '',
       installmentPlanId: '',
       discountPercent: 0,
@@ -229,6 +253,29 @@ const Orders = () => {
   const selectedPlan = availablePlans.find((p) => p.id === selectedInstallmentPlanId);
   const totalFinanced = selectedPlan ? total * (1 + Number(selectedPlan.interestRate) / 100) : total;
   const installmentAmount = selectedPlan ? totalFinanced / selectedPlan.installments : null;
+
+  // Vista previa de la cuenta corriente: total con interés, cuotas y vencimientos (mismo cálculo que el
+  // servidor, utils/accountInstallments.js)
+  const accountCount = Number(watch('accountInstallments'));
+  const accountRate = Number(String(watch('accountInterestRate') ?? '').replace(',', '.')) || 0;
+  const accountDay = Number(watch('accountDueDay'));
+  const accountTermsValid =
+    Number.isInteger(accountCount) &&
+    accountCount >= 1 &&
+    accountCount <= 60 &&
+    accountRate >= 0 &&
+    Number.isInteger(accountDay) &&
+    accountDay >= 1 &&
+    accountDay <= 31;
+  const accountPreview =
+    onAccount && accountTermsValid && total > 0
+      ? (() => {
+          const financed = Math.round(total * (1 + accountRate / 100) * 100) / 100;
+          const amounts = splitAmount(financed, accountCount);
+          const dates = dueDates(todayKey(), accountDay, accountCount);
+          return { financed, amounts, dates };
+        })()
+      : null;
 
   // Lo que el operador necesita que le autoricen en este remito (null si no hace falta)
   const approvalRequest = (formData) => {
@@ -522,6 +569,13 @@ const Orders = () => {
         paymentCondition: account ? 'account' : 'cash',
         paymentId: account ? null : formData.paymentId,
         installmentPlanId: account ? null : formData.installmentPlanId || null,
+        ...(account
+          ? {
+              accountInstallments: Number(formData.accountInstallments),
+              accountInterestRate: String(formData.accountInterestRate ?? '').replace(',', '.') || 0,
+              accountDueDay: Number(formData.accountDueDay),
+            }
+          : {}),
         discountPercent: Number(formData.discountPercent) || 0,
         discountAmount: Number(formData.discountAmount) || 0,
         notes: formData.notes || null,
@@ -531,6 +585,7 @@ const Orders = () => {
       };
 
       const { data: saved } = await createOrder(payload);
+      if (account) rememberDueDay(Number(formData.accountDueDay));
       requestIdRef.current = newRequestId();
       approvalTokenRef.current = null;
       // El servidor es el que manda: si el total guardado no coincide con el de la pantalla, se avisa
@@ -546,6 +601,9 @@ const Orders = () => {
       reset({
         customerId: '',
         paymentCondition: 'cash',
+        accountInstallments: 1,
+        accountInterestRate: '',
+        accountDueDay: account ? Number(formData.accountDueDay) : storedDueDay(),
         paymentId: '',
         installmentPlanId: '',
         discountPercent: 0,
@@ -721,6 +779,58 @@ const Orders = () => {
             </small>
           )}
         </div>
+
+        {onAccount && (
+          <div className="account-terms">
+            <div className="field">
+              <label htmlFor="accountInstallments">Cuotas</label>
+              <input
+                id="accountInstallments"
+                type="number"
+                min="1"
+                max="60"
+                step="1"
+                {...register('accountInstallments', {
+                  validate: (v) =>
+                    (Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 60) || 'De 1 a 60 cuotas',
+                })}
+              />
+              {errors.accountInstallments && <span className="error">{errors.accountInstallments.message}</span>}
+            </div>
+            <div className="field">
+              <label htmlFor="accountInterestRate">Interés total (%)</label>
+              <input
+                id="accountInterestRate"
+                inputMode="decimal"
+                placeholder="Opcional"
+                {...register('accountInterestRate', {
+                  validate: (v) =>
+                    v === '' ||
+                    (Number(String(v).replace(',', '.')) >= 0 &&
+                      Number.isFinite(Number(String(v).replace(',', '.')))) ||
+                    'Poné un porcentaje de 0 en adelante',
+                })}
+              />
+              {errors.accountInterestRate && <span className="error">{errors.accountInterestRate.message}</span>}
+            </div>
+            <div className="field">
+              <label htmlFor="accountDueDay">Vencen el día</label>
+              <input
+                id="accountDueDay"
+                type="number"
+                min="1"
+                max="31"
+                step="1"
+                {...register('accountDueDay', {
+                  validate: (v) =>
+                    (Number.isInteger(Number(v)) && Number(v) >= 1 && Number(v) <= 31) || 'Un día del 1 al 31',
+                })}
+              />
+              <small>de cada mes</small>
+              {errors.accountDueDay && <span className="error">{errors.accountDueDay.message}</span>}
+            </div>
+          </div>
+        )}
 
         {!onAccount && (
           <div className="field">
@@ -1073,6 +1183,20 @@ const Orders = () => {
           )}
           {discountExceedsTotal && <div className="error">El descuento no puede ser mayor al total.</div>}
 
+          {accountPreview && (
+            <>
+              {accountRate > 0 && <div>Total con interés: ${accountPreview.financed.toFixed(2)}</div>}
+              <div>
+                {accountCount === 1
+                  ? `Cuenta corriente: vence el ${formatKey(accountPreview.dates[0])}`
+                  : `Cuenta corriente: ${accountCount} cuotas de $${accountPreview.amounts[0].toFixed(2)}` +
+                    (accountPreview.amounts[accountCount - 1] !== accountPreview.amounts[0]
+                      ? ` (la última de $${accountPreview.amounts[accountCount - 1].toFixed(2)})`
+                      : '') +
+                    `, la primera vence el ${formatKey(accountPreview.dates[0])}`}
+              </div>
+            </>
+          )}
           {selectedPlan && (
             <>
               <div>Cantidad de cuotas: {selectedPlan.installments}</div>

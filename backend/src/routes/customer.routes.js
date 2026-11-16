@@ -1,7 +1,12 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { getCustomers, createCustomer, updateCustomer, deleteCustomer } from '../controllers/customer.controller.js';
-import { getCustomerBalances, getCustomerStatement } from '../controllers/customerPayment.controller.js';
+import {
+  getCustomerBalances,
+  getCustomerStatement,
+  getCustomerInstallments,
+  getCustomerOverdue,
+} from '../controllers/customerPayment.controller.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { requireRole } from '../middlewares/role.middleware.js';
 
@@ -37,6 +42,9 @@ router.get('/', getCustomers);
 // Cuenta corriente: saldo de cada cliente y resumen de uno
 router.get('/balances', requireRole('admin', 'editor'), getCustomerBalances);
 router.get('/:id/account', requireRole('admin', 'editor'), getCustomerStatement);
+// Cuotas de un cliente y mora de todos (a hoy)
+router.get('/overdue', requireRole('admin', 'editor'), getCustomerOverdue);
+router.get('/:id/installments', requireRole('admin', 'editor'), getCustomerInstallments);
 router.post('/', requireRole('admin', 'editor'), createRules, validate, createCustomer);
 router.put('/:id', requireRole('admin', 'editor'), updateRules, validate, updateCustomer);
 router.delete('/:id', requireRole('admin', 'editor'), deleteCustomer);

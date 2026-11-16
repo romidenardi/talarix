@@ -4,13 +4,21 @@ import { httpError } from '../utils/httpError.js';
 import { round2 } from '../utils/numbers.js';
 import { formatOrderNumber } from './orderNumber.service.js';
 
-const { Op, fn, col } = pkg;
+const { Op, fn, col, literal } = pkg;
 
 // Cuenta corriente de clientes (el espejo de services/supplierAccount.service.js). El saldo de un
 // cliente es:
-//   saldo inicial + remitos activos a cuenta corriente − cobranzas activas
-// Positivo: el cliente debe; negativo: tiene saldo a favor. Las cobranzas se aplican a la deuda
-// total, no a un remito. Anular un remito o una cobranza la saca de la cuenta.
+//   saldo inicial + remitos activos a cuenta corriente (con su interés) − cobranzas activas
+// Positivo: el cliente debe; negativo: tiene saldo a favor. Anular un remito o una cobranza la saca
+// de la cuenta. Las cuotas y la mora están en services/customerInstallment.service.js.
+
+// Lo que suma un remito a cuenta corriente: el total con interés si lo tiene
+const ORDER_OWED = 'COALESCE(total_financed, total)';
+const owedOf = (order) => Number(order.totalFinanced ?? order.total);
+const sumOwed = async (where) => {
+  const row = await Order.findOne({ where, attributes: [[fn('SUM', literal(ORDER_OWED)), 'sum']], raw: true });
+  return Number(row?.sum) || 0;
+};
 
 const ACCOUNT_ORDER = { status: 'active', paymentCondition: 'account' };
 
@@ -23,7 +31,7 @@ const sumByCustomer = async (Model, field, where) => {
     where,
     attributes: [
       [col('customer_id'), 'customerId'],
-      [fn('SUM', col(field)), 'sum'],
+      [fn('SUM', field === ORDER_OWED ? literal(ORDER_OWED) : col(field)), 'sum'],
       [fn('MAX', col('date')), 'last'],
     ],
     group: [col('customer_id')],
@@ -39,7 +47,7 @@ export const customerBalances = async (businessId) => {
       where: { businessId },
       attributes: ['id', 'businessName', 'firstName', 'lastName', 'cuit', 'openingBalance', 'anonymizedAt'],
     }),
-    sumByCustomer(Order, 'total', { businessId, ...ACCOUNT_ORDER }),
+    sumByCustomer(Order, ORDER_OWED, { businessId, ...ACCOUNT_ORDER }),
     sumByCustomer(CustomerPayment, 'amount', { businessId, status: 'active' }),
   ]);
 
@@ -69,7 +77,7 @@ export const customerBalance = async (businessId, customerId) => {
   const customer = await Customer.findOne({ where: { id: customerId, businessId } });
   if (!customer) throw httpError('Cliente no encontrado.', 404);
   const [sold, paid] = await Promise.all([
-    Order.sum('total', { where: { businessId, customerId, ...ACCOUNT_ORDER } }),
+    sumOwed({ businessId, customerId, ...ACCOUNT_ORDER }),
     CustomerPayment.sum('amount', { where: { businessId, customerId, status: 'active' } }),
   ]);
   return round2((Number(customer.openingBalance) || 0) + (Number(sold) || 0) - (Number(paid) || 0));
@@ -93,11 +101,11 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
   const before = { [Op.lt]: start };
   const inRange = { [Op.gte]: start, [Op.lt]: end };
   const [soldBefore, paidBefore, orders, payments] = await Promise.all([
-    Order.sum('total', { where: { businessId, customerId, ...ACCOUNT_ORDER, date: before } }),
+    sumOwed({ businessId, customerId, ...ACCOUNT_ORDER, date: before }),
     CustomerPayment.sum('amount', { where: { businessId, customerId, status: 'active', date: before } }),
     Order.findAll({
       where: { businessId, customerId, ...ACCOUNT_ORDER, date: inRange },
-      attributes: ['id', 'date', 'number', 'total', 'createdAt'],
+      attributes: ['id', 'date', 'number', 'total', 'totalFinanced', 'installmentsCount', 'createdAt'],
     }),
     CustomerPayment.findAll({
       where: { businessId, customerId, status: 'active', date: inRange },
@@ -117,8 +125,11 @@ export const customerStatement = async (businessId, customerId, { start, end }) 
       date: o.date,
       createdAt: o.createdAt,
       number: Number(o.number),
-      description: `Remito ${formatOrderNumber(o)}`,
-      debit: round2(Number(o.total)),
+      description:
+        `Remito ${formatOrderNumber(o)}` +
+        (Number(o.installmentsCount) > 1 ? ` · ${o.installmentsCount} cuotas` : '') +
+        (o.totalFinanced !== null && Number(o.totalFinanced) !== Number(o.total) ? ' · con interés' : ''),
+      debit: round2(owedOf(o)),
       credit: 0,
     })),
     ...payments.map((p) => ({

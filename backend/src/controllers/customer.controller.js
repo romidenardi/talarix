@@ -1,4 +1,5 @@
-import { Customer, Order, CustomerPayment } from '../models/index.js';
+import { Customer, Order, CustomerPayment, CustomerInstallment, sequelize } from '../models/index.js';
+import { syncOpeningInstallment } from '../services/customerInstallment.service.js';
 import { audit } from '../utils/audit.js';
 import { round2 } from '../utils/numbers.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -76,9 +77,17 @@ export const getCustomers = asyncHandler(async (req, res) => {
 });
 
 export const createCustomer = asyncHandler(async (req, res) => {
-  const customer = await Customer.create({
-    ...cleanTaxId(cleanOpeningBalance(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS)))),
-    businessId: req.user.businessId,
+  const customer = await sequelize.transaction(async (transaction) => {
+    const created = await Customer.create(
+      {
+        ...cleanTaxId(cleanOpeningBalance(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS)))),
+        businessId: req.user.businessId,
+      },
+      { transaction },
+    );
+    // Con saldo inicial, la cuota de ese saldo
+    await syncOpeningInstallment({ customer: created, transaction });
+    return created;
   });
   res.status(201).json(customer);
 });
@@ -90,7 +99,11 @@ export const updateCustomer = asyncHandler(async (req, res) => {
   }
   const previousOpening = Number(customer.openingBalance);
   const data = cleanTaxId(cleanOpeningBalance(cleanFiscalCondition(pick(req.body, CUSTOMER_FIELDS))), customer.cuit);
-  await customer.update(data);
+  // El saldo inicial es una cuota de la cuenta corriente: se actualiza junto con el cliente
+  await sequelize.transaction(async (transaction) => {
+    await customer.update(data, { transaction });
+    if ('openingBalance' in data) await syncOpeningInstallment({ customer, transaction });
+  });
   // Cambiar el saldo inicial mueve la cuenta corriente: queda registrado
   if ('openingBalance' in data && data.openingBalance !== previousOpening) {
     await audit(req, {
@@ -124,6 +137,8 @@ export const deleteCustomer = asyncHandler(async (req, res) => {
     );
   }
 
+  // Sin remitos ni cobranzas, la única cuota posible es la del saldo inicial
+  await CustomerInstallment.destroy({ where: { customerId: customer.id, businessId } });
   await customer.destroy();
   res.status(204).send();
 });

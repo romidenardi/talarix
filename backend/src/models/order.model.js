@@ -48,6 +48,15 @@ const Order = sequelize.define(
       allowNull: true,
       field: 'commission_amount',
     },
+    // Cuenta corriente en cuotas (migración 012): día del mes en que vencen. La cantidad de cuotas, el
+    // interés, el monto de cada cuota y el total con interés usan las mismas columnas que las cuotas
+    // con tarjeta (installments_count, interest_rate, installment_amount, total_financed), pero sin
+    // plan de cuotas. Las cuotas en sí están en customer_installments.
+    accountDueDay: {
+      type: DataTypes.TINYINT,
+      allowNull: true,
+      field: 'account_due_day',
+    },
     // Contado (cash) o cuenta corriente (account): el de cuenta corriente suma a lo que debe el
     // cliente (services/customerAccount.service.js)
     paymentCondition: {

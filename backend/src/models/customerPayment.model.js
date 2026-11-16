@@ -2,8 +2,8 @@ import pkg from 'sequelize';
 const { DataTypes } = pkg;
 import sequelize from '../config/database.js';
 
-// Cobranza a un cliente (cuenta corriente). Se aplica a la deuda total del cliente, no a un remito
-// en particular. Se anula, no se borra: queda el historial.
+// Cobranza a un cliente (cuenta corriente). Paga cuotas completas (customer_installments guarda cuál
+// la pagó). Se anula, no se borra: queda el historial, y las cuotas vuelven a quedar impagas.
 const CustomerPayment = sequelize.define(
   'CustomerPayment',
   {

@@ -8,6 +8,8 @@ import { purchaseTotals as backPurchase } from '../../src/utils/purchaseTotals.j
 import { purchaseTotals as frontPurchase } from '../../../frontend/src/utils/purchaseTotals.js';
 import { DEFAULT_SCALE_CONFIG as backScale } from '../../src/utils/scaleConfig.js';
 import { DEFAULT_SCALE_CONFIG as frontScale } from '../../../frontend/src/utils/scale.js';
+import * as backInstallments from '../../src/utils/accountInstallments.js';
+import * as frontInstallments from '../../../frontend/src/utils/accountInstallments.js';
 
 // El cálculo de IVA está copiado en el frontend (vista previa) y en el backend (lo que se guarda).
 // Si alguien cambia uno y no el otro, este test falla.
@@ -53,4 +55,21 @@ test('los totales de una compra dan lo mismo en el frontend y en el backend', ()
 
 test('la configuración de fábrica de la balanza es la misma en los dos lados', () => {
   assert.deepEqual(frontScale, backScale);
+});
+
+test('las cuotas de cuenta corriente dan lo mismo en el frontend y en el backend', () => {
+  for (const [sale, day, count] of [
+    ['2026-11-10', 20, 3],
+    ['2026-11-25', 20, 12],
+    ['2027-01-31', 31, 4],
+  ]) {
+    assert.deepEqual(frontInstallments.dueDates(sale, day, count), backInstallments.dueDates(sale, day, count));
+  }
+  for (const [total, count] of [
+    [34500, 3],
+    [100, 3],
+    [98765.43, 7],
+  ]) {
+    assert.deepEqual(frontInstallments.splitAmount(total, count), backInstallments.splitAmount(total, count));
+  }
 });

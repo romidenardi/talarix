@@ -10,6 +10,7 @@ import Customer from './customer.model.js';
 import Supplier from './supplier.model.js';
 import SupplierPayment from './supplierPayment.model.js';
 import CustomerPayment from './customerPayment.model.js';
+import CustomerInstallment from './customerInstallment.model.js';
 import Purchase from './purchase.model.js';
 import PurchaseItem from './purchaseItem.model.js';
 import PurchaseExpense from './purchaseExpense.model.js';
@@ -77,6 +78,11 @@ SupplierPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false
 Customer.hasMany(CustomerPayment, { as: 'payments', foreignKey: 'customerId', constraints: false });
 CustomerPayment.belongsTo(Customer, { foreignKey: 'customerId', constraints: false });
 CustomerPayment.belongsTo(Payment, { foreignKey: 'paymentId', constraints: false });
+// Cuotas de la cuenta corriente (migración 012), también sin claves foráneas
+CustomerInstallment.belongsTo(Customer, { foreignKey: 'customerId', constraints: false });
+CustomerInstallment.belongsTo(Order, { foreignKey: 'orderId', constraints: false });
+CustomerInstallment.belongsTo(CustomerPayment, { foreignKey: 'customerPaymentId', constraints: false });
+Order.hasMany(CustomerInstallment, { as: 'accountInstallments', foreignKey: 'orderId', constraints: false });
 
 Purchase.hasMany(PurchaseItem, { as: 'items', foreignKey: 'purchaseId' });
 PurchaseItem.belongsTo(Purchase, { foreignKey: 'purchaseId' });
@@ -133,6 +139,7 @@ export {
   Supplier,
   SupplierPayment,
   CustomerPayment,
+  CustomerInstallment,
   Purchase,
   PurchaseItem,
   PurchaseExpense,

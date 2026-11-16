@@ -47,6 +47,10 @@ describe('Cuenta demo', () => {
     assert.equal(accountOrders.length, 2);
     assert.ok(accountOrders.every((o) => o.paymentId === null));
     assert.equal(await models.CustomerPayment.count({ where: { businessId } }), 1);
+    // En cuotas: 3 + 2 de los remitos y 1 del saldo inicial del kiosco; una cobrada
+    const installments = await models.CustomerInstallment.findAll({ where: { businessId } });
+    assert.equal(installments.length, 6);
+    assert.equal(installments.filter((i) => i.paidAt).length, 1);
   });
 
   it('reiniciarla dos veces no duplica ni deja servicios sueltos', async () => {

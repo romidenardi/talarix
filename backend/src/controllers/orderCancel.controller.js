@@ -5,6 +5,7 @@ import { round3 } from '../utils/numbers.js';
 import { audit } from '../utils/audit.js';
 import { lockProducts, moveStock } from '../services/stock.service.js';
 import { formatOrderNumber } from '../services/orderNumber.service.js';
+import { cancelOrderInstallments } from '../services/customerInstallment.service.js';
 
 const arDate = (date) => new Date(date).toLocaleDateString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' });
 
@@ -34,6 +35,8 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     });
     if (!order) throw httpError('Remito no encontrado', 404);
     if (order.status === 'cancelled') throw httpError('El remito ya está anulado.', 409);
+    // A cuenta corriente: no se anula con cuotas cobradas; si no, sus cuotas se anulan con él
+    if (order.paymentCondition === 'account') await cancelOrderInstallments({ order, transaction: t });
 
     const items = await OrderItem.findAll({ where: { orderId: order.id }, transaction: t });
     const customer = await Customer.findOne({

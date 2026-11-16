@@ -1,4 +1,4 @@
-import { Order, OrderItem, OrderPayment, Product, Customer, Payment } from '../models/index.js';
+import { Order, OrderItem, OrderPayment, Product, Customer, Payment, CustomerInstallment } from '../models/index.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { httpError } from '../utils/httpError.js';
 import pkg from 'sequelize';
@@ -65,7 +65,16 @@ export const getOrder = asyncHandler(async (req, res) => {
         vatAmount: order.vatAmount,
       })
     : null;
-  res.json({ ...order.toJSON(), vatBreakdown: breakdown });
+  // A cuenta corriente: las cuotas con su vencimiento, para imprimirlas en el remito
+  const accountInstallments =
+    order.paymentCondition === 'account'
+      ? await CustomerInstallment.findAll({
+          where: { orderId: order.id, businessId: req.user.businessId },
+          attributes: ['number', 'dueDate', 'amount', 'paidAt', 'status'],
+          order: [['number', 'ASC']],
+        })
+      : [];
+  res.json({ ...order.toJSON(), vatBreakdown: breakdown, accountInstallments });
 });
 
 // Toda la lógica está en services/order.service.js: acá solo se arma la respuesta

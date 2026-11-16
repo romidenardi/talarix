@@ -1,4 +1,4 @@
-import { Customer, Order, OrderItem, CustomerPayment, sequelize } from '../models/index.js';
+import { Customer, Order, OrderItem, CustomerPayment, CustomerInstallment, sequelize } from '../models/index.js';
 import { customerBalance } from '../services/customerAccount.service.js';
 import { round2 } from '../utils/numbers.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -65,6 +65,17 @@ export const exportCustomerData = asyncHandler(async (req, res) => {
     { name: 'Remitos', ...sheetFrom(Order, orders) },
     { name: 'Detalle de remitos', ...sheetFrom(OrderItem, items) },
     { name: 'Cobranzas', ...sheetFrom(CustomerPayment, payments) },
+    {
+      name: 'Cuotas',
+      ...sheetFrom(
+        CustomerInstallment,
+        await CustomerInstallment.findAll({
+          where: { customerId: customer.id, businessId },
+          order: [['dueDate', 'ASC']],
+          raw: true,
+        }),
+      ),
+    },
   ]);
 
   console.log(`[derechos] acceso · comercio ${businessId} · cliente ${customer.id} · usuario ${req.user.id}`);

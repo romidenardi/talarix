@@ -2166,6 +2166,45 @@ td .form-message {
   align-items: end;
 }
 
+/* Remito a cuenta corriente: cuotas, interés y día de vencimiento, uno al lado del otro */
+.account-terms {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+/* Cuotas en la cobranza: una por renglón, con su casilla */
+.installment-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.installment-pick label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text);
+}
+/* Título de un grupo de casillas, con el mismo aspecto que la etiqueta de un campo */
+.field .field-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+/* Renglón de totales al pie de una tabla */
+.row-total td {
+  font-weight: 600;
+  background: var(--color-bg);
+}
+.installment-overdue {
+  color: var(--color-danger, #b42318);
+  font-weight: 600;
+}
+
 /* Descuento al cobrar una mesa: % y monto, uno al lado del otro */
 .close-discount {
   display: grid;

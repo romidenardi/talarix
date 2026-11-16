@@ -8,6 +8,8 @@ import {
   getCustomerPayments,
   createCustomerPayment,
   cancelCustomerPayment,
+  getCustomerInstallments,
+  getCustomerOverdue,
 } from '../../api/customerAccounts.api.js';
 import { getPayments } from '../../api/payments.api.js';
 import Spinner from '../../components/common/Spinner.jsx';
@@ -16,16 +18,28 @@ import DateRangeFilter from '../../components/common/DateRangeFilter.jsx';
 import { RequiredMark, RequiredLegend } from '../../components/common/Required.jsx';
 import { useMessage } from '../../hooks/useMessage.js';
 import { serverMessage } from '../../utils/serverErrors.js';
-import { money, presetRange, toISODate } from '../../utils/reportFormat.js';
+import { money, presetRange, toISODate, downloadCsv } from '../../utils/reportFormat.js';
 import { newRequestId } from '../../utils/requestId.js';
 import { customerBalanceLabel as balanceLabel } from '../../utils/customerAccounts.js';
 import StatementTable from '../SupplierAccounts/StatementTable.jsx';
 
 // Cuenta corriente de clientes (el espejo de pages/SupplierAccounts). El saldo de cada cliente es:
-// saldo inicial + remitos a cuenta corriente − cobranzas. Las cobranzas se aplican a la deuda total,
-// no a un remito. Solo administrador y editor.
+// saldo inicial + remitos a cuenta corriente (con su interés) − cobranzas. Cada remito se divide en
+// cuotas con vencimiento, y cada cobranza paga cuotas completas. Abajo, la mora por tramo de atraso.
+// Solo administrador y editor.
 
 const formatDate = (value) => new Date(value).toLocaleDateString('es-AR');
+// Fecha sin hora (AAAA-MM-DD) → dd/mm/aaaa
+const formatKey = (key) => (key ? key.split('-').reverse().join('/') : '—');
+
+// Estado de una cuota, en palabras
+const installmentStatus = (inst) => {
+  if (inst.paid) return `Pagada${inst.paidAt ? ` el ${formatDate(inst.paidAt)}` : ''}`;
+  if (inst.daysLate > 0) return `Vencida hace ${inst.daysLate} ${inst.daysLate === 1 ? 'día' : 'días'}`;
+  return 'Por vencer';
+};
+const installmentLabel = (inst) =>
+  `${inst.description}${inst.installmentsCount > 1 ? ` · cuota ${inst.number} de ${inst.installmentsCount}` : ''}`;
 
 // Fecha elegida en el formulario → la que se manda. Hoy: sin fecha (el servidor usa la hora actual,
 // así la cobranza queda después de los remitos de hoy). Otro día: al mediodía de Argentina.
@@ -38,7 +52,6 @@ const customerLabel = (c) =>
 const emptyPayment = () => ({
   customerId: '',
   date: toISODate(new Date()),
-  amount: '',
   paymentId: '',
   reference: '',
   notes: '',
@@ -62,6 +75,13 @@ const CustomerAccounts = () => {
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
 
+  // Cuotas impagas del cliente elegido en el formulario, y las elegidas para cobrar
+  const [payInstallments, setPayInstallments] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
+  // Cuotas del cliente con el resumen abierto, y la mora de todos
+  const [statementInstallments, setStatementInstallments] = useState([]);
+  const [overdue, setOverdue] = useState(null);
+
   const formRef = useRef(null);
   const sendingRef = useRef(false);
   const requestIdRef = useRef(newRequestId());
@@ -73,7 +93,39 @@ const CustomerAccounts = () => {
     setValue,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: emptyPayment() });
-  const selectedCustomer = balances.find((b) => b.customerId === watch('customerId'));
+  const formCustomerId = watch('customerId');
+  const selectedCustomer = balances.find((b) => b.customerId === formCustomerId);
+  const selectedTotal =
+    Math.round(payInstallments.filter((i) => selectedIds.includes(i.id)).reduce((sum, i) => sum + i.amount, 0) * 100) /
+    100;
+
+  const loadPayInstallments = async (customerId) => {
+    setSelectedIds([]);
+    if (!customerId) {
+      setPayInstallments([]);
+      return;
+    }
+    try {
+      const { data } = await getCustomerInstallments(customerId);
+      setPayInstallments(data.filter((i) => !i.paid));
+    } catch (err) {
+      setPayInstallments([]);
+      msg.error(serverMessage(err, 'No se pudieron cargar las cuotas.'), 'form');
+    }
+  };
+
+  useEffect(() => {
+    loadPayInstallments(formCustomerId);
+  }, [formCustomerId]);
+
+  const loadOverdue = async () => {
+    try {
+      const { data } = await getCustomerOverdue();
+      setOverdue(data);
+    } catch (err) {
+      msg.error(serverMessage(err, 'No se pudo cargar la mora.'), 'overdue');
+    }
+  };
 
   const loadBalances = async () => {
     const { data } = await getCustomerBalances();
@@ -96,8 +148,12 @@ const CustomerAccounts = () => {
   const loadStatement = async (customerId, range = statementRange) => {
     setStatementLoading(true);
     try {
-      const { data } = await getCustomerStatement(customerId, range);
+      const [{ data }, { data: installments }] = await Promise.all([
+        getCustomerStatement(customerId, range),
+        getCustomerInstallments(customerId),
+      ]);
       setStatement(data);
+      setStatementInstallments(installments);
       setStatementRange(range);
     } catch (err) {
       msg.error(serverMessage(err, 'No se pudo cargar el resumen de cuenta.'), 'statement');
@@ -109,7 +165,7 @@ const CustomerAccounts = () => {
   useEffect(() => {
     (async () => {
       try {
-        const [, methods] = await Promise.all([loadBalances(), getPayments(), loadPayments()]);
+        const [, methods] = await Promise.all([loadBalances(), getPayments(), loadPayments(), loadOverdue()]);
         setPaymentMethods(methods.data.filter((p) => p.active !== false));
       } catch {
         msg.error('No se pudo cargar la información. Recargá la página.', 'page');
@@ -119,10 +175,19 @@ const CustomerAccounts = () => {
     })();
   }, []);
 
-  // Después de una cobranza o una anulación: saldos, cobranzas y el resumen abierto
+  // Después de una cobranza o una anulación: saldos, cobranzas, mora, cuotas y el resumen abierto
   const refresh = async () => {
-    await Promise.all([loadBalances(), loadPayments(), statementId ? loadStatement(statementId) : null]);
+    await Promise.all([
+      loadBalances(),
+      loadPayments(),
+      loadOverdue(),
+      loadPayInstallments(watch('customerId')),
+      statementId ? loadStatement(statementId) : null,
+    ]);
   };
+
+  const toggleInstallment = (id) =>
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
 
   const openStatement = (customerId) => {
     if (statementId === customerId) {
@@ -145,32 +210,24 @@ const CustomerAccounts = () => {
     sendingRef.current = true;
     msg.clear();
     try {
-      const customer = balances.find((b) => b.customerId === formData.customerId);
-      const amount = Number(formData.amount);
-      // Cobrar más de lo que debe le deja saldo a favor al cliente: se confirma antes
-      if (customer && amount > customer.balance + 0.005) {
-        const ok = await dialog.confirm({
-          title: 'Cobranza mayor a la deuda',
-          message:
-            `${customer.name}: ${balanceLabel(customer.balance)}. Si registrás ${money(amount)}, ` +
-            `le queda a favor ${money(amount - Math.max(customer.balance, 0))}. ¿Registrarla igual?`,
-          confirmLabel: 'Registrar',
-          cancelLabel: 'Volver',
-        });
-        if (!ok) return;
+      // Se cobran cuotas completas: el importe es la suma de las elegidas
+      if (!selectedIds.length) {
+        msg.error('Elegí las cuotas que paga el cliente.', 'form');
+        return;
       }
       await createCustomerPayment({
         customerId: formData.customerId,
+        installmentIds: selectedIds,
         paymentId: formData.paymentId,
-        amount,
+        amount: selectedTotal,
         date: paymentDate(formData.date),
         reference: formData.reference || null,
         notes: formData.notes || null,
         requestId: requestIdRef.current,
       });
       requestIdRef.current = newRequestId();
-      reset(emptyPayment());
-      msg.success('Cobranza registrada.', 'form');
+      reset({ ...emptyPayment(), customerId: formData.customerId, paymentId: formData.paymentId });
+      msg.success(`Cobranza de ${money(selectedTotal)} registrada.`, 'form');
       await refresh();
     } catch (err) {
       msg.error(serverMessage(err, 'No se pudo registrar la cobranza.'), 'form');
@@ -184,7 +241,7 @@ const CustomerAccounts = () => {
       title: 'Anular cobranza',
       message:
         `Vas a anular la cobranza de ${money(payment.amount)} a ${customerLabel(payment.Customer)} ` +
-        `del ${formatDate(payment.date)}. El importe vuelve a sumar a la deuda.`,
+        `del ${formatDate(payment.date)}. El importe vuelve a sumar a la deuda y sus cuotas quedan impagas.`,
       label: 'Motivo (opcional)',
       confirmLabel: 'Anular cobranza',
       cancelLabel: 'Volver',
@@ -203,6 +260,29 @@ const CustomerAccounts = () => {
     }
   };
 
+  const exportOverdue = () =>
+    downloadCsv(
+      `mora_${overdue.date}.csv`,
+      [
+        'Cliente',
+        'CUIT',
+        'Teléfono',
+        'Por vencer',
+        ...overdue.buckets.map((b) => b.label),
+        'Total vencido',
+        'Días de atraso',
+      ],
+      overdue.customers.map((c) => [
+        c.name,
+        c.cuit || '',
+        c.phone || '',
+        c.notDue,
+        ...overdue.buckets.map((b) => c[b.key]),
+        c.overdue,
+        c.maxDaysLate,
+      ]),
+    );
+
   if (loading) return <Spinner label="Cargando cuentas corrientes..." />;
 
   const visibleBalances = balances.filter(
@@ -218,9 +298,9 @@ const CustomerAccounts = () => {
     <div className="customer-accounts-page">
       <h1>Cuentas corrientes de clientes</h1>
       <p className="report-note">
-        Los remitos con condición «Cuenta corriente» suman a lo que te debe cada cliente, y las cobranzas lo descuentan.
-        Cada cobranza se aplica a la deuda total, no a un remito en particular. El saldo inicial de cada cliente se
-        carga al editarlo en Clientes. Las mesas siempre se cobran al contado.
+        Los remitos con condición «Cuenta corriente» suman a lo que te debe cada cliente, divididos en cuotas con su
+        vencimiento. Cada cobranza paga cuotas completas. El saldo inicial de cada cliente se carga al editarlo en
+        Clientes y es una cuota más. Las mesas siempre se cobran al contado.
       </p>
       <FormMessage message={msg.at('page')} />
 
@@ -229,6 +309,15 @@ const CustomerAccounts = () => {
           <span>Total que te deben los clientes</span>
           <strong>{money(totalDebt)}</strong>
         </div>
+        {overdue && (
+          <div className="stat-card">
+            <span>Vencido</span>
+            <strong>{money(overdue.totals.overdue)}</strong>
+            <small>
+              {overdue.totals.customers} {overdue.totals.customers === 1 ? 'cliente' : 'clientes'} en mora
+            </small>
+          </div>
+        )}
       </div>
 
       <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="customer-payment-form">
@@ -262,22 +351,33 @@ const CustomerAccounts = () => {
           />
           {errors.date && <span className="error">{errors.date.message}</span>}
         </div>
-        <div className="field">
-          <label htmlFor="pay-amount">
-            Importe
+        <div className="field field-full">
+          <span className="field-label">
+            Cuotas que paga
             <RequiredMark />
-          </label>
-          <input
-            id="pay-amount"
-            type="number"
-            step="0.01"
-            placeholder="Ej: 150000"
-            {...register('amount', {
-              required: 'Cargá el importe',
-              min: { value: 0.01, message: 'El importe tiene que ser mayor a 0' },
-            })}
-          />
-          {errors.amount && <span className="error">{errors.amount.message}</span>}
+          </span>
+          {!formCustomerId && <small>Elegí el cliente para ver sus cuotas.</small>}
+          {formCustomerId && payInstallments.length === 0 && <small>Este cliente no tiene cuotas impagas.</small>}
+          {payInstallments.length > 0 && (
+            <div className="installment-pick">
+              {payInstallments.map((inst) => (
+                <label key={inst.id}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(inst.id)}
+                    onChange={() => toggleInstallment(inst.id)}
+                  />
+                  <span>
+                    {installmentLabel(inst)} · {money(inst.amount)} · vence el {formatKey(inst.dueDate)}
+                    {inst.daysLate > 0 && <span className="installment-overdue"> · {installmentStatus(inst)}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+          <small>
+            Total a cobrar: <strong>{money(selectedTotal)}</strong> (las cuotas se cobran completas)
+          </small>
         </div>
         <div className="field">
           <label htmlFor="pay-method">
@@ -391,7 +491,124 @@ const CustomerAccounts = () => {
               </Link>
             </div>
           )}
+          {statement && (
+            <>
+              <h3 className="report-subtitle">Cuotas</h3>
+              {statementInstallments.length === 0 ? (
+                <p className="report-note">Este cliente no tiene cuotas.</p>
+              ) : (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Concepto</th>
+                        <th>Vence</th>
+                        <th>Importe</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {statementInstallments.map((inst) => (
+                        <tr key={inst.id}>
+                          <td data-label="Concepto">{installmentLabel(inst)}</td>
+                          <td data-label="Vence">{formatKey(inst.dueDate)}</td>
+                          <td data-label="Importe">{money(inst.amount)}</td>
+                          <td data-label="Estado">
+                            <span className={inst.status === 'overdue' ? 'installment-overdue' : undefined}>
+                              {installmentStatus(inst)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </section>
+      )}
+
+      <h2 className="report-subtitle">Mora</h2>
+      <p className="report-note">
+        Lo que cada cliente tiene vencido e impago a hoy, por días de atraso, y lo que todavía no venció.
+      </p>
+      <FormMessage message={msg.at('overdue')} />
+      {overdue && (
+        <>
+          <div className="report-actions">
+            <button type="button" onClick={exportOverdue} disabled={!overdue.customers.length}>
+              Exportar CSV
+            </button>
+          </div>
+          <div className="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Por vencer</th>
+                  {overdue.buckets.map((b) => (
+                    <th key={b.key}>{b.label}</th>
+                  ))}
+                  <th>Total vencido</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdue.customers.length === 0 && (
+                  <tr>
+                    <td colSpan={overdue.buckets.length + 4} className="list-search-empty">
+                      No hay cuotas impagas.
+                    </td>
+                  </tr>
+                )}
+                {overdue.customers.map((c) => (
+                  <tr key={c.customerId}>
+                    <td data-label="Cliente">
+                      {c.name}
+                      {c.maxDaysLate > 0 && (
+                        <small className="row-author installment-overdue">
+                          Atraso máximo: {c.maxDaysLate} {c.maxDaysLate === 1 ? 'día' : 'días'}
+                        </small>
+                      )}
+                    </td>
+                    <td data-label="Por vencer">{money(c.notDue)}</td>
+                    {overdue.buckets.map((b) => (
+                      <td key={b.key} data-label={b.label}>
+                        {c[b.key] ? money(c[b.key]) : '—'}
+                      </td>
+                    ))}
+                    <td data-label="Total vencido">
+                      <strong>{money(c.overdue)}</strong>
+                    </td>
+                    <td data-label="Acciones">
+                      <button type="button" onClick={() => startPayment(c.customerId)}>
+                        Cobrar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {overdue.customers.length > 0 && (
+                  <tr className="row-total">
+                    <td data-label="Cliente">
+                      <strong>Total</strong>
+                    </td>
+                    <td data-label="Por vencer">{money(overdue.totals.notDue)}</td>
+                    {overdue.buckets.map((b) => (
+                      <td key={b.key} data-label={b.label}>
+                        {money(overdue.totals[b.key])}
+                      </td>
+                    ))}
+                    <td data-label="Total vencido">
+                      <strong>{money(overdue.totals.overdue)}</strong>
+                    </td>
+                    <td />
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       <h2 className="report-subtitle">Cobranzas registradas</h2>

@@ -13,6 +13,7 @@ import {
   PurchaseExpense,
   SupplierPayment,
   CustomerPayment,
+  CustomerInstallment,
   Order,
   OrderItem,
   sequelize,
@@ -28,6 +29,8 @@ import { purchaseTotals } from '../utils/purchaseTotals.js';
 import { moveStock, actorFields } from './stock.service.js';
 import { priceOrder, discriminatesVatFor } from './orderPricing.js';
 import { nextOrderNumber, formatOrderNumber } from './orderNumber.service.js';
+import { accountPlan, createOrderInstallments } from './customerInstallment.service.js';
+import { dayKey } from '../utils/dates.js';
 
 const { Op } = pkg;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -55,6 +58,7 @@ const wipeBusinessData = async (businessId, t) => {
   await Purchase.destroy({ where: { businessId }, transaction: t });
   await SupplierPayment.destroy({ where: { businessId }, transaction: t });
   await CustomerPayment.destroy({ where: { businessId }, transaction: t });
+  await CustomerInstallment.destroy({ where: { businessId }, transaction: t });
 
   await StockMovement.destroy({ where: { businessId }, transaction: t });
 
@@ -610,45 +614,82 @@ const seedDemoData = async (businessId, t) => {
     ],
   });
 
-  // Cuenta corriente de clientes: la distribuidora compra a cuenta corriente y paga una parte; el
-  // kiosco tiene deuda de antes de usar el sistema
-  await seedOrder({
-    t,
-    businessId,
-    products,
-    customer: customers.distribuidora,
-    paymentCondition: 'account',
+  // Cuenta corriente de clientes, en cuotas:
+  //   - La distribuidora compró hace 5 días en 3 cuotas sin interés (vencen los 10) y ya pagó la 1ª.
+  //   - Hace 40 días compró en 2 cuotas con 10 % de interés (vencen los 20): la 1ª está vencida.
+  //   - El kiosco tiene deuda de antes de usar el sistema, vencida hace 45 días.
+  // Así el reporte de mora muestra los tramos de 1 a 30 y de 31 a 60 días.
+  const accountOrder = async ({ daysAgo, lines, installments, interestRate, dueDay }) => {
+    const order = await seedOrder({
+      t,
+      businessId,
+      products,
+      customer: customers.distribuidora,
+      paymentCondition: 'account',
+      daysAgo,
+      lines,
+    });
+    const plan = accountPlan({ total: Number(order.total), date: order.date, installments, interestRate, dueDay });
+    await order.update(
+      {
+        installmentsCount: installments,
+        interestRate,
+        installmentAmount: plan.installmentAmount,
+        totalFinanced: plan.totalFinanced,
+        accountDueDay: dueDay,
+      },
+      { transaction: t },
+    );
+    return createOrderInstallments({ order, plan, transaction: t });
+  };
+  const recent = await accountOrder({
     daysAgo: 5,
     lines: [
       ['ALM-004', 20],
       ['BEB-002', 24],
     ],
+    installments: 3,
+    interestRate: 0,
+    dueDay: 10,
   });
-  await seedOrder({
-    t,
-    businessId,
-    products,
-    customer: customers.distribuidora,
-    paymentCondition: 'account',
-    daysAgo: 2,
+  await accountOrder({
+    daysAgo: 40,
     lines: [
       ['ALM-002', 20],
       ['LIM-001', 10],
     ],
+    installments: 2,
+    interestRate: 10,
+    dueDay: 20,
   });
-  await CustomerPayment.create(
+  const first = recent.find((i) => i.number === 1);
+  const payment = await CustomerPayment.create(
     {
       businessId,
       customerId: customers.distribuidora.id,
       paymentId: transferencia.id,
       date: daysAgoDate(3),
-      amount: 30000,
+      amount: Number(first.amount),
       reference: 'Transferencia 0042',
       ...actorFields(DEMO_ACTOR),
     },
     { transaction: t },
   );
+  await first.update({ customerPaymentId: payment.id, paidAt: daysAgoDate(3) }, { transaction: t });
+
   await customers.kiosco.update({ openingBalance: 18500 }, { transaction: t });
+  await CustomerInstallment.create(
+    {
+      businessId,
+      customerId: customers.kiosco.id,
+      orderId: null,
+      number: 1,
+      installmentsCount: 1,
+      dueDate: dayKey(daysAgoDate(45)),
+      amount: 18500,
+    },
+    { transaction: t },
+  );
 };
 
 const resetting = new Set();

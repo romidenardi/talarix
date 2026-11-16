@@ -143,7 +143,7 @@ const OrderPrint = () => {
             </p>
           )}
 
-          {order.installmentsCount && (
+          {order.installmentsCount && order.paymentCondition !== 'account' && (
             <>
               <p>
                 Plan: {order.installmentsCount} cuotas{' '}
@@ -158,7 +158,28 @@ const OrderPrint = () => {
         </div>
 
         {order.paymentCondition === 'account' ? (
-          <p className="print-payment">Condición: Cuenta corriente</p>
+          <div className="print-payment">
+            <p>
+              Condición: Cuenta corriente
+              {Number(order.installmentsCount) > 1 ? ` en ${order.installmentsCount} cuotas` : ''}
+              {Number(order.interestRate) > 0 ? ` (+${order.interestRate}% interés)` : ''}
+            </p>
+            {Number(order.interestRate) > 0 && (
+              <p>
+                <strong>Total con interés: ${Number(order.totalFinanced).toFixed(2)}</strong>
+              </p>
+            )}
+            {order.accountInstallments?.length > 0 && (
+              <ul>
+                {order.accountInstallments.map((inst) => (
+                  <li key={inst.number}>
+                    {order.accountInstallments.length > 1 ? `Cuota ${inst.number}: ` : ''}$
+                    {Number(inst.amount).toFixed(2)}, vence el {inst.dueDate.split('-').reverse().join('/')}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         ) : parts.length > 0 ? (
           <div className="print-payment">
             <p>Formas de pago:</p>
