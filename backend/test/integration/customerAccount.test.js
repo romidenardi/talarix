@@ -458,7 +458,7 @@ describe('Anonimizar un cliente con deuda', () => {
     const warned = await api('POST', path, { token: admin(), body: {} });
     assert.equal(warned.status, 409);
     assert.equal(warned.body.code, 'CUSTOMER_HAS_DEBT');
-    assert.match(warned.body.message, /10000\.00/);
+    assert.match(warned.body.message, /\$10\.000,00/, 'el importe con punto para los miles y coma decimal');
     assert.equal((await models.Customer.findByPk(customer.id)).anonymizedAt, null);
 
     const done = await api('POST', path, { token: admin(), body: { confirmDebt: true } });
