@@ -52,7 +52,7 @@ Al iniciar, el servidor valida las variables obligatorias, verifica que `JWT_SEC
 | `JWT_SECRET` | Sí | Firma de los tokens de usuarios (8 h) |
 | `PLATFORM_JWT_SECRET` | Sí | Firma de los tokens del superadmin (2 h). Debe ser **distinta** de `JWT_SECRET` |
 | `APP_URL` | Sí | URL pública del frontend, sin barra final. Se usa en los links de los mails (activación, restablecer contraseña) |
-| `CORS_ORIGIN` | Sí en la práctica | Origen(es) permitido(s) del frontend, separados por coma y sin barra final. Si está vacío, el navegador no puede llamar a la API |
+| `CORS_ORIGIN` | Sí en la práctica | Origen(es) permitido(s), separados por coma y sin barra final: el frontend y, en producción, también el sitio (`https://talarix.com.ar,https://www.talarix.com.ar`) para el formulario de demo. Si está vacío, el navegador no puede llamar a la API |
 | `PORT` | No | Puerto del servidor (por defecto 3000; Railway lo define solo) |
 | `NODE_ENV` | No | `production` en Railway (oculta detalles de errores) |
 | `DEMO_RESET_ENABLED` | No | `false` desactiva el reinicio nocturno de la demo. En staging y local va en `false`; en producción no se carga (o `true`), porque los términos prometen el reinicio |
@@ -85,25 +85,37 @@ src/
   models/          modelos Sequelize
   middlewares/     auth, roles, demo, errores
   reports/         un archivo por reporte (resumen, por producto, por cliente,
-                   por forma de pago, IVA, inicio) y common.js con lo compartido
-  services/        servicios: creación de remitos (order.service.js),
-                   movimientos de stock (stock.service.js), cálculo
-                   del remito (orderPricing.js), número de remito
-                   (orderNumber.service.js), autorización de descuentos,
-                   variantes de productos (variant.service.js), mesas y
-                   comandas (table.service.js),
-                   importación, datos de la cuenta demo, exportación a Excel,
-                   borrado de un comercio, programador de bajas, vencimiento
-                   de pruebas (trialExpiry.service.js), pedidos de los botones
-                   de baja y arrepentimiento (serviceRequest.service.js) y
-                   limpieza del registro de actividad (auditCleanup.service.js)
+                   por forma de pago, IVA ventas, IVA compras y posición de
+                   IVA, gastos, comisiones, inicio) y common.js con lo compartido
+  services/        servicios:
+                   ventas: remitos (order.service.js), cálculo del remito
+                   (orderPricing.js), número de remito (orderNumber.service.js),
+                   autorización de descuentos (orderApproval.service.js),
+                   comisiones (commission.service.js)
+                   stock y catálogo: movimientos de stock (stock.service.js),
+                   variantes (variant.service.js), combos (combo.service.js),
+                   categorías (category.service.js)
+                   cuentas corrientes: proveedores (supplierAccount.service.js),
+                   clientes (customerAccount.service.js) y sus cuotas y mora
+                   (customerInstallment.service.js)
+                   mesas: mesas y comandas (table.service.js), menú (menu.service.js)
+                   datos y plataforma: importación, datos de la cuenta demo,
+                   exportación a Excel, borrado de un comercio, programador de
+                   bajas, vencimiento de pruebas (trialExpiry.service.js),
+                   pedidos de baja, arrepentimiento y demo
+                   (serviceRequest.service.js) y limpiezas programadas del
+                   registro de actividad y de los pedidos de demo
+                   (auditCleanup.service.js)
   jobs/            tareas programadas (reinicio nocturno de la demo)
   utils/           ayudas: fechas en hora argentina (dates.js), asyncHandler,
-                   httpError, números y cantidades
-                   (numbers.js), getter de columnas decimales
-                   (decimalColumn.js), formato de etiquetas de balanza
-                   (scaleConfig.js), CUIT (taxId.js), contraseñas, tokens
-                   de invitación, versión de términos, mails y links de
+                   httpError, números y cantidades (numbers.js), getter de
+                   columnas decimales (decimalColumn.js), IVA (taxes.js),
+                   totales de compras (purchaseTotals.js), categorías de gasto
+                   (expenseCategories.js), cuotas de cuenta corriente
+                   (accountInstallments.js), formato de etiquetas de balanza
+                   (scaleConfig.js), CUIT (taxId.js), contraseñas, tokens de
+                   invitación, versión de términos (legal.js), mails (mailer.js,
+                   diseño común en emailLayout.js y plantillas) y links de
                    acceso, registro de actividad (audit.js), Sentry
                    (monitoring.js), límite de tareas pesadas (gate.js) y
                    control de la dirección de la base (dbHost.js)
@@ -128,16 +140,20 @@ Todas las rutas cuelgan de `/api`. Salvo `auth` y `platform`, exigen token de us
 | `/combos` | autenticados | Combos de productos |
 | `/scale-config` | `GET`: autenticados; `PUT`: `admin`, `editor` | Formato de las etiquetas de la balanza del comercio |
 | `/payments`, `/customers`, `/suppliers` | autenticados | Formas de pago (cuotas y descuentos), clientes, proveedores |
-| `/purchases`, `/orders` | autenticados | Compras y remitos |
+| `/purchases`, `/orders` | autenticados | Compras y remitos (a cuenta corriente, con cuotas) |
+| `/suppliers/balances`, `/suppliers/:id/account`, `/supplier-payments` | `admin`, `editor` | Cuenta corriente con proveedores: saldos, resumen y pagos |
+| `/customers/balances`, `/customers/:id/account`, `/customers/:id/installments`, `/customers/overdue`, `/customer-payments` | `admin`, `editor` | Cuenta corriente de clientes: saldos, resumen, cuotas, mora y cobranzas |
 | `/orders/:id/cancel` | `admin`, `editor` | Anula un remito y devuelve el stock |
 | `/purchases/:id/cancel` | `admin`, `editor` | Anula una compra y resta del stock lo que había sumado |
 | `/orders/approval` | `operador` | Autorización de un admin o editor (su email y contraseña) para un remito con descuento o precio fuera de lista |
-| `/reports/*` | `admin`, `editor` | Panel de inicio y reportes (ventas, productos, clientes, formas de pago, IVA ventas, IVA compras y posición de IVA) |
+| `/reports/*` | `admin`, `editor` | Panel de inicio y reportes (ventas, productos, clientes, formas de pago, IVA ventas, IVA compras, posición de IVA, gastos y comisiones) |
 | `/imports` | `admin`, `editor` | Importación desde Excel (bloqueada en demo) |
 | `/users` | `admin` | Usuarios del comercio (bloqueada en demo) |
 | `/export` | `admin` | Descarga de todos los datos del comercio en un Excel. **Única ruta disponible durante la baja** |
 | `/tables/*` | autenticados, con el módulo de mesas | Mesas y comandas (ver "Mesas y comandas"). `GET /tables/settings` dice si el comercio tiene el módulo |
 | `/platform/businesses/:id/modules` | superadmin | `PATCH { tables: true \| false }` activa o quita el módulo de mesas. No borra datos |
+| `/auth/session` | autenticados (también el mozo) | Vencimiento de la prueba gratis del comercio (`trialEndsAt`) |
+| `/public/requests` | pública, 5 por hora por IP | Botones de baja y de arrepentimiento, y formulario «Agendá una demo» del sitio |
 | `/data-rights/customers/:id/export` | `admin` | Exporta los datos de un cliente (pedido de acceso) |
 | `/data-rights/customers/:id/anonymize` | `admin` | Anonimiza a un cliente (pedido de supresión), conservando sus remitos |
 
@@ -169,7 +185,6 @@ Detalles que conviene saber:
   - `GET /customers/balances`: saldo de cada cliente. `GET /customers/:id/account?from&to`: resumen de cuenta (saldo anterior, remitos y cobranzas con saldo acumulado y saldo final).
   - **Anonimizar a un cliente con deuda:** `POST /data-rights/customers/:id/anonymize` responde `409` con `code: CUSTOMER_HAS_DEBT` y el importe; con `{ confirmDebt: true }` lo anonimiza igual. La deuda se conserva; se borran la referencia, las notas y el motivo de anulación de sus cobranzas. La exportación de datos del cliente incluye sus cobranzas.
   - Un cliente con cobranzas no se borra; una forma de pago usada en pagos a proveedores o cobranzas, tampoco (se puede desactivar). Las cobranzas entran en la exportación, la purga y el reinicio de la demo.
-- **Mails del sistema** (`utils/emailLayout.js`): todos usan el mismo diseño con la identidad de Talarix (logo, colores y tipografía del sitio; tablas y estilos en línea para Gmail, Outlook y celulares), con recuadros para códigos y fechas y una tabla de datos en los avisos a soporte. Cada mail va también en texto plano. Plantillas: `mailTemplates.js` (invitación, usuario creado, restablecer contraseña), `serviceRequestEmails.js` (demo, baja y arrepentimiento, y el aviso a soporte) y `closureEmails.js` (baja del comercio). `test/unit/emails.test.js` comprueba el diseño, el texto plano y que los datos que escribe la gente no metan HTML.
 - **Cuotas en la cuenta corriente de clientes** (migración `012-cuotas-cuenta-corriente.sql`, `services/customerInstallment.service.js`, cálculos en `utils/accountInstallments.js`, copiados en el frontend y comparados en `frontendParity.test.js`):
   - El remito a cuenta corriente acepta `accountInstallments` (1 a 60, por defecto 1), `accountInterestRate` (% total sobre el remito, opcional) y `accountDueDay` (1 a 31; sin él, el día del mes de la venta). Guarda el total con interés en `total_financed`, la cantidad en `installments_count`, el monto de cada cuota en `installment_amount` y el día en `account_due_day`. La venta (`total`, reportes, comisión) no incluye el interés; el saldo del cliente sí.
   - Las cuotas van en `customer_installments`: iguales, con los centavos de diferencia en la última. La primera vence el próximo día elegido posterior a la venta y las demás, una por mes (si el mes no tiene ese día, el último día del mes). El saldo inicial positivo es una cuota más (sin remito), que se crea, actualiza o anula al editar el cliente; si ya está cobrada, el saldo inicial no se puede cambiar (`409`).
@@ -223,8 +238,8 @@ Detalles que conviene saber:
 ## Tests
 Se usa el corredor de pruebas que viene con Node (`node --test`): no hay librerías extra.
 
-- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), valores de importación, CUIT y contraseñas, configuración de la balanza (la lectura de etiquetas se prueba en el frontend), migraciones, variantes de productos, `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, CUIT, contraseñas). No necesitan base.
-- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos) el vencimiento y la renovación de la prueba gratis, los productos con variantes, y las mesas y comandas (menú con adicionales, rol mozo).
+- **Unitarias** (`npm test`, en `test/unit/`): números y cantidades, fechas, cálculo del remito, IVA e impuestos internos (también de combos), totales de compras, valores de importación, CUIT y contraseñas, configuración de la balanza (la lectura de etiquetas se prueba en el frontend), migraciones, variantes de productos, vencimientos e importes de las cuotas de cuenta corriente, mails del sistema (diseño, texto plano y datos escapados), `gate.js` y `dbHost.js`. También controlan que el frontend calcule igual que el backend (IVA, totales de compras, categorías de gasto, cuotas, balanza, CUIT y contraseñas). No necesitan base.
+- **Integración** (`npm run test:integration`, en `test/integration/`): levantan la API de verdad contra MySQL y prueban remitos (crear, stock, peso, doble envío, falta de stock, anular), la autorización de descuentos del operador, productos y formas de pago inactivos, aislamiento entre comercios, borrado de productos con ventas, compras (IVA, servicios y categorías de gasto, anulación, factura repetida), insumos, cuentas corrientes con proveedores y de clientes (cobranzas por cuota, interés, vencimientos, mora y aviso al anonimizar), comisiones, clientes, usuarios, importación, migraciones, los listados por fecha, los reportes (con importes esperados exactos), el vencimiento y la renovación de la prueba gratis, los pedidos de demo, baja y arrepentimiento, la cuenta demo, los productos con variantes, y las mesas y comandas (menú con adicionales, rol mozo, pasar de mesa y descuento al cobrar).
   - La base de pruebas se arma igual que una base nueva en producción: `runMigrations` (con `sync` y las migraciones marcadas).
   - **Borran y crean de nuevo la base `talarix_test`** (o la de `TEST_DB_NAME`) en cada corrida. Por seguridad, el nombre tiene que terminar en `_test`: no pueden tocar la base de trabajo.
   - En local usan `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` del `.env`. El usuario tiene que poder crear bases (con `root` local alcanza).
@@ -239,7 +254,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 
 ## Seguridad y multi-comercio
 - Todo recurso se filtra por `req.user.businessId`. El middleware de autenticación revalida en cada request que el usuario esté activo y con contraseña, y que el comercio esté activo.
-- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios), `operador` (solo compras y remitos; descuentos y precios fuera de lista con autorización de un admin o editor) y `mozo` (solo Mesas: abre mesas, manda comandas y pide la cuenta; no cobra). Al `mozo` el middleware de autenticación solo le deja usar `/api/tables` (`mozoCanUse` en `auth.middleware.js`): elige los platos del menú y no ve los productos ni sus costos.
+- Roles: `admin` (todo, incluye usuarios, exportación y derechos de datos), `editor` (todo, sin usuarios), `operador` (compras y remitos, también a cuenta corriente, y cobrar y pasar de mesa; descuentos y precios fuera de lista con autorización de un admin o editor; no ve cuentas corrientes ni reportes) y `mozo` (solo Mesas: abre mesas, manda comandas y pide la cuenta; no cobra). Al `mozo` el middleware de autenticación solo le deja usar `/api/tables` (`mozoCanUse` en `auth.middleware.js`): elige los platos del menú y no ve los productos ni sus costos.
 - El **superadmin** usa un login y un token aparte (`/api/platform/*`). Ve metadatos de cuentas, nunca contenido de los comercios ni contraseñas.
 - **Siempre queda un administrador:** para quitar el rol, desactivar o borrar a un `admin`, el servidor bloquea los usuarios del comercio durante el cambio (`lockUsersOf`), revisa que quien lo pide siga siendo administrador y que quede otro activo (`assertAnotherAdmin`). Si dos administradores se quitan el rol al mismo tiempo, el segundo es rechazado.
 - Los usuarios se crean de dos maneras: el administrador del comercio les asigna una contraseña, o les manda una **invitación** por mail para que elijan la suya.
@@ -255,7 +270,7 @@ Al agregar algo que mueve stock o plata, sumar su prueba. Antes de hacer el merg
 - **Sesiones:** el token dura 8 h y lleva la versión de sesión del usuario (`tv`, columna `users.token_version`). Al restablecer la contraseña, o cuando el administrador le pone una nueva, la versión sube y las sesiones abiertas con la contraseña anterior dejan de valer. Cambiar el rol o desactivar al usuario se aplica en el pedido siguiente, porque el middleware los lee de la base. Cerrar sesión solo borra el token en ese navegador. Los tokens se verifican solo con `HS256`.
 - **Contraseñas:** mínimo 8 caracteres y máximo 72 **bytes** (el límite de bcrypt), en `utils/password.js`. Se rechazan las fáciles de adivinar (`utils/passwordStrength.js`, el mismo archivo que en el frontend): las más usadas, un carácter repetido, secuencias (`12345678`, `abcdefgh`, `qwerty…`), las que contienen "talarix" y las que contienen el nombre o el email de la persona. Se guardan con bcrypt de 12 vueltas (`BCRYPT_ROUNDS`), igual que el superadmin. Las contraseñas guardadas antes con 10 siguen funcionando y pasan a 12 cuando se cambian.
 - **Emails registrados:** el ingreso tarda lo mismo exista o no el email (si no existe, se compara contra un hash falso: `compareWithDummy`), y responde siempre "Credenciales inválidas". Al crear un usuario con un email que ya existe, el mensaje no dice de qué comercio es. El email es único en todo el sistema (es el usuario para ingresar), así que ese aviso no se puede evitar del todo; lo limita el tope de 30 usuarios nuevos por día por comercio.
-- Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo (`demo.service.js`: productos, insumos con su compra y su uso, compras con servicios —flete, alquiler y luz al 27 %—, clientes y remitos), se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
+- Cuenta **demo** (`Business.type = 'demo'`): datos de ejemplo (`demo.service.js`: productos, insumos con su compra y su uso, compras con servicios —flete, alquiler y luz al 27 %— y sus categorías de gasto, pagos a proveedores, clientes y remitos, y cuenta corriente de clientes en cuotas con una cobranza y cuotas vencidas para ver la mora), se reinicia todas las noches a las 03:00 (hora de Buenos Aires; `jobs/demoReset.job.js`, encendido desde `server.js`), con gestión de usuarios e importación bloqueadas. Nunca se da de baja ni se purga. Con `DEMO_RESET_ENABLED=false` (staging y local) no se reinicia; en producción tiene que estar encendido porque los términos lo prometen.
 
 ## Mesas y comandas
 
@@ -276,7 +291,7 @@ Para restaurantes, bares y cafés (`services/table.service.js` y `services/menu.
 
 ## Mails
 
-Los mails salen por SMTP con Nodemailer. Hay: invitación, aviso de usuario creado (nunca incluye la contraseña), restablecer contraseña y avisos de baja del comercio (plantillas en `src/utils/closureEmails.js`).
+Los mails salen por SMTP con Nodemailer. Hay: invitación, aviso de usuario creado (nunca incluye la contraseña), restablecer contraseña, constancias de los pedidos de demo, baja y arrepentimiento (con el aviso a `SUPPORT_EMAIL`) y aviso de baja del comercio.
 
 ```
 MAIL_HOST=mail.talarix.com.ar
@@ -291,13 +306,14 @@ SUPPORT_EMAIL=hola@talarix.com.ar
 - Si las variables `MAIL_*` faltan o el envío falla, el sistema **no se rompe**: avisa que el mail no salió y muestra el link para copiarlo y pasarlo por otro medio.
 - Para cambiar de proveedor (Resend, Brevo, etc.) alcanza con cambiar las variables.
 - Si el mail cae en spam, revisar SPF y DKIM del dominio (en cPanel: *Email Deliverability*).
-- Plantillas: `src/utils/mailTemplates.js`, `src/utils/closureEmails.js` y `src/utils/serviceRequestEmails.js` (botones de baja y arrepentimiento).
+- Plantillas: `src/utils/mailTemplates.js` (acceso), `src/utils/serviceRequestEmails.js` (demo, baja y arrepentimiento) y `src/utils/closureEmails.js` (baja del comercio).
+- **Mails del sistema** (`utils/emailLayout.js`): todos usan el mismo diseño con la identidad de Talarix (logo, colores y tipografía del sitio; tablas y estilos en línea para Gmail, Outlook y celulares), con recuadros para códigos y fechas y una tabla de datos en los avisos a soporte. Cada mail va también en texto plano. Plantillas: `mailTemplates.js` (invitación, usuario creado, restablecer contraseña), `serviceRequestEmails.js` (demo, baja y arrepentimiento, y el aviso a soporte) y `closureEmails.js` (baja del comercio). `test/unit/emails.test.js` comprueba el diseño, el texto plano y que los datos que escribe la gente no metan HTML.
 
 ## Baja de comercios
 
 La baja la ejecuta el superadmin desde `/plataforma` ("Dar de baja"). Solo aplica a comercios de tipo `client`.
 
-**Botones de baja y de arrepentimiento** (Res. 316/2018 y 424/2020). Las páginas públicas `/baja` y `/arrepentimiento` del frontend (enlazadas desde el ingreso, los textos legales y el sitio) mandan `POST /api/public/requests` con `{ kind: 'cancellation' | 'withdrawal', name, email, businessName?, reason? }`, sin sesión:
+**Botones de baja y de arrepentimiento** (Res. 316/2018 y 424/2020). Las páginas públicas `/baja` y `/arrepentimiento` del frontend (enlazadas desde el ingreso, los textos legales y el sitio) mandan `POST /api/public/requests` con `{ kind: 'cancellation' | 'withdrawal', name, email, businessName?, reason? }`, sin sesión. El formulario «Agendá una demo» del sitio usa la misma ruta con `kind: 'demo'` (código `DEM-XXXXXXXX`, empresa y comentarios): para eso `CORS_ORIGIN` incluye el dominio del sitio. Los pedidos de demo se borran solos a los 6 meses (`DEMO_REQUEST_RETENTION_MONTHS` en `services/auditCleanup.service.js`, junto con la limpieza del registro de actividad); los de baja y arrepentimiento se conservan:
 - Se guarda en `service_requests` (migración `005`) con un código (`BAJ-XXXXXXXX` o `ARR-XXXXXXXX`) que se le manda al instante por mail a quien lo pidió, junto con un aviso a `SUPPORT_EMAIL`. La respuesta es la misma exista o no una cuenta con ese email; si existe, el pedido queda vinculado a ese comercio.
 - Tope de 5 pedidos por hora por IP, y un campo oculto que solo completan los robots (`website`).
 - El superadmin los ve arriba de todo en `/plataforma` (`GET /api/platform/requests?status=pending`) y los marca resueltos con una nota (`PATCH /api/platform/requests/:id`). Marcarlo **no** da de baja ni devuelve dinero: la baja se hace con el paso 1 de abajo, y la devolución del arrepentimiento, por fuera del sistema.
@@ -384,6 +400,24 @@ No guarda contraseñas, códigos ni datos de clientes: solo IDs, roles y estados
 - **Base nueva** (vacía, sin la tabla `businesses`): se crea completa desde los modelos con `sync()` y todas las migraciones se dan por aplicadas. Por eso **cada cambio va en los dos lados: la migración y el modelo**.
 - **Si una migración falla**, el servidor no arranca y el log dice cuál y en qué sentencia (`Migración 003-…, sentencia 2: …`). En Railway, el deploy queda fallado y sigue andando la versión anterior. MySQL no deshace los `ALTER`: si la sentencia 1 se aplicó y la 2 no, corregir a mano en la base lo que quedó a medias, arreglar el archivo y volver a desplegar.
 - `npm run migrate` aplica las pendientes sin levantar el servidor; `npm run migrate -- --status` muestra cuáles están aplicadas y cuáles no.
+
+**Migraciones aplicadas hasta hoy**
+
+| Archivo | Qué hace |
+|---|---|
+| `000-punto-de-partida.sql` | Marca desde dónde se cuentan las migraciones (no cambia nada) |
+| `001-motivo-de-suspension.sql` | Motivo de la suspensión del comercio (manual o por vencimiento de la prueba) |
+| `002-variantes-de-productos.sql` | Productos con variantes (`parent_id`, `variant_attributes`, `variant_values`, `own_price`) |
+| `003-mesas-y-comandas.sql` | Mesas, cuentas, comandas y platos pedidos; partes y propinas del cobro; rol mozo |
+| `004-menu-y-adicionales.sql` | Menú de platos y adicionales (`menu_kind`, `track_stock`, `menu_item_extras`) |
+| `005-solicitudes-de-baja-y-arrepentimiento.sql` | Pedidos de los botones de baja y arrepentimiento (`service_requests`), que después usa también el pedido de demo |
+| `006-iva-en-compras.sql` | IVA por renglón y neto, IVA y total en las compras |
+| `007-insumos-y-servicios.sql` | Insumos (`is_supply`) y servicios y gastos en las compras (`purchase_expenses`) |
+| `008-cuenta-corriente-proveedores.sql` | Condición de las compras, saldo inicial y pagos a proveedores |
+| `009-categorias-de-gasto.sql` | Categoría de gasto de cada servicio de una compra |
+| `010-cuenta-corriente-clientes.sql` | Condición de los remitos, saldo inicial de clientes y cobranzas; la forma de pago del remito pasa a ser opcional |
+| `011-comisiones.sql` | % de comisión de cada usuario y la comisión guardada en cada remito |
+| `012-cuotas-cuenta-corriente.sql` | Cuotas de la cuenta corriente de clientes (convierte lo que había) y día de vencimiento del remito |
 
 **Cómo escribir una migración**
 1. Crear `migrations/NNN-descripcion-corta.sql` con el número siguiente (tres cifras). Cada sentencia termina en `;` **al final de la línea**. Comentarios con `--` en su propia línea.
@@ -617,4 +651,4 @@ La versión vigente de los Términos y Condiciones y de la Política de Privacid
 - **Vencimiento de la prueba gratis:** `GET /api/auth/session` (con sesión, también el mozo) responde `{ trialEndsAt }` (null en la demo o sin vencimiento), para que la app lo muestre (Términos, cláusula 16.1).
 
 ---
-Última actualización: 27/10/2026 (migraciones, reportes en la base, vencimiento de pruebas, red privada y permisos mínimos de la base, limpieza de comentarios).
+Última actualización: 16/11/2026 (IVA en compras, insumos y servicios, cuentas corrientes con proveedores y de clientes con cuotas y mora, comisiones, mesas: pase y descuento, pedidos de demo y mails con diseño).

@@ -45,6 +45,9 @@ En Vercel hay una variable por entorno: una para **Production** y otra para **Pr
 | `/orders/:id/print` | usuarios autenticados (remito para imprimir) |
 | `/exportar` | usuarios autenticados; la pantalla solo deja exportar al `admin`. Es la única disponible cuando el comercio está en baja |
 | `/reports`, `/categories`, `/payments`, `/customers`, `/products`, `/suppliers`, `/imports` | `admin` y `editor` |
+| `/insumos` | `admin` y `editor` (insumos) |
+| `/cuentas-proveedores`, `/cuentas-proveedores/:id/imprimir` | `admin` y `editor` (cuenta corriente con proveedores y su resumen para imprimir) |
+| `/cuentas-clientes`, `/cuentas-clientes/:id/imprimir` | `admin` y `editor` (cuenta corriente de clientes: cobranzas, cuotas, mora y resumen para imprimir) |
 | `/mesas` | todos, si el comercio tiene el módulo de mesas (lo activa el superadmin). El `mozo` solo ve esta pantalla |
 | `/mesas/comandas/:id/imprimir` | usuarios autenticados (comanda para la cocina, ticket de 80 mm) |
 | `/users` | `admin` |
@@ -64,11 +67,19 @@ src/
   pages/        una carpeta por pantalla (Export/ tiene la exportación de datos)
   legal/        textos de términos y privacidad (legalContent.js)
   routes/       definición de rutas y rutas privadas
-  utils/        ayudas de formato y descarga de archivos (download.js),
-                cantidades y productos por peso (quantity.js), lectura de
-                etiquetas de balanza (scale.js), CUIT (taxId.js),
-                contraseñas, IVA (taxes.js) y errores del servidor
-                (serverErrors.js)
+  utils/        ayudas de formato de reportes (reportFormat.js) y descarga
+                de archivos (download.js), cantidades y productos por peso
+                (quantity.js), lectura de etiquetas de balanza (scale.js),
+                CUIT (taxId.js), contraseñas, IVA (taxes.js), totales de
+                compras (purchaseTotals.js), categorías de gasto
+                (expenseCategories.js), cuotas de cuenta corriente
+                (accountInstallments.js), saldos (supplierAccounts.js y
+                customerAccounts.js), número de remito (orderNumber.js),
+                formas de pago de un remito (orderPayments.js), variantes
+                (variants.js), búsqueda (search.js) y errores del servidor
+                (serverErrors.js). Los que calculan lo mismo que el backend
+                son copias y backend/test/unit/frontendParity.test.js
+                controla que coincidan
   index.css     estilos globales y variables de color
 ```
 
@@ -100,13 +111,13 @@ src/
 - **Solicitudes de baja y arrepentimiento** (`/plataforma`): arriba de todo, los pedidos pendientes de los botones públicos, con código, fecha, nombre, email y la cuenta de ese email si existe. **Marcar resuelta** pide una nota opcional. Resolverla solo la anota: la baja se hace con **Dar de baja** del comercio y la devolución del arrepentimiento, por fuera del sistema.
 - **Módulos** (`/plataforma`): cada comercio tiene el botón **Activar mesas** / **Quitar mesas**; la fila muestra «Módulo: mesas» si lo tiene.
 - **Plataforma:** al crear un comercio o reinvitar, se envía el mail con el link y se muestra además para copiarlo y compartirlo por WhatsApp.
-- **Menú lateral agrupado** (`Layout.jsx`): Inicio y Reportes arriba, y después las secciones Mi comercio (Productos, Categorías, Formas de pago), Gastronomía (Mesas), Ventas (Clientes, Remitos, Cuentas corrientes), Compras (Proveedores, Compras) y Utilidades (Usuarios, Importar, Exportar). Cada sección muestra solo lo que el rol puede usar; si no le queda nada (por ejemplo, Gastronomía sin el módulo de mesas), no aparece.
+- **Menú lateral agrupado** (`Layout.jsx`): Inicio y Reportes arriba, y después las secciones Mi comercio (Productos, Categorías, Formas de pago), Gastronomía (Mesas), Ventas (Clientes, Remitos, Cuentas corrientes), Compras (Proveedores, Compras, Insumos, Cuentas corrientes) y Utilidades (Usuarios, Importar, Exportar). Cada sección muestra solo lo que el rol puede usar; si no le queda nada (por ejemplo, Gastronomía sin el módulo de mesas), no aparece.
 - **Menú en el celular:** se muestra como menú hamburguesa (barra superior con botón, y panel lateral con fondo oscurecido).
 - **Categoría de un producto** (`components/common/CategoryOptions.jsx`, en Productos, Combos y Menú): los rubros con subcategorías aparecen como título de su grupo y no se pueden elegir; sí sus subcategorías y las categorías sin subcategorías. Si un producto ya estaba en un rubro, se muestra deshabilitado para cambiarlo.
 - **Insumos** (`pages/Supplies/Supplies.jsx`, `/insumos`, admin y editor, en el menú Compras): alta, edición, baja y stock de los insumos (productos con `isSupply`). No tienen precio de venta y no aparecen en Productos ni en Remitos. Lo que se usa se descuenta con un egreso de stock.
 - **Servicios y gastos en Compras:** con «+ Agregar servicio o gasto» se cargan renglones con concepto, cantidad, importe sin IVA e IVA (27 %, 21 %, 10,5 % o 0 %). No mueven stock, y cada uno lleva una categoría de gasto (`utils/expenseCategories.js`, copia de la lista del backend). Una compra puede ser solo de servicios. En el buscador de productos, los insumos dicen «(insumo)». Desde el mismo buscador se puede crear un producto («+ Nuevo producto...») o un insumo («+ Nuevo insumo...», sin precio de venta ni impuestos internos) junto con la compra.
 - **Cuenta corriente con proveedores** (`pages/SupplierAccounts/`, `/cuentas-proveedores`, admin y editor, en el menú Compras): deuda total, formulario para registrar pagos (con aviso si el pago supera la deuda), saldo de cada proveedor, resumen de cuenta por período (`StatementTable.jsx`) con versión para imprimir (`/cuentas-proveedores/:id/imprimir?from&to`) y lista de pagos con anulación. En Compras, la condición «Contado» o «Cuenta corriente»; en Proveedores, al editar, el saldo inicial.
-- **Cuenta corriente de clientes** (`pages/CustomerAccounts/`, `/cuentas-clientes`, admin y editor, en el menú Ventas): lo mismo que la de proveedores, con cobranzas (total que deben los clientes, formulario con aviso si la cobranza supera la deuda, saldos, resumen por período con versión para imprimir en `/cuentas-clientes/:id/imprimir?from&to` para mandarle al cliente, y lista de cobranzas con anulación). `StatementTable.jsx` se comparte, con otros títulos de columna (`debitLabel`, `creditLabel`) y otra forma de decir el saldo (`utils/customerAccounts.js`: «Debe $…» / «A favor $…»). En Remitos, el campo **Condición** (Contado o Cuenta corriente): a cuenta corriente se ocultan la forma de pago y las cuotas, y admin y editor ven el saldo actual del cliente; la lista y el remito impreso dicen «Cuenta corriente». En Clientes, la columna **Saldo** y, al editar, el saldo inicial. Al anonimizar a un cliente con deuda aparece un segundo aviso con el importe.
+- **Cuenta corriente de clientes** (`pages/CustomerAccounts/`, `/cuentas-clientes`, admin y editor, en el menú Ventas): lo mismo que la de proveedores, con cobranzas (total que deben los clientes y total vencido, formulario de cobranza eligiendo las cuotas, saldos, resumen por período con versión para imprimir en `/cuentas-clientes/:id/imprimir?from&to` para mandarle al cliente, y lista de cobranzas con anulación). `StatementTable.jsx` se comparte, con otros títulos de columna (`debitLabel`, `creditLabel`) y otra forma de decir el saldo (`utils/customerAccounts.js`: «Debe $…» / «A favor $…»). En Remitos, el campo **Condición** (Contado o Cuenta corriente): a cuenta corriente se ocultan la forma de pago y las cuotas, y admin y editor ven el saldo actual del cliente; la lista y el remito impreso dicen «Cuenta corriente». En Clientes, la columna **Saldo** y, al editar, el saldo inicial. Al anonimizar a un cliente con deuda aparece un segundo aviso con el importe.
 - **Cuotas en la cuenta corriente de clientes:** en Remitos, a cuenta corriente aparecen Cuotas, Interés total (%) y «Vencen el día» (este navegador recuerda el último día usado), con la vista previa de las cuotas y el primer vencimiento (`utils/accountInstallments.js`, igual que el servidor). El remito impreso lista cada cuota con su vencimiento. En Cuentas corrientes, la cobranza se hace eligiendo las cuotas (se cobran completas); el resumen de cada cliente muestra sus cuotas con el estado, y abajo está la **Mora** por tramos de atraso, con exportación a CSV y el total vencido arriba.
 - **Comisiones** (opcionales): en Usuarios, campo «Comisión por venta (%)» al crear y al editar, y columna Comisión. En Reportes, la solapa **Comisiones** aparece solo si algún usuario tiene % (`enabled` del servidor): totales, tabla por vendedor y detalle por remito con exportación a CSV.
 - **Compras con IVA:** cada renglón tiene costo unitario **sin IVA** y alícuota (arranca con la del producto). Abajo se ven el neto, el IVA por alícuota y el total, con `utils/purchaseTotals.js` (copia del cálculo del backend).
@@ -163,4 +174,4 @@ Al cambiar los textos:
 Flujo de trabajo, cambios en la base y variables del servidor: ver el README del backend. Recordá hacer `git add` y `commit` desde la **raíz del repo**.
 
 ---
-Última actualización: 27/10/2026 (listados por período, prueba gratis en /plataforma, avisos de la balanza, limpieza de comentarios).
+Última actualización: 16/11/2026 (insumos y servicios, IVA en compras, cuentas corrientes con proveedores y de clientes con cuotas y mora, comisiones, mesas: pase y descuento, vencimiento de la prueba visible).
